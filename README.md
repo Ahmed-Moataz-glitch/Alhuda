@@ -31,10 +31,11 @@
 
 ## ✨ Features
 
-- ✅ Building native splash screen 
-- ✅ 
-- ✅ 
-- 🔜 
+- ✅ Building native splash screen
+- ✅ Free Tasbeeh counter (التسبيح الحر)
+- ✅ Daily Azkar list with interactive cards (الاذكار)
+- ✅ Qibla direction compass with real-time sensors, alignment indicator, and Kaaba distance (اتجاه القبلة)
+- ✅ Hourly local notifications for Dhikr
 
 ---
 
@@ -45,8 +46,12 @@
 | Flutter | UI framework |
 | Dart | Programming language |
 | flutter_native_splash | Building native splash screen |
-| buttons_tabbar | custom tab bar |
+| buttons_tabbar | Custom tab bar |
 | flutter_screenutil | Make screens responsive |
+| flutter_qiblah | Real-time Qibla compass & sensor stream |
+| qibla | Kaaba geodesic distance and bearing calculations |
+| geolocator | Location permissions and coordinates |
+| flutter_local_notifications | Periodic reminder notifications |
 
 ---
 

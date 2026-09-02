@@ -1,11 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Notification and background permissions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Common permissions you may need -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Android 13+ -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- If you actually run a foreground service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Location permissions for Qibla direction -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:label="الهُدى"

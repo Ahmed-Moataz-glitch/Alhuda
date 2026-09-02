@@ -1,6 +1,7 @@
 import 'package:alhuda/view/widgets/app_colors.dart';
 import 'package:alhuda/view/widgets/tasbeeh_widget.dart';
 import 'package:alhuda/view/widgets/azkar_widget.dart';
+import 'package:alhuda/view/widgets/qibla_widget.dart';
 import 'package:buttons_tabbar/buttons_tabbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -19,7 +20,7 @@ class _HomePageState extends State<HomePage>
   @override
   void initState() {
     super.initState();
-    tabController = TabController(length: 2, vsync: this);
+    tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -47,7 +48,7 @@ class _HomePageState extends State<HomePage>
         centerTitle: true,
       ),
       body: DefaultTabController(
-        length: 2,
+        length: 3,
         child: Column(
           children: [
             SizedBox(height: size.height * 0.04),
@@ -59,6 +60,7 @@ class _HomePageState extends State<HomePage>
                 tabs: const [
                   Tab(text: 'التسبيح الحر'),
                   Tab(text: 'الاذكار'),
+                  Tab(text: 'القبلة'),
                 ],
                 labelStyle: TextStyle(
                   fontSize: 16.sp,
@@ -73,7 +75,11 @@ class _HomePageState extends State<HomePage>
             Expanded(
               child: TabBarView(
                 controller: tabController,
-                children: [TasbeehWidget(), AzkarWidget()],
+                children: const [
+                  TasbeehWidget(),
+                  AzkarWidget(),
+                  QiblaWidget(),
+                ],
               ),
             ),
           ],
