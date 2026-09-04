@@ -19,6 +19,10 @@ dependencies:
   flutter_qiblah: ^3.2.0
   qibla: ^1.1.0
   geolocator: ^14.0.2
+  muslim_data_flutter: ^1.4.1
+  audioplayers: ^6.1.0
+  android_alarm_manager_plus: ^5.1.1
+  quran_kit: ^0.2.0
 
 dev_dependencies:
   flutter_test:
@@ -33,6 +37,7 @@ flutter:
   assets:
     - assets/images/
     - assets/fonts/
+    - assets/audio/
 
   fonts:
     - family: Almarai

@@ -2,6 +2,7 @@ import 'package:alhuda/view/widgets/app_colors.dart';
 import 'package:alhuda/view/widgets/tasbeeh_widget.dart';
 import 'package:alhuda/view/widgets/azkar_widget.dart';
 import 'package:alhuda/view/widgets/qibla_widget.dart';
+import 'package:alhuda/view/widgets/prayer_times_widget.dart';
 import 'package:buttons_tabbar/buttons_tabbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -20,7 +21,7 @@ class _HomePageState extends State<HomePage>
   @override
   void initState() {
     super.initState();
-    tabController = TabController(length: 3, vsync: this);
+    tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -48,16 +49,17 @@ class _HomePageState extends State<HomePage>
         centerTitle: true,
       ),
       body: DefaultTabController(
-        length: 3,
+        length: 4,
         child: Column(
           children: [
             SizedBox(height: size.height * 0.04),
             Directionality(
               textDirection: TextDirection.rtl,
               child: ButtonsTabBar(
-                contentCenter: true,
+                contentCenter: false,
                 controller: tabController,
                 tabs: const [
+                  Tab(text: 'مواقيت الصلاة'),
                   Tab(text: 'التسبيح الحر'),
                   Tab(text: 'الاذكار'),
                   Tab(text: 'القبلة'),
@@ -76,6 +78,7 @@ class _HomePageState extends State<HomePage>
               child: TabBarView(
                 controller: tabController,
                 children: const [
+                  PrayerTimesWidget(),
                   TasbeehWidget(),
                   AzkarWidget(),
                   QiblaWidget(),
