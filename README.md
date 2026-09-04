@@ -32,6 +32,9 @@
 ## ✨ Features
 
 - ✅ Building native splash screen
+- ✅ Prayer times with live countdown to next prayer & offline city search (مواقيت الصلاة)
+- ✅ 8 Offline Adhan sounds: Sheikh Nasser Al-Qatami (مميز), Makkah (Ali Mullah), Madinah, Mishary Alafasy, Ahmed Basnawi, Essam Khan, Ahmad Khoja, and Dubai Adhan (أصوات الأذان والتنبيهات 100% أوفلاين)
+- ✅ Automatic background Adhan audio playback and notifications at exact prayer times via `android_alarm_manager_plus` and `flutter_local_notifications` (تشغيل الأذان التلقائي في موعد الصلاة)
 - ✅ Free Tasbeeh counter (التسبيح الحر)
 - ✅ Daily Azkar list with interactive cards (الاذكار)
 - ✅ Qibla direction compass with real-time sensors, alignment indicator, and Kaaba distance (اتجاه القبلة)
@@ -48,10 +51,13 @@
 | flutter_native_splash | Building native splash screen |
 | buttons_tabbar | Custom tab bar |
 | flutter_screenutil | Make screens responsive |
+| muslim_data_flutter | Offline prayer times, calculation methods, and geocoding |
+| audioplayers | Cross-platform audio playback and streaming for Adhan |
+| android_alarm_manager_plus | Exact system-level background alarms for prayer times |
+| flutter_local_notifications | Adhan notification sound channel and reminder notifications |
 | flutter_qiblah | Real-time Qibla compass & sensor stream |
 | qibla | Kaaba geodesic distance and bearing calculations |
 | geolocator | Location permissions and coordinates |
-| flutter_local_notifications | Periodic reminder notifications |
 
 ---
 
