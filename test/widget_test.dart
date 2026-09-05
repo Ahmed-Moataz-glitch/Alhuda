@@ -27,6 +27,11 @@ void main() {
       const MethodChannel('xyz.luan/audioplayers'),
       (MethodCall methodCall) async => 1,
     );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (MethodCall methodCall) async => '.',
+    );
   });
 
   testWidgets('App renders tabs including Qibla smoke test', (WidgetTester tester) async {
@@ -41,6 +46,7 @@ void main() {
 
     // Verify app title and tabs exist
     expect(find.text('الهُدى'), findsOneWidget);
+    expect(find.text('المصحف الشريف'), findsOneWidget);
     expect(find.text('مواقيت الصلاة'), findsOneWidget);
     expect(find.text('التسبيح الحر'), findsOneWidget);
     expect(find.text('الاذكار'), findsOneWidget);
