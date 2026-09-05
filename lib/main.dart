@@ -1,3 +1,4 @@
+import 'package:alhuda/services/quran_service.dart';
 import 'package:alhuda/view/pages/home_page.dart';
 import 'package:alhuda/view/widgets/app_constants.dart';
 import 'package:alhuda/view/widgets/notification_services.dart';
@@ -23,6 +24,12 @@ void main() async {
     );
   } catch (e) {
     debugPrint('NotificationServices initialization error: $e');
+  }
+
+  try {
+    await QuranService.instance.init();
+  } catch (e) {
+    debugPrint('QuranService initialization error: $e');
   }
 
   FlutterNativeSplash.remove();
