@@ -6,9 +6,13 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:hijri_date/hijri_date.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Hijri date in Arabic
+  HijriDate.setLocal('ar');
 
   try {
     await AndroidAlarmManager.initialize();
