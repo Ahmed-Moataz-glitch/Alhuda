@@ -8,6 +8,7 @@ import 'package:alhuda/view/widgets/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:hijri_date/hijri_date.dart';
 import 'package:muslim_data_flutter/muslim_data_flutter.dart';
 
 class PrayerTimesWidget extends StatefulWidget {
@@ -214,6 +215,11 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
     final period = hour >= 12 ? 'م' : 'ص';
     final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
     return '${displayHour.toString().padLeft(2, '0')}:$minute $period';
+  }
+
+  String _formatHijriDate() {
+    final hijri = HijriDate.fromDate(_now);
+    return '${hijri.dayWeName}، ${hijri.hDay} ${hijri.longMonthName} ${hijri.hYear} هـ';
   }
 
   String _formatCurrentDate() {
@@ -722,9 +728,18 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
               child: Column(
                 children: [
                   Text(
+                    _formatHijriDate(),
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.background,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
                     _formatCurrentDate(),
                     style: TextStyle(
-                      fontSize: 13.sp,
+                      fontSize: 12.sp,
                       color: AppColors.background.withAlpha(200),
                     ),
                   ),

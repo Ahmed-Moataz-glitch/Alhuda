@@ -46,8 +46,11 @@ void main() {
 
     // Verify app title and tabs exist
     expect(find.text('الهُدى'), findsOneWidget);
+    expect(find.textContaining('هـ'), findsWidgets);
+    expect(find.textContaining('م'), findsWidgets);
     expect(find.text('المصحف الشريف'), findsOneWidget);
     expect(find.text('مواقيت الصلاة'), findsOneWidget);
+    expect(find.text('التقويم الهجري'), findsOneWidget);
     expect(find.text('التسبيح الحر'), findsOneWidget);
     expect(find.text('الاذكار'), findsOneWidget);
     expect(find.text('القبلة'), findsOneWidget);
