@@ -6,6 +6,7 @@ import 'package:alhuda/view/widgets/qibla_widget.dart';
 import 'package:alhuda/view/widgets/prayer_times_widget.dart';
 import 'package:alhuda/view/widgets/quran_widget.dart';
 import 'package:alhuda/view/widgets/hijri_calendar_widget.dart';
+import 'package:alhuda/view/widgets/allah_names_widget.dart';
 import 'package:buttons_tabbar/buttons_tabbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -40,7 +41,7 @@ class _HomePageState extends State<HomePage>
   @override
   void initState() {
     super.initState();
-    tabController = TabController(length: 7, vsync: this);
+    tabController = TabController(length: 8, vsync: this);
   }
 
   @override
@@ -160,7 +161,7 @@ class _HomePageState extends State<HomePage>
         ),
       ),
       body: DefaultTabController(
-        length: 7,
+        length: 8,
         child: Column(
           children: [
             SizedBox(height: size.height * 0.02),
@@ -175,6 +176,7 @@ class _HomePageState extends State<HomePage>
                   Tab(text: 'التقويم الهجري'),
                   Tab(text: 'التسبيح الحر'),
                   Tab(text: 'الاذكار'),
+                  Tab(text: 'أسماء الله الحسنى'),
                   Tab(text: 'الفقه الإسلامي'),
                   Tab(text: 'القبلة'),
                 ],
@@ -197,6 +199,7 @@ class _HomePageState extends State<HomePage>
                   HijriCalendarWidget(),
                   TasbeehWidget(),
                   AzkarWidget(),
+                  AllahNamesWidget(),
                   FiqhWidget(),
                   QiblaWidget(),
                 ],
