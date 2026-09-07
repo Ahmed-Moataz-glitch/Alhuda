@@ -138,6 +138,8 @@ class MushafPageWidget extends StatefulWidget {
   final bool showTajweed;
   final int? selectedSurah;
   final int? selectedAyah;
+  final int? playingSurah;
+  final int? playingAyah;
   final double? fontSize;
   final MushafThemeMode themeMode;
   final Function(int surahNumber, int verseNumber, String verseText) onAyahTapped;
@@ -150,6 +152,8 @@ class MushafPageWidget extends StatefulWidget {
     this.showTajweed = true,
     this.selectedSurah,
     this.selectedAyah,
+    this.playingSurah,
+    this.playingAyah,
     this.fontSize,
     this.themeMode = MushafThemeMode.parchment,
     required this.onAyahTapped,
@@ -332,7 +336,11 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
                         tajweed: widget.showTajweed,
                       );
 
-                      final highlightedAyah = (widget.selectedSurah != null && widget.selectedAyah != null)
+                      final playingAyah = (widget.playingSurah != null && widget.playingAyah != null)
+                          ? (surah: widget.playingSurah!, ayah: widget.playingAyah!)
+                          : null;
+
+                      final selectedAyah = (widget.selectedSurah != null && widget.selectedAyah != null)
                           ? (surah: widget.selectedSurah!, ayah: widget.selectedAyah!)
                           : null;
 
@@ -372,7 +380,8 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
                                   fontSize: effectiveFontSize,
                                   textColor: textColor,
                                   ayahColor: ayahColor,
-                                  highlightedAyah: highlightedAyah,
+                                  playingAyah: playingAyah,
+                                  selectedAyah: selectedAyah,
                                   highlightColor: config.highlightColor,
                                   onAyahTapped: widget.onAyahTapped,
                                 );
@@ -527,16 +536,30 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
     required double fontSize,
     required Color textColor,
     required Color ayahColor,
-    required ({int surah, int ayah})? highlightedAyah,
+    required ({int surah, int ayah})? playingAyah,
+    required ({int surah, int ayah})? selectedAyah,
     required Color highlightColor,
     required void Function(int surahNumber, int verseNumber, String verseText) onAyahTapped,
   }) {
     final spans = <InlineSpan>[];
 
     for (final seg in block.segments) {
-      final isHighlighted = highlightedAyah != null &&
-          seg.surahNumber == highlightedAyah.surah &&
-          seg.ayahNumber == highlightedAyah.ayah;
+      final isPlaying = playingAyah != null &&
+          seg.surahNumber == playingAyah.surah &&
+          seg.ayahNumber == playingAyah.ayah;
+
+      final isSelected = selectedAyah != null &&
+          seg.surahNumber == selectedAyah.surah &&
+          seg.ayahNumber == selectedAyah.ayah;
+
+      final isHighlighted = isPlaying || isSelected;
+
+      // When playing, use full highlight color. If manually selected at the same time, give selected a soft tint.
+      final Color? bgColor = isPlaying
+          ? highlightColor
+          : (isSelected
+              ? (playingAyah != null ? highlightColor.withAlpha(100) : highlightColor)
+              : null);
 
       spans.add(TextSpan(
         text: seg.glyphs,
@@ -546,7 +569,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
           height: 1.95,
           wordSpacing: -1.0,
           color: isHighlighted ? ayahColor : textColor,
-          backgroundColor: isHighlighted ? highlightColor : null,
+          backgroundColor: bgColor,
         ),
         recognizer: TapLongPressRecognizer()
           ..onQuickTap = () {
@@ -575,6 +598,21 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
             height: 1.5,
             color: ayahColor,
           ),
+          recognizer: TapLongPressRecognizer()
+            ..onQuickTap = () {
+              final text = QuranService.instance.getVerseUthmani(
+                seg.surahNumber,
+                seg.ayahNumber,
+              );
+              onAyahTapped(seg.surahNumber, seg.ayahNumber, text);
+            }
+            ..onLongPress = (details) {
+              final text = QuranService.instance.getVerseUthmani(
+                seg.surahNumber,
+                seg.ayahNumber,
+              );
+              onAyahTapped(seg.surahNumber, seg.ayahNumber, text);
+            },
         ));
       }
     }

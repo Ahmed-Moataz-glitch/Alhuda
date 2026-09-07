@@ -39,6 +39,10 @@ class _MushafPageState extends State<MushafPageView> {
   MushafThemeMode _themeMode = MushafThemeMode.parchment;
   double _fontSize = 26.0;
 
+  int? _lastPlayingSurah;
+  int? _lastPlayingAyah;
+  bool _lastIsActive = false;
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +54,15 @@ class _MushafPageState extends State<MushafPageView> {
     }
     _pageController = PageController(initialPage: _currentPage - 1);
     _updateLastRead(_currentPage);
+
+    // Track active audio recitation
+    final currentAudio = QuranService.instance.audioService.state.value;
+    if (currentAudio.isActive) {
+      _lastIsActive = true;
+      _lastPlayingSurah = currentAudio.surah;
+      _lastPlayingAyah = currentAudio.ayah;
+    }
+    QuranService.instance.audioService.state.addListener(_onAudioStateChanged);
 
     // Initialize QPC v4 store and prefetch fonts for current page
     _store = QuranService.instance.qpcStore;
@@ -63,8 +76,41 @@ class _MushafPageState extends State<MushafPageView> {
 
   @override
   void dispose() {
+    QuranService.instance.audioService.state.removeListener(_onAudioStateChanged);
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _onAudioStateChanged() {
+    final s = QuranService.instance.audioService.state.value;
+    final isActive = s.isActive;
+    final surah = isActive ? s.surah : null;
+    final ayah = isActive ? s.ayah : null;
+
+    if (isActive != _lastIsActive || surah != _lastPlayingSurah || ayah != _lastPlayingAyah) {
+      _lastIsActive = isActive;
+      _lastPlayingSurah = surah;
+      _lastPlayingAyah = ayah;
+
+      if (mounted) {
+        // Auto-navigate to page if the currently playing ayah belongs to a different page
+        if (isActive && surah != null && ayah != null) {
+          final targetPage = QuranService.instance.getPageNumber(surah, ayah);
+          if (targetPage != _currentPage) {
+            if ((targetPage - _currentPage).abs() == 1) {
+              _pageController.animateToPage(
+                targetPage - 1,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            } else {
+              _jumpToPage(targetPage);
+            }
+          }
+        }
+        setState(() {});
+      }
+    }
   }
 
   void _updateLastRead(int page) {
@@ -619,13 +665,13 @@ class _MushafPageState extends State<MushafPageView> {
       body: SafeArea(
         child: Stack(
           children: [
-            // 604-page Madinah PageView (RTL Swiping)
+            // 604-page Madinah PageView (RTL Swiping matching paper Mushaf)
             Directionality(
               textDirection: TextDirection.rtl,
               child: PageView.builder(
                 controller: _pageController,
                 itemCount: 604,
-                reverse: true, // Right-to-Left swiping
+                reverse: false, // In RTL: flips forward matching physical Mushaf
                 onPageChanged: (index) {
                   setState(() {
                     _currentPage = index + 1;
@@ -644,6 +690,8 @@ class _MushafPageState extends State<MushafPageView> {
                     showTajweed: _showTajweed,
                     selectedSurah: _selectedSurah,
                     selectedAyah: _selectedAyah,
+                    playingSurah: _lastIsActive ? _lastPlayingSurah : null,
+                    playingAyah: _lastIsActive ? _lastPlayingAyah : null,
                     fontSize: _fontSize,
                     themeMode: _themeMode,
                     onAyahTapped: _onAyahTapped,
@@ -851,11 +899,26 @@ class _MushafPageState extends State<MushafPageView> {
                 icon: Icons.volume_up_rounded,
                 label: 'استماع',
                 color: Colors.teal.shade700,
-                onTap: () {
-                  QuranService.instance.audioService.playAyah(
-                    surahNum,
-                    ayahNum,
-                  );
+                onTap: () async {
+                  setState(() {
+                    _selectedSurah = null;
+                    _selectedAyah = null;
+                    _selectedAyahText = null;
+                  });
+                  try {
+                    await QuranService.instance.audioService.playAyah(
+                      surahNum,
+                      ayahNum,
+                    );
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('تعذر تشغيل التلاوة، يرجى التأكد من الاتصال بالإنترنت'),
+                        ),
+                      );
+                    }
+                  }
                 },
               ),
 
@@ -959,14 +1022,14 @@ class _MushafPageState extends State<MushafPageView> {
       ),
       child: Row(
         children: [
-          // Previous Page Button
+          // Next Page Button
           IconButton(
             icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primary),
-            tooltip: 'الصفحة السابقة',
-            onPressed: _currentPage > 1 ? () => _jumpToPage(_currentPage - 1) : null,
+            tooltip: 'الصفحة التالية',
+            onPressed: _currentPage < 604 ? () => _jumpToPage(_currentPage + 1) : null,
           ),
 
-          // Slider across 604 pages
+          // Slider across 604 pages (Page 1 on the Left, Page 604 on the Right)
           Expanded(
             child: Slider(
               value: _currentPage.toDouble(),
@@ -980,11 +1043,11 @@ class _MushafPageState extends State<MushafPageView> {
             ),
           ),
 
-          // Next Page Button
+          // Previous Page Button
           IconButton(
             icon: const Icon(Icons.arrow_forward_rounded, color: AppColors.primary),
-            tooltip: 'الصفحة التالية',
-            onPressed: _currentPage < 604 ? () => _jumpToPage(_currentPage + 1) : null,
+            tooltip: 'الصفحة السابقة',
+            onPressed: _currentPage > 1 ? () => _jumpToPage(_currentPage - 1) : null,
           ),
         ],
       ),
@@ -1043,7 +1106,7 @@ class _MushafPageState extends State<MushafPageView> {
               ),
               IconButton(
                 icon: const Icon(Icons.skip_previous_rounded, color: AppColors.primary, size: 20),
-                onPressed: () => QuranService.instance.audioService.skipPrevious(),
+                onPressed: () => QuranService.instance.audioService.skipNext(),
               ),
               IconButton(
                 icon: Icon(
@@ -1055,7 +1118,7 @@ class _MushafPageState extends State<MushafPageView> {
               ),
               IconButton(
                 icon: const Icon(Icons.skip_next_rounded, color: AppColors.primary, size: 20),
-                onPressed: () => QuranService.instance.audioService.skipNext(),
+                onPressed: () => QuranService.instance.audioService.skipPrevious(),
               ),
             ],
           ),

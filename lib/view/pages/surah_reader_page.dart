@@ -411,7 +411,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
     return ValueListenableBuilder<QuranAudioState>(
       valueListenable: QuranService.instance.audioService.state,
       builder: (context, audioState, _) {
-        final isPlayingThisAyah = audioState.isPlaying &&
+        final isPlayingThisAyah = audioState.isActive &&
             audioState.surah == _currentSurah &&
             audioState.ayah == ayah.ayahNumber;
 
