@@ -109,6 +109,25 @@ void main() {
       // 6. Search for Jihad / Ribat
       final jihadResults = service.search('الرباط');
       expect(jihadResults, isNotEmpty);
+
+      // 7. Search for Qasr and Jam' in prayer
+      final qasrResults = service.search('قصر');
+      expect(qasrResults, isNotEmpty);
+      expect(qasrResults.any((r) => r.issue.id == 'issue_qasr_salah'), isTrue);
+
+      final jamResults = service.search('الجمع');
+      expect(jamResults, isNotEmpty);
+      expect(jamResults.any((r) => r.issue.id == 'issue_jam_salah'), isTrue);
+
+      final excusesChapter = service.getChapterById('book_salah', 'ch_excuses_salah');
+      expect(excusesChapter, isNotNull);
+      expect(excusesChapter!.issues.length, equals(4));
+      expect(excusesChapter.issues.map((i) => i.id).toList(), containsAll([
+        'issue_patient_traveler_salah',
+        'issue_qasr_salah',
+        'issue_jam_salah',
+        'issue_jam_wa_qasr_rules',
+      ]));
     });
 
     test('Search returns empty list for empty or whitespace query', () {
