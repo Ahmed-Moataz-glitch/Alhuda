@@ -414,7 +414,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
           // Search Box
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(16.r),
               boxShadow: [
                 BoxShadow(
@@ -432,13 +432,14 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
               style: TextStyle(
                 fontFamily: 'Almarai',
                 fontSize: 13.5.sp,
+                color: AppColors.textPrimary,
               ),
               decoration: InputDecoration(
                 hintText: 'ابحث في أسماء الله الحسنى أو المعاني...',
                 hintStyle: TextStyle(
                   fontFamily: 'Almarai',
                   fontSize: 13.sp,
-                  color: Colors.black38,
+                  color: AppColors.textSecondary,
                 ),
                 prefixIcon: Icon(
                   Icons.search_rounded,
@@ -463,30 +464,26 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
               ),
             ),
           ),
-          SizedBox(height: 10.h),
+          SizedBox(height: 12.h),
 
-          // Filter Chips & View Mode Toggle
+          // Filters and view switch row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Filter Chips (الكل / المفضلة)
+              // Filter Chips: All & Favorites
               Row(
                 children: [
                   _buildFilterChip(
-                    label: 'الكل (${_allNames.length})',
+                    label: 'الكل',
                     isSelected: !_showFavoritesOnly,
-                    onTap: () {
-                      setState(() => _showFavoritesOnly = false);
-                    },
+                    onTap: () => setState(() => _showFavoritesOnly = false),
                   ),
-                  SizedBox(width: 8.w),
+                  SizedBox(width: 6.w),
                   _buildFilterChip(
-                    label: 'المفضلة (${_allNames.where((n) => n.isFavorite).length})',
-                    isSelected: _showFavoritesOnly,
+                    label: 'المفضلة',
                     icon: Icons.star_rounded,
-                    onTap: () {
-                      setState(() => _showFavoritesOnly = true);
-                    },
+                    isSelected: _showFavoritesOnly,
+                    onTap: () => setState(() => _showFavoritesOnly = true),
                   ),
                 ],
               ),
@@ -494,9 +491,9 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
               // View Switcher (Grid vs List)
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card,
                   borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -545,10 +542,10 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
+          color: isSelected ? AppColors.primary : AppColors.card,
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.grey.shade300,
+            color: isSelected ? AppColors.primary : AppColors.border,
           ),
           boxShadow: isSelected
               ? [
@@ -577,7 +574,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                 fontFamily: 'Almarai',
                 fontSize: 12.sp,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : Colors.black87,
+                color: isSelected ? Colors.white : AppColors.textPrimary,
               ),
             ),
           ],
@@ -590,7 +587,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
   Widget _buildGridCard(AllahNameModel item) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(18.r),
         border: Border.all(
           color: item.isFavorite
@@ -711,7 +708,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
     return Container(
       margin: EdgeInsets.only(bottom: 10.h),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
           color: item.isFavorite
@@ -720,7 +717,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(8),
+            color: AppColors.shadow,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -780,7 +777,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                               style: TextStyle(
                                 fontFamily: 'Rubik',
                                 fontSize: 11.5.sp,
-                                color: Colors.grey.shade600,
+                                color: AppColors.textSecondary,
                               ),
                             ),
                         ],
@@ -793,7 +790,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                         style: TextStyle(
                           fontFamily: 'Almarai',
                           fontSize: 11.5.sp,
-                          color: Colors.black87,
+                          color: AppColors.textPrimary,
                           height: 1.4,
                         ),
                       ),
@@ -850,7 +847,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                 fontFamily: 'Almarai',
                 fontSize: 14.sp,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
+                color: AppColors.textPrimary,
               ),
             ),
             SizedBox(height: 6.h),
@@ -862,7 +859,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
               style: TextStyle(
                 fontFamily: 'Almarai',
                 fontSize: 12.sp,
-                color: Colors.grey.shade500,
+                color: AppColors.textSecondary,
               ),
             ),
           ],

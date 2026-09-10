@@ -58,7 +58,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.card,
                     borderRadius: BorderRadius.circular(14.r),
                     boxShadow: [
                       BoxShadow(
@@ -70,7 +70,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search, color: AppColors.primary),
+                      Icon(Icons.search, color: AppColors.primary),
                       SizedBox(width: 10.w),
                       Expanded(
                         child: Text(
@@ -103,7 +103,6 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
           margin: EdgeInsets.symmetric(horizontal: 16.w),
           decoration: BoxDecoration(
             color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(12.r),
           ),
           child: TabBar(
             controller: _innerTabController,
@@ -298,7 +297,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
                       fontFamily: 'Rubik',
                       fontSize: 15.sp,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF2B2523),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ),

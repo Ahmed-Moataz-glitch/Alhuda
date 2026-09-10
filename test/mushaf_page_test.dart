@@ -111,8 +111,143 @@ void main() {
       // Footer with Arabic Page Number
       expect(find.text('— ٧٧ —'), findsOneWidget);
 
-      // Advance fake timer to allow any font loader timeouts to complete cleanly in test environment
-      await tester.pump(const Duration(seconds: 16));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('MushafPageWidget renders Page 1 (Al-Fatiha) offline with Basmallah and Surah Banner', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(360, 690),
+          builder: (context, child) => MaterialApp(
+            home: Scaffold(
+              body: MushafPageWidget(
+                pageNumber: 1,
+                onAyahTapped: (s, a, text) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('الجزء الأول'), findsOneWidget);
+      expect(find.text('— ١ —'), findsOneWidget);
+
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('MushafPageWidget uses ayahNumber font and Tajweed colors for verse rendering', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(360, 690),
+          builder: (context, child) => MaterialApp(
+            home: Scaffold(
+              body: MushafPageWidget(
+                pageNumber: 1,
+                showTajweed: true,
+                onAyahTapped: (s, a, text) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Find RichTexts on page
+      final richTexts = tester.widgetList<RichText>(find.byType(RichText));
+      expect(richTexts.isNotEmpty, isTrue);
+
+      // Check if any RichText contains the authentic ayahNumber font
+      bool hasAyahNumberFont = false;
+      for (final rt in richTexts) {
+        rt.text.visitChildren((span) {
+          if (span is TextSpan && span.style?.fontFamily?.contains('ayahNumber') == true) {
+            hasAyahNumberFont = true;
+            return false;
+          }
+          return true;
+        });
+        if (hasAyahNumberFont) break;
+      }
+      expect(hasAyahNumberFont, isTrue, reason: 'Authentic ayahNumber font must be used for ayah markers');
+    });
+
+    testWidgets('MushafPageWidget dynamically updates text font size based on fontSize property', (WidgetTester tester) async {
+      // 1. Render with smaller font size (22)
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(360, 690),
+          builder: (context, child) => MaterialApp(
+            home: Scaffold(
+              body: MushafPageWidget(
+                pageNumber: 3,
+                fontSize: 22.0,
+                onAyahTapped: (s, a, text) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      double? fontSize22;
+      final richTexts22 = tester.widgetList<RichText>(find.byType(RichText));
+      for (final rt in richTexts22) {
+        rt.text.visitChildren((span) {
+          if (span is TextSpan && span.style?.fontWeight == FontWeight.w600 && span.style?.fontSize != null) {
+            fontSize22 = span.style?.fontSize;
+            return false;
+          }
+          return true;
+        });
+        if (fontSize22 != null) break;
+      }
+      expect(fontSize22, isNotNull);
+
+      // 2. Re-render with larger font size (32)
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(360, 690),
+          builder: (context, child) => MaterialApp(
+            home: Scaffold(
+              body: MushafPageWidget(
+                key: const ValueKey('mushaf_p3_s32'),
+                pageNumber: 3,
+                fontSize: 32.0,
+                onAyahTapped: (s, a, text) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      double? fontSize32;
+      final richTexts32 = tester.widgetList<RichText>(find.byType(RichText));
+      for (final rt in richTexts32) {
+        rt.text.visitChildren((span) {
+          if (span is TextSpan && span.style?.fontWeight == FontWeight.w600 && span.style?.fontSize != null) {
+            fontSize32 = span.style?.fontSize;
+            return false;
+          }
+          return true;
+        });
+        if (fontSize32 != null) break;
+      }
+      expect(fontSize32, isNotNull);
+
+      // Verify that font size actually increased
+      expect(fontSize32!, greaterThan(fontSize22!));
+    });
+
+    test('QuranService audio helpers work correctly', () async {
+      final isDownloaded = await QuranService.instance.isSurahAudioDownloaded(1);
+      expect(isDownloaded, isFalse);
+
+      final canPlay = await QuranService.instance.canPlayAudio(1);
+      expect(canPlay, isA<bool>());
     });
   });
 }

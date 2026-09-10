@@ -1,4 +1,5 @@
 import 'package:alhuda/services/azkar_service.dart';
+import 'package:alhuda/services/theme_service.dart';
 import 'package:alhuda/view/widgets/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -188,7 +189,7 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
           backgroundColor: AppColors.background,
           elevation: 0,
           centerTitle: true,
-          iconTheme: const IconThemeData(color: AppColors.primary),
+          iconTheme: IconThemeData(color: AppColors.primary),
           actions: [
             IconButton(
               icon: const Icon(Icons.remove_circle_outline_rounded),
@@ -216,7 +217,7 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
           ],
         ),
         body: _isLoading
-            ? const Center(
+            ? Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
               )
             : _items.isEmpty
@@ -335,8 +336,10 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
                             return Container(
                               decoration: BoxDecoration(
                                 color: isDone
-                                    ? Colors.green.shade50.withAlpha(120)
-                                    : Colors.white,
+                                    ? (ThemeService.instance.isDarkMode
+                                        ? Colors.green.shade900.withAlpha(80)
+                                        : Colors.green.shade50.withAlpha(120))
+                                    : AppColors.card,
                                 borderRadius: BorderRadius.circular(16.r),
                                 border: Border.all(
                                   color: isDone
@@ -458,7 +461,7 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
                                       fontFamily: 'Rubik',
                                       fontSize: _fontSize,
                                       height: 2.0,
-                                      color: Colors.black87,
+                                      color: AppColors.textPrimary,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),

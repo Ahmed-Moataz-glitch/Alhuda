@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:quran_kit/audio.dart';
 import 'package:quran_kit/core.dart';
 import 'package:quran_kit/kit.dart';
@@ -602,4 +603,30 @@ class QuranService {
 
   QuranAudioService get audioService => QuranAudioService.instance;
   List<QuranReciter> get reciters => QuranAudioService.reciters;
+
+  /// Checks whether the surah audio is downloaded locally for offline playback
+  Future<bool> isSurahAudioDownloaded(int surahNumber) async {
+    try {
+      return await QuranAudioService.instance.isSurahDownloaded(surahNumber);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Checks if internet connectivity is active
+  Future<bool> hasInternetConnection() async {
+    try {
+      final results = await Connectivity().checkConnectivity();
+      return results.isNotEmpty && !results.contains(ConnectivityResult.none);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verifies whether audio can be played for [surahNumber] (either downloaded offline or internet connected)
+  Future<bool> canPlayAudio(int surahNumber) async {
+    final isDownloaded = await isSurahAudioDownloaded(surahNumber);
+    if (isDownloaded) return true;
+    return await hasInternetConnection();
+  }
 }

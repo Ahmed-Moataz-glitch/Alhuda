@@ -68,7 +68,7 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
           backgroundColor: AppColors.background,
           elevation: 0,
           centerTitle: true,
-          iconTheme: const IconThemeData(color: AppColors.primary),
+          iconTheme: IconThemeData(color: AppColors.primary),
           title: Text(
             widget.book.title,
             style: TextStyle(
@@ -89,9 +89,9 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                 child: Container(
                   padding: EdgeInsets.all(16.r),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       colors: [
-                        Color(0xFF6D4C41),
+                        const Color(0xFF6D4C41),
                         AppColors.primary,
                       ],
                       begin: Alignment.topRight,
@@ -198,7 +198,7 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                 padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 12.h),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.card,
                     borderRadius: BorderRadius.circular(14.r),
                     border: Border.all(
                       color: AppColors.primary.withAlpha(40),
@@ -216,7 +216,7 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                     style: TextStyle(
                       fontSize: 13.5.sp,
                       fontFamily: 'Almarai',
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                     ),
                     onChanged: (val) {
                       setState(() {
@@ -228,7 +228,7 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                       hintStyle: TextStyle(
                         fontSize: 12.5.sp,
                         fontFamily: 'Almarai',
-                        color: Colors.black38,
+                        color: AppColors.textSecondary,
                       ),
                       prefixIcon: Icon(
                         Icons.search_rounded,
@@ -324,7 +324,7 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                           return Container(
                             margin: EdgeInsets.only(bottom: 10.h),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppColors.card,
                               borderRadius: BorderRadius.circular(16.r),
                               border: Border.all(
                                 color: AppColors.primary.withAlpha(30),
@@ -378,7 +378,7 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                                               style: TextStyle(
                                                 fontSize: 15.sp,
                                                 fontWeight: FontWeight.bold,
-                                                color: Colors.black87,
+                                                color: AppColors.textPrimary,
                                                 fontFamily: 'Almarai',
                                               ),
                                             ),

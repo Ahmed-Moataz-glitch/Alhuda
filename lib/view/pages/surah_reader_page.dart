@@ -1,4 +1,5 @@
 import 'package:alhuda/services/quran_service.dart';
+import 'package:alhuda/services/theme_service.dart';
 import 'package:alhuda/view/pages/mushaf_page_view.dart';
 import 'package:alhuda/view/widgets/app_colors.dart';
 import 'package:alhuda/view/widgets/tafsir_bottom_sheet.dart';
@@ -10,11 +11,13 @@ import 'package:quran_kit/audio.dart';
 class SurahReaderPage extends StatefulWidget {
   final int surahNumber;
   final int? initialAyahNumber;
+  final double? initialFontSize;
 
   const SurahReaderPage({
     super.key,
     required this.surahNumber,
     this.initialAyahNumber,
+    this.initialFontSize,
   });
 
   @override
@@ -25,13 +28,14 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
   late int _currentSurah;
   late List<AyahData> _ayahs;
   final ScrollController _scrollController = ScrollController();
-  double _fontSize = 26.sp;
+  late double _fontSize;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _currentSurah = widget.surahNumber;
+    _fontSize = (widget.initialFontSize ?? 26.0).sp;
     _loadSurahData();
   }
 
@@ -87,6 +91,34 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
     }
   }
 
+  Future<bool> _verifyAudioPlayable(int surahNumber) async {
+    final canPlay = await QuranService.instance.canPlayAudio(surahNumber);
+    if (!canPlay && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 10.w),
+              const Expanded(
+                child: Text(
+                  'يتطلب الاستماع لتلاوة القارئ اتصالاً بالإنترنت',
+                  style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.brown.shade800,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
   void _showReciterPicker() {
     final reciters = QuranService.instance.reciters;
     final currentReciterIndex = QuranService.instance.audioService.reciterIndex;
@@ -132,7 +164,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                         style: TextStyle(fontSize: 12.sp, color: Colors.grey),
                       ),
                       trailing: isSelected
-                          ? const Icon(Icons.check_circle, color: AppColors.primary)
+                          ? Icon(Icons.check_circle, color: AppColors.primary)
                           : null,
                       onTap: () {
                         QuranService.instance.audioService.setReciter(index);
@@ -213,7 +245,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                         style: TextStyle(fontSize: 11.sp, color: Colors.grey.shade600),
                       ),
                       trailing: isSelected
-                          ? const Icon(Icons.check, color: AppColors.primary)
+                          ? Icon(Icons.check, color: AppColors.primary)
                           : null,
                       onTap: () {
                         Navigator.pop(context);
@@ -236,9 +268,9 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
     final surahName = surah?.arabicName ?? 'سورة $_currentSurah';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F7F2),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F7F2),
+        backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: true,
         title: InkWell(
@@ -275,7 +307,10 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => MushafPageView(initialPage: page),
+                  builder: (_) => MushafPageView(
+                    initialPage: page,
+                    initialFontSize: _fontSize / 1.sp,
+                  ),
                 ),
               );
             },
@@ -287,7 +322,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
             onPressed: _showReciterPicker,
           ),
           PopupMenuButton<double>(
-            icon: const Icon(Icons.format_size_rounded, color: AppColors.primary),
+            icon: Icon(Icons.format_size_rounded, color: AppColors.primary),
             tooltip: 'حجم الخط',
             onSelected: (size) {
               setState(() {
@@ -305,7 +340,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
           : Column(
               children: [
                 Expanded(
@@ -419,7 +454,11 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
           margin: EdgeInsets.only(bottom: 12.h),
           padding: EdgeInsets.all(14.r),
           decoration: BoxDecoration(
-            color: isPlayingThisAyah ? const Color(0xFFF3EDE2) : Colors.white,
+            color: isPlayingThisAyah
+                ? (ThemeService.instance.isDarkMode
+                    ? const Color(0xFF382F26)
+                    : const Color(0xFFF3EDE2))
+                : AppColors.card,
             borderRadius: BorderRadius.circular(14.r),
             border: Border.all(
               color: isPlayingThisAyah
@@ -476,10 +515,12 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                           color: AppColors.primary,
                         ),
                         tooltip: 'استماع للآية',
-                        onPressed: () {
+                        onPressed: () async {
                           if (isPlayingThisAyah) {
                             QuranService.instance.audioService.togglePlayPause();
                           } else {
+                            final canPlay = await _verifyAudioPlayable(_currentSurah);
+                            if (!canPlay) return;
                             QuranService.instance.audioService.playAyah(
                               _currentSurah,
                               ayah.ayahNumber,
@@ -559,9 +600,9 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                             text: '﴿${ayah.uthmaniText}﴾ [$surahName: ${ayah.ayahNumber}]',
                           ));
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('تم نسخ نص الآية', style: TextStyle(fontFamily: 'Almarai')),
-                              duration: Duration(seconds: 1),
+                            SnackBar(
+                              content: const Text('تم نسخ نص الآية', style: TextStyle(fontFamily: 'Almarai')),
+                              duration: const Duration(seconds: 1),
                               behavior: SnackBarBehavior.floating,
                               backgroundColor: AppColors.primary,
                             ),
@@ -580,12 +621,13 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                 textDirection: TextDirection.rtl,
                 child: Text(
                   ayah.uthmaniText,
-                  textAlign: TextAlign.justify,
+                  textAlign: TextAlign.right,
                   style: TextStyle(
                     fontFamily: 'NotoNaskhArabic',
                     fontSize: _fontSize,
-                    height: 2.1,
-                    color: const Color(0xFF1E1E1E),
+                    height: 2.0,
+                    wordSpacing: -0.5,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -606,7 +648,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
         return Container(
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withAlpha(20),
@@ -644,8 +686,12 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.skip_previous_rounded, color: AppColors.primary),
-                onPressed: () => QuranService.instance.audioService.skipPrevious(),
+                icon: Icon(Icons.skip_previous_rounded, color: AppColors.primary),
+                onPressed: () async {
+                  final canPlay = await _verifyAudioPlayable(state.surah);
+                  if (!canPlay) return;
+                  QuranService.instance.audioService.skipPrevious();
+                },
               ),
               IconButton(
                 icon: Icon(
@@ -653,11 +699,21 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                   color: AppColors.primary,
                   size: 32.r,
                 ),
-                onPressed: () => QuranService.instance.audioService.togglePlayPause(),
+                onPressed: () async {
+                  if (!state.isPlaying) {
+                    final canPlay = await _verifyAudioPlayable(state.surah);
+                    if (!canPlay) return;
+                  }
+                  QuranService.instance.audioService.togglePlayPause();
+                },
               ),
               IconButton(
-                icon: const Icon(Icons.skip_next_rounded, color: AppColors.primary),
-                onPressed: () => QuranService.instance.audioService.skipNext(),
+                icon: Icon(Icons.skip_next_rounded, color: AppColors.primary),
+                onPressed: () async {
+                  final canPlay = await _verifyAudioPlayable(state.surah);
+                  if (!canPlay) return;
+                  QuranService.instance.audioService.skipNext();
+                },
               ),
             ],
           ),
@@ -668,7 +724,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
 
   Widget _buildBottomNavigationBar() {
     return Container(
-      color: Colors.white,
+      color: AppColors.card,
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

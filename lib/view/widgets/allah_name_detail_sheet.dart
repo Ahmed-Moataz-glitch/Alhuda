@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../model/allah_name_model.dart';
 import '../../services/allah_names_service.dart';
+import '../../services/theme_service.dart';
 import 'app_colors.dart';
 
 class AllahNameDetailSheet extends StatefulWidget {
@@ -138,11 +139,11 @@ ${name.quranVerse} [${name.surahRef}]
     return Container(
       height: 0.88.sh,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(40),
+            color: AppColors.shadow,
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -156,7 +157,7 @@ ${name.quranVerse} [${name.surahRef}]
             width: 44.w,
             height: 4.h,
             decoration: BoxDecoration(
-              color: Colors.grey.shade300,
+              color: ThemeService.instance.isDarkMode ? Colors.white24 : Colors.grey.shade300,
               borderRadius: BorderRadius.circular(2.r),
             ),
           ),
@@ -176,7 +177,7 @@ ${name.quranVerse} [${name.surahRef}]
                     Icons.arrow_back_ios_new_rounded,
                     color: _currentIndex > 0
                         ? AppColors.primary
-                        : Colors.grey.shade300,
+                        : Colors.grey.shade400,
                     size: 20.sp,
                   ),
                   tooltip: 'الاسم السابق',
@@ -211,7 +212,7 @@ ${name.quranVerse} [${name.surahRef}]
                       onPressed: _copyToClipboard,
                       icon: Icon(
                         Icons.copy_rounded,
-                        color: Colors.grey.shade700,
+                        color: AppColors.textSecondary,
                         size: 20.sp,
                       ),
                       tooltip: 'نسخ',
@@ -401,11 +402,12 @@ ${name.quranVerse} [${name.surahRef}]
     required String content,
     required Color accentColor,
   }) {
+    final isDark = ThemeService.instance.isDarkMode;
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: const Color(0xFFFAF7F2),
+        color: isDark ? AppColors.surface : const Color(0xFFFAF7F2),
         borderRadius: BorderRadius.circular(18.r),
         border: Border.all(color: accentColor.withAlpha(35)),
       ),
@@ -429,7 +431,7 @@ ${name.quranVerse} [${name.surahRef}]
                   fontFamily: 'Almarai',
                   fontSize: 14.sp,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.black,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
@@ -441,7 +443,7 @@ ${name.quranVerse} [${name.surahRef}]
               fontFamily: 'NotoNaskhArabic',
               fontSize: 14.5.sp,
               height: 1.8,
-              color: Colors.black87,
+              color: AppColors.textPrimary,
             ),
           ),
         ],
@@ -450,13 +452,14 @@ ${name.quranVerse} [${name.surahRef}]
   }
 
   Widget _buildVerseSection(AllahNameModel item) {
+    final isDark = ThemeService.instance.isDarkMode;
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F7F5),
+        color: isDark ? AppColors.surface : const Color(0xFFF3F7F5),
         borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: Colors.teal.shade200.withAlpha(120)),
+        border: Border.all(color: isDark ? Colors.teal.shade700.withAlpha(120) : Colors.teal.shade200.withAlpha(120)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,7 +477,7 @@ ${name.quranVerse} [${name.surahRef}]
                     ),
                     child: Icon(
                       Icons.format_quote_rounded,
-                      color: Colors.teal.shade800,
+                      color: isDark ? Colors.teal.shade200 : Colors.teal.shade800,
                       size: 18.sp,
                     ),
                   ),
@@ -485,7 +488,7 @@ ${name.quranVerse} [${name.surahRef}]
                       fontFamily: 'Almarai',
                       fontSize: 14.sp,
                       fontWeight: FontWeight.bold,
-                      color: Colors.teal.shade900,
+                      color: isDark ? Colors.teal.shade200 : Colors.teal.shade900,
                     ),
                   ),
                 ],
@@ -494,9 +497,9 @@ ${name.quranVerse} [${name.surahRef}]
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                   decoration: BoxDecoration(
-                    color: Colors.teal.shade50,
+                    color: isDark ? Colors.teal.shade900.withAlpha(100) : Colors.teal.shade50,
                     borderRadius: BorderRadius.circular(12.r),
-                    border: Border.all(color: Colors.teal.shade300),
+                    border: Border.all(color: isDark ? Colors.teal.shade700 : Colors.teal.shade300),
                   ),
                   child: Text(
                     item.surahRef,
@@ -504,7 +507,7 @@ ${name.quranVerse} [${name.surahRef}]
                       fontFamily: 'Almarai',
                       fontSize: 11.sp,
                       fontWeight: FontWeight.bold,
-                      color: Colors.teal.shade800,
+                      color: isDark ? Colors.teal.shade200 : Colors.teal.shade800,
                     ),
                   ),
                 ),
@@ -515,9 +518,9 @@ ${name.quranVerse} [${name.surahRef}]
             width: double.infinity,
             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: Colors.teal.shade100),
+              border: Border.all(color: isDark ? Colors.teal.shade800 : Colors.teal.shade100),
             ),
             child: Text(
               '﴿ ${item.quranVerse} ﴾',
@@ -527,7 +530,7 @@ ${name.quranVerse} [${name.surahRef}]
                 fontSize: 15.sp,
                 fontWeight: FontWeight.bold,
                 height: 1.9,
-                color: Colors.teal.shade900,
+                color: isDark ? Colors.teal.shade100 : Colors.teal.shade900,
               ),
             ),
           ),
@@ -543,12 +546,12 @@ ${name.quranVerse} [${name.surahRef}]
       width: double.infinity,
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(20.r),
         border: Border.all(color: AppColors.primary.withAlpha(50)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(10),
+            color: AppColors.shadow,
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -587,7 +590,7 @@ ${name.quranVerse} [${name.surahRef}]
                     style: TextStyle(
                       fontFamily: 'Almarai',
                       fontSize: 12.sp,
-                      color: Colors.grey.shade700,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ),
@@ -641,7 +644,7 @@ ${name.quranVerse} [${name.surahRef}]
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 6.h,
-                      backgroundColor: Colors.grey.shade200,
+                      backgroundColor: ThemeService.instance.isDarkMode ? Colors.white12 : Colors.grey.shade200,
                       valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                     ),
                   ),
@@ -651,7 +654,7 @@ ${name.quranVerse} [${name.surahRef}]
                     style: TextStyle(
                       fontFamily: 'Almarai',
                       fontSize: 11.5.sp,
-                      color: Colors.black54,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],

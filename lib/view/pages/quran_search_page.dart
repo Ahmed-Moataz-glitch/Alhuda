@@ -42,9 +42,9 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F7F2),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F7F2),
+        backgroundColor: AppColors.background,
         elevation: 0,
         title: Text(
           'البحث في القرآن الكريم',
@@ -60,14 +60,14 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
       body: Column(
         children: [
           // Search Input Bar
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+          Container(
+            padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
             child: Directionality(
               textDirection: TextDirection.rtl,
               child: TextField(
                 controller: _controller,
                 autofocus: true,
-                style: const TextStyle(fontFamily: 'NotoNaskhArabic'),
+                style: TextStyle(fontFamily: 'NotoNaskhArabic', color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'ابحث عن كلمة، آية، أو جملة...',
                   hintStyle: TextStyle(
@@ -75,7 +75,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                     color: Colors.grey.shade500,
                     fontSize: 14.sp,
                   ),
-                  prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                  prefixIcon: Icon(Icons.search, color: AppColors.primary),
                   suffixIcon: _controller.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear, color: Colors.grey),
@@ -86,7 +86,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                         )
                       : null,
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppColors.card,
                   contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14.r),
@@ -94,7 +94,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14.r),
-                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide: BorderSide(color: AppColors.primary, width: 1.5),
                   ),
                 ),
                 onChanged: _onSearch,
@@ -201,7 +201,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                             margin: EdgeInsets.only(bottom: 10.h),
                             padding: EdgeInsets.all(12.r),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppColors.card,
                               borderRadius: BorderRadius.circular(12.r),
                               boxShadow: [
                                 BoxShadow(
@@ -286,7 +286,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                                       fontFamily: 'NotoNaskhArabic',
                                       fontSize: 16.sp,
                                       height: 1.9,
-                                      color: const Color(0xFF2C2523),
+                                      color: AppColors.textPrimary,
                                     ),
                                   ),
                                 ),

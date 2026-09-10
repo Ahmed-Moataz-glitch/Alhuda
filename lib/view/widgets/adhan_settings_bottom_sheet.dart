@@ -484,7 +484,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
           child: OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary),
+              side: BorderSide(color: AppColors.primary),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12.r),
               ),
@@ -507,13 +507,13 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
               );
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
+                SnackBar(
+                  content: const Text(
                     'تمت جدولة الأذان بعد 10 ثوانٍ.. أغلق التطبيق الآن للتجربة!',
                     textDirection: TextDirection.rtl,
                   ),
                   backgroundColor: AppColors.primary,
-                  duration: Duration(seconds: 4),
+                  duration: const Duration(seconds: 4),
                 ),
               );
             },

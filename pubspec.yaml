@@ -29,6 +29,8 @@ dependencies:
   flutter_svg: ^2.0.17
   hijri_date: ^1.1.0
   intl: ^0.20.3
+  flutter_offline: ^6.0.0
+  connectivity_plus: ^7.3.1
 
 dev_dependencies:
   flutter_test:
@@ -44,6 +46,13 @@ flutter:
     - assets/images/
     - assets/fonts/
     - assets/audio/
+    - assets/hadith/
+    - assets/hadith/bukhari/
+    - assets/hadith/bukhari/chapters/
+    - assets/hadith/muslim/
+    - assets/hadith/muslim/chapters/
+    - assets/hadith/nawawi40/
+    - assets/hadith/nawawi40/chapters/
 
   fonts:
     - family: Almarai

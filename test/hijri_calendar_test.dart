@@ -90,5 +90,84 @@ void main() {
       );
       expect(find.text('تحويل التاريخ (هجري / ميلادي)'), findsOneWidget);
     });
+
+    testWidgets(
+        'Month navigation does not keep day 27 highlighted in other months',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.6;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(411, 869),
+          child: const MaterialApp(
+            home: HijriCalendarWidget(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final todayHijri = HijriDate.now();
+
+      // Navigate to next month
+      final nextMonthButton = find.byTooltip('الشهر القادم');
+      expect(nextMonthButton, findsOneWidget);
+      await tester.tap(nextMonthButton);
+      await tester.pumpAndSettle();
+
+      // In the next month, prompt is displayed because day 27 is not selected
+      expect(
+        find.text('اضغط على أي يوم في التقويم لعرض تفاصيله وأطوار القمر والمناسبات'),
+        findsOneWidget,
+      );
+
+      // Tapping "العودة لليوم" returns to current month and selects today
+      final returnToToday = find.text('العودة لليوم');
+      expect(returnToToday, findsOneWidget);
+      await tester.tap(returnToToday);
+      await tester.pumpAndSettle();
+
+      // Today's details are shown again
+      expect(find.text('تفاصيل اليوم المحدد'), findsOneWidget);
+      expect(find.textContaining('${todayHijri.hDay}'), findsWidgets);
+    });
+
+    testWidgets(
+        'Horizontal drag on month calendar card smoothly navigates months',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.6;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(411, 869),
+          child: const MaterialApp(
+            home: HijriCalendarWidget(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Swipe left on calendar to navigate to next month
+      await tester.fling(find.text('السبت').first, const Offset(-300, 0), 1000);
+      await tester.pumpAndSettle();
+
+      // In the next month, prompt is visible
+      expect(
+        find.text('اضغط على أي يوم في التقويم لعرض تفاصيله وأطوار القمر والمناسبات'),
+        findsOneWidget,
+      );
+
+      // Swipe right on calendar to navigate back to previous month
+      await tester.fling(find.text('السبت').first, const Offset(300, 0), 1000);
+      await tester.pumpAndSettle();
+
+      // Current month details are shown again
+      expect(find.text('تفاصيل اليوم المحدد'), findsOneWidget);
+    });
   });
 }

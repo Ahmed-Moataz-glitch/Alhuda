@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:alhuda/services/quran_service.dart';
+import 'package:alhuda/services/tajweed_span_builder.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -165,8 +166,7 @@ class MushafPageWidget extends StatefulWidget {
 }
 
 class _MushafPageWidgetState extends State<MushafPageWidget> {
-  bool _fontReady = false;
-  bool _fontFailed = false;
+  bool _useOfflineUthmani = false;
   List<QpcV4RenderBlock>? _blocks;
 
   QpcV4AssetsStore? get effectiveStore => widget.store ?? QuranService.instance.qpcStore;
@@ -191,7 +191,9 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
   @override
   void didUpdateWidget(MushafPageWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.pageNumber != widget.pageNumber || oldWidget.store != widget.store) {
+    if (oldWidget.pageNumber != widget.pageNumber ||
+        oldWidget.store != widget.store ||
+        oldWidget.showTajweed != widget.showTajweed) {
       _loadFontAndBlocks();
     }
   }
@@ -200,46 +202,48 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
     final store = effectiveStore;
     if (store == null) return;
 
+    // 1. If QPC font is already cached/ready in memory, use QPC blocks directly
     if (FontLoader.instance.isPageReady(widget.pageNumber)) {
       _blocks = PageRenderer(store: store).buildPage(pageNumber: widget.pageNumber);
-      setState(() {
-        _fontReady = true;
-        _fontFailed = false;
-      });
+      if (mounted) {
+        setState(() {
+          _useOfflineUthmani = false;
+        });
+      }
       return;
     }
 
+    // 2. Immediately enable offline Uthmani mode with Tajweed colors so the user NEVER waits
+    if (mounted) {
+      setState(() {
+        _useOfflineUthmani = true;
+      });
+    }
+
+    // 3. In the background, fetch high-fidelity QPC v4 ligature fonts
     try {
+      final isOnline = await QuranService.instance.hasInternetConnection();
+      if (!isOnline || !mounted) return;
+
       await FontLoader.instance
-          .ensurePagesLoaded(widget.pageNumber, radius: 3)
-          .timeout(const Duration(seconds: 15));
-      if (mounted) {
+          .ensurePagesLoaded(widget.pageNumber, radius: 2);
+
+      if (mounted && FontLoader.instance.isPageReady(widget.pageNumber)) {
         final curStore = effectiveStore;
         if (curStore != null) {
           _blocks = PageRenderer(store: curStore).buildPage(pageNumber: widget.pageNumber);
         }
         setState(() {
-          _fontReady = true;
-          _fontFailed = false;
+          _useOfflineUthmani = false;
         });
       }
     } catch (_) {
-      if (mounted) {
-        final curStore = effectiveStore;
-        if (curStore != null) {
-          _blocks = PageRenderer(store: curStore).buildPage(pageNumber: widget.pageNumber);
-        }
-        setState(() {
-          _fontFailed = true;
-          _fontReady = true;
-        });
-      }
+      // Font download error, timeout, or offline - colored offline page remains seamlessly active
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
     final juzName = QuranService.instance.getPageJuzName(widget.pageNumber);
     final surahName = QuranService.instance.getPageSurahName(widget.pageNumber);
 
@@ -248,21 +252,21 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
       behavior: HitTestBehavior.opaque,
       child: Container(
         color: config.backgroundColor,
-        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
+        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 4.h),
         child: Container(
           // Outer Decorative Border Frame
           decoration: BoxDecoration(
             border: Border.all(color: config.frameColor, width: 2.0),
             borderRadius: BorderRadius.circular(6.r),
           ),
-          padding: EdgeInsets.all(3.r),
+          padding: EdgeInsets.all(2.r),
           child: Container(
             // Inner Fine Border Frame
             decoration: BoxDecoration(
               border: Border.all(color: config.innerFrameColor, width: 1.0),
               borderRadius: BorderRadius.circular(4.r),
             ),
-            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+            padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 3.h),
             child: Column(
               children: [
                 // Top Header Line (الجزء - الزخرفة - السورة)
@@ -274,67 +278,10 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      if (effectiveStore == null || (!_fontReady && !_fontFailed)) {
-                        return SizedBox(
-                          width: constraints.maxWidth,
-                          height: constraints.maxHeight,
-                          child: SingleChildScrollView(
-                            physics: const NeverScrollableScrollPhysics(),
-                            child: QuranLoadingPlaceholder(
-                              isDark: widget.themeMode == MushafThemeMode.dark,
-                            ),
-                          ),
-                        );
-                      }
-
-                      if (_blocks == null || _blocks!.isEmpty) {
-                        return SizedBox(
-                          width: constraints.maxWidth,
-                          height: constraints.maxHeight,
-                          child: SingleChildScrollView(
-                            physics: const NeverScrollableScrollPhysics(),
-                            child: QuranLoadingPlaceholder(
-                              isDark: widget.themeMode == MushafThemeMode.dark,
-                            ),
-                          ),
-                        );
-                      }
-
                       final textColor = config.textColor;
                       final ayahColor = config.verseSymbolColor;
                       final baseFontSize = widget.fontSize ?? 26.0;
-
-                      // Identify Surah Start Pages vs Regular Continuation Pages
-                      final bool hasSurahHeader = _blocks!.any((b) => b is QpcV4SurahHeaderBlock);
-                      final bool isSurahStartPage = hasSurahHeader || QuranService.kSurahStartPages.contains(widget.pageNumber);
-                      final int ayahLineCount = _blocks!.whereType<QpcV4AyahLineBlock>().length;
-
-                      // Enlarge font ONLY on Surah start pages, keep standard font on regular pages
-                      final double effectiveFontSize;
-                      if (isSurahStartPage) {
-                        if (ayahLineCount <= 6) {
-                          // e.g. Page 1 (Fatihah), Page 2 (Baqarah start - 5 lines)
-                          effectiveFontSize = 40.0;
-                        } else if (ayahLineCount <= 9) {
-                          // e.g. Page 50 (Aal-Imran start - 9 lines)
-                          effectiveFontSize = 34.0;
-                        } else if (ayahLineCount <= 12) {
-                          // e.g. Page 77 (An-Nisa start - 10 lines)
-                          effectiveFontSize = 30.0;
-                        } else {
-                          effectiveFontSize = 28.0;
-                        }
-                      } else {
-                        // Regular 15-line pages: standard crisp font matching the Madinah Mushaf
-                        effectiveFontSize = baseFontSize.clamp(24.0, 28.0);
-                      }
-                      final double effectiveBannerWidth = size.width * 1.3;
-
-                      final fontFamily = FontLoader.instance.getFontFamilyForPage(
-                        widget.pageNumber,
-                        isDark: widget.themeMode == MushafThemeMode.dark,
-                        tajweed: widget.showTajweed,
-                      );
+                      final double effectiveBannerWidth = constraints.maxWidth;
 
                       final playingAyah = (widget.playingSurah != null && widget.playingAyah != null)
                           ? (surah: widget.playingSurah!, ayah: widget.playingAyah!)
@@ -344,54 +291,146 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
                           ? (surah: widget.selectedSurah!, ayah: widget.selectedAyah!)
                           : null;
 
-                      return SizedBox(
-                        width: constraints.maxWidth,
-                        height: constraints.maxHeight,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          alignment: Alignment.center,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: _blocks!.map((block) {
-                              if (block is QpcV4SurahHeaderBlock) {
-                                return _buildSurahBanner(
-                                  block.surahNumber,
-                                  config,
-                                  widget.themeMode == MushafThemeMode.dark,
-                                  bannerWidth: effectiveBannerWidth,
-                                );
-                              }
+                      // If offline or QPC blocks not available, render authentic offline Uthmani page immediately
+                      final bool shouldUseOffline = _useOfflineUthmani || _blocks == null || _blocks!.isEmpty;
+                      if (shouldUseOffline) {
+                        return _buildOfflinePageContent(
+                          constraints,
+                          config,
+                          baseFontSize,
+                          playingAyah,
+                          selectedAyah,
+                          effectiveBannerWidth,
+                        );
+                      }
 
-                              if (block is QpcV4BasmallahBlock) {
-                                return Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 3.h),
-                                  child: QuranBasmallah(
-                                    surahNumber: block.surahNumber,
-                                    color: config.textColor,
-                                  ),
-                                );
-                              }
+                      // Identify Surah Start Pages vs Regular Continuation Pages
+                      final bool hasSurahHeader = _blocks!.any((b) => b is QpcV4SurahHeaderBlock);
+                      final bool isSurahStartPage = hasSurahHeader || QuranService.kSurahStartPages.contains(widget.pageNumber);
+                      final int ayahLineCount = _blocks!.whereType<QpcV4AyahLineBlock>().length;
 
-                              if (block is QpcV4AyahLineBlock) {
-                                return _buildAyahLine(
-                                  block,
-                                  fontFamily: fontFamily,
-                                  fontSize: effectiveFontSize,
-                                  textColor: textColor,
-                                  ayahColor: ayahColor,
-                                  playingAyah: playingAyah,
-                                  selectedAyah: selectedAyah,
-                                  highlightColor: config.highlightColor,
-                                  onAyahTapped: widget.onAyahTapped,
-                                );
-                              }
+                      // Base font scale from slider (26.0 is standard default = 1.0)
+                      final double fontScale = baseFontSize / 26.0;
 
-                              return const SizedBox.shrink();
-                            }).toList(),
-                          ),
-                        ),
+                      // Enlarge font on Surah start pages, keep standard font on regular pages, scaled by user setting
+                      final double effectiveFontSize;
+                      if (isSurahStartPage) {
+                        if (ayahLineCount <= 6) {
+                          effectiveFontSize = 40.0 * fontScale;
+                        } else if (ayahLineCount <= 9) {
+                          effectiveFontSize = 34.0 * fontScale;
+                        } else if (ayahLineCount <= 12) {
+                          effectiveFontSize = 30.0 * fontScale;
+                        } else {
+                          effectiveFontSize = 28.0 * fontScale;
+                        }
+                      } else {
+                        effectiveFontSize = (constraints.maxHeight / (16.0 * 1.55)).clamp(18.0, 24.0) * fontScale;
+                      }
+
+                      final fontFamily = FontLoader.instance.getFontFamilyForPage(
+                        widget.pageNumber,
+                        isDark: widget.themeMode == MushafThemeMode.dark,
+                        tajweed: widget.showTajweed,
                       );
+
+                      final contentColumn = Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: _blocks!.map((block) {
+                          if (block is QpcV4SurahHeaderBlock) {
+                            return _buildSurahBanner(
+                              block.surahNumber,
+                              config,
+                              widget.themeMode == MushafThemeMode.dark,
+                              bannerWidth: effectiveBannerWidth,
+                            );
+                          }
+
+                          if (block is QpcV4BasmallahBlock) {
+                            return Padding(
+                              padding: EdgeInsets.symmetric(vertical: 3.h),
+                              child: QuranBasmallah(
+                                surahNumber: block.surahNumber,
+                                color: config.textColor,
+                              ),
+                            );
+                          }
+
+                          if (block is QpcV4AyahLineBlock) {
+                            return _buildAyahLine(
+                              block,
+                              fontFamily: fontFamily,
+                              fontSize: effectiveFontSize,
+                              textColor: textColor,
+                              ayahColor: ayahColor,
+                              playingAyah: playingAyah,
+                              selectedAyah: selectedAyah,
+                              highlightColor: config.highlightColor,
+                              onAyahTapped: widget.onAyahTapped,
+                            );
+                          }
+
+                          return const SizedBox.shrink();
+                        }).toList(),
+                      );
+
+                      if (fontScale > 1.02) {
+                        return SizedBox(
+                          width: constraints.maxWidth,
+                          height: constraints.maxHeight,
+                          child: SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            child: SizedBox(
+                              width: constraints.maxWidth,
+                              height: constraints.maxHeight * fontScale,
+                              child: Transform.scale(
+                                scale: fontScale,
+                                alignment: Alignment.topCenter,
+                                child: SizedBox(
+                                  width: constraints.maxWidth,
+                                  height: constraints.maxHeight,
+                                  child: FittedBox(
+                                    fit: BoxFit.contain,
+                                    alignment: Alignment.center,
+                                    child: contentColumn,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      } else if (fontScale < 0.98) {
+                        return SizedBox(
+                          width: constraints.maxWidth,
+                          height: constraints.maxHeight,
+                          child: Center(
+                            child: Transform.scale(
+                              scale: fontScale,
+                              alignment: Alignment.center,
+                              child: SizedBox(
+                                width: constraints.maxWidth,
+                                height: constraints.maxHeight,
+                                child: FittedBox(
+                                  fit: BoxFit.contain,
+                                  alignment: Alignment.center,
+                                  child: contentColumn,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      } else {
+                        return SizedBox(
+                          width: constraints.maxWidth,
+                          height: constraints.maxHeight,
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            alignment: Alignment.center,
+                            child: contentColumn,
+                          ),
+                        );
+                      }
                     },
                   ),
                 ),
@@ -408,6 +447,205 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
     );
   }
 
+  /// Authentic Offline Uthmani Page Renderer using embedded Quran text and NotoNaskhArabic font.
+  /// Renders immediately without requiring internet or external font downloads.
+  Widget _buildOfflinePageContent(
+    BoxConstraints constraints,
+    MushafThemeConfig config,
+    double baseFontSize,
+    ({int surah, int ayah})? playingAyah,
+    ({int surah, int ayah})? selectedAyah,
+    double bannerWidth,
+  ) {
+    final pageData = QuranService.instance.getPageData(widget.pageNumber);
+    final isDark = widget.themeMode == MushafThemeMode.dark;
+    final textColor = config.textColor;
+    final ayahColor = config.verseSymbolColor;
+    final highlightColor = config.highlightColor;
+
+    // Check if this page has a surah start (start == 1)
+    final bool hasSurahStart = pageData.any((e) => (e['start'] ?? 0) == 1);
+    final int totalVersesOnPage = pageData.fold(
+      0,
+      (sum, e) => sum + ((e['end'] ?? 1) - (e['start'] ?? 1) + 1),
+    );
+
+    final double fontScale = baseFontSize / 26.0;
+    final double effectiveFontSize;
+    final double effectiveHeight;
+    if (hasSurahStart && totalVersesOnPage <= 7) {
+      effectiveFontSize = (baseFontSize * 1.08).clamp(22.0, 38.0);
+      effectiveHeight = 1.95;
+    } else if (hasSurahStart && totalVersesOnPage <= 12) {
+      effectiveFontSize = (baseFontSize * 1.0).clamp(20.0, 34.0);
+      effectiveHeight = 1.80;
+    } else {
+      final double availableHeight = constraints.maxHeight;
+      // 15 lines standard Madinah Mushaf page layout:
+      final double baselineSize = (availableHeight / 24.5).clamp(21.0, 26.5);
+      effectiveFontSize = (baselineSize * fontScale).clamp(16.0, 34.0);
+      effectiveHeight = (availableHeight / (15.5 * baselineSize)).clamp(1.60, 1.75);
+    }
+
+    final children = <Widget>[];
+
+    for (final section in pageData) {
+      final surahNum = section['surah'] ?? 1;
+      final startAyah = section['start'] ?? 1;
+      final endAyah = section['end'] ?? 1;
+
+      // 1. If this section starts at ayah 1, render Surah Banner & Basmallah
+      if (startAyah == 1) {
+        children.add(_buildSurahBanner(
+          surahNum,
+          config,
+          isDark,
+          bannerWidth: bannerWidth,
+        ));
+
+        if (surahNum != 1 && surahNum != 9) {
+          children.add(Padding(
+            padding: EdgeInsets.symmetric(vertical: 4.h),
+            child: QuranBasmallah(
+              surahNumber: surahNum,
+              color: config.textColor,
+            ),
+          ));
+        }
+      }
+
+      // 2. Build Spans for all verses in this section
+      final spans = <InlineSpan>[];
+      for (int a = startAyah; a <= endAyah; a++) {
+        final verseText = QuranService.instance.getVerseUthmani(surahNum, a);
+        final cleanVerseText = verseText.trim().replaceAll(RegExp(r'\s+'), ' ');
+        final isPlaying = playingAyah != null &&
+            surahNum == playingAyah.surah &&
+            a == playingAyah.ayah;
+        final isSelected = selectedAyah != null &&
+            surahNum == selectedAyah.surah &&
+            a == selectedAyah.ayah;
+        final isHighlighted = isPlaying || isSelected;
+
+        final Color? bgColor = isPlaying
+            ? highlightColor
+            : (isSelected
+                ? (playingAyah != null ? highlightColor.withAlpha(100) : highlightColor)
+                : null);
+
+        final thisSurah = surahNum;
+        final thisAyah = a;
+
+        // Verse Text with Tajweed Coloring and uniform, equal word spacing
+        final verseBaseStyle = TextStyle(
+          fontFamily: 'NotoNaskhArabic',
+          fontSize: effectiveFontSize,
+          height: effectiveHeight,
+          wordSpacing: -0.5,
+          color: isHighlighted ? ayahColor : textColor,
+          backgroundColor: bgColor,
+          fontWeight: FontWeight.w600,
+        );
+
+        // Apply authentic Quranic Kashida (مَطّ الكلام) so words fill the line width
+        // while preserving equal, natural spacing between words.
+        final stretchedVerseText = TajweedSpanBuilder.applyKashida(cleanVerseText);
+
+        if (widget.showTajweed) {
+          spans.addAll(TajweedSpanBuilder.buildVerseSpans(
+            verseText: stretchedVerseText,
+            baseStyle: verseBaseStyle,
+            isDark: isDark,
+            isHighlighted: isHighlighted,
+            highlightColor: ayahColor,
+            onTap: () {
+              widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
+            },
+            onLongPress: (details) {
+              widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
+            },
+          ));
+        } else {
+          spans.add(TextSpan(
+            text: stretchedVerseText,
+            style: verseBaseStyle,
+            recognizer: TapLongPressRecognizer()
+              ..onQuickTap = () {
+                widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
+              }
+              ..onLongPress = (details) {
+                widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
+              },
+          ));
+        }
+
+        // Authentic Islamic Ayah End Symbol (زهرة نهاية الآية)
+        // \u00A0 non-breaking space keeps symbol tightly attached to verse end,
+        // followed by a single standard space matching the exact inter-word space.
+        spans.add(TextSpan(
+          text: '\u00A0${QuranService.toArabicDigits(thisAyah)}\u202F ',
+          style: TextStyle(
+            fontFamily: 'ayahNumber',
+            package: 'quran_kit',
+            fontSize: effectiveFontSize + 3,
+            height: effectiveHeight,
+            color: ayahColor,
+          ),
+          recognizer: TapLongPressRecognizer()
+            ..onQuickTap = () {
+              widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
+            }
+            ..onLongPress = (details) {
+              widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
+            },
+        ));
+      }
+
+      children.add(
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 2.h),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: SizedBox(
+              width: constraints.maxWidth,
+              child: RichText(
+                text: TextSpan(children: spans),
+                textAlign: (hasSurahStart && totalVersesOnPage <= 7)
+                    ? TextAlign.center
+                    : TextAlign.justify,
+                textDirection: TextDirection.rtl,
+                softWrap: true,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: constraints.maxWidth,
+      height: constraints.maxHeight,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: SizedBox(
+            width: constraints.maxWidth,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 2.h),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Classical Madinah Mushaf Surah Header Banner
   /// Right: Revelation place (مكية / مدنية)
   /// Center: Calligraphic Surah Name in ornamental SVG banner
@@ -416,7 +654,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
     int surahNumber,
     MushafThemeConfig config,
     bool isDark, {
-    double bannerWidth = 360.0,
+    double? bannerWidth,
   }) {
     final revPlace = QuranService.instance.getPlaceOfRevelationArabic(surahNumber);
     final verseCount = QuranService.instance.getVerseCount(surahNumber);
@@ -425,7 +663,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4.h),
       child: Container(
-        width: bannerWidth,
+        width: bannerWidth ?? double.infinity,
         padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
         decoration: BoxDecoration(
           color: config.bannerBackground,
@@ -566,9 +804,9 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
         style: TextStyle(
           fontFamily: fontFamily,
           fontSize: fontSize,
-          height: 1.95,
+          height: 1.55,
           wordSpacing: -1.0,
-          color: isHighlighted ? ayahColor : textColor,
+          color: isHighlighted ? ayahColor : (widget.showTajweed ? null : textColor),
           backgroundColor: bgColor,
         ),
         recognizer: TapLongPressRecognizer()

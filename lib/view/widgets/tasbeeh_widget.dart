@@ -90,7 +90,7 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
             ),
             child: Icon(
               Icons.add_rounded,
-              color: AppColors.background,
+              color: Colors.white,
               size: 36.sp,
             ),
           ),
@@ -115,7 +115,7 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
                     'إعادة',
                     style: TextStyle(
                       fontSize: 16.sp,
-                      color: AppColors.background,
+                      color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

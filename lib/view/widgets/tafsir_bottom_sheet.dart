@@ -1,4 +1,5 @@
 import 'package:alhuda/services/tafsir_service.dart';
+import 'package:alhuda/services/theme_service.dart';
 import 'package:alhuda/view/widgets/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -107,14 +108,16 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
   Widget build(BuildContext context) {
     final isRtl = _selectedSource.language == 'ar';
 
+    final isDark = ThemeService.instance.isDarkMode;
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.82,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(40),
+            color: AppColors.shadow,
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),
@@ -129,7 +132,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
               width: 44.w,
               height: 4.h,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2.r),
               ),
             ),
@@ -193,7 +196,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
             margin: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
             padding: EdgeInsets.all(12.r),
             decoration: BoxDecoration(
-              color: const Color(0xFFFAF6F0),
+              color: isDark ? AppColors.surface : const Color(0xFFFAF6F0),
               borderRadius: BorderRadius.circular(12.r),
               border: Border.all(color: AppColors.primary.withAlpha(50)),
             ),
@@ -206,7 +209,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
                   fontSize: 18.sp,
                   fontFamily: 'NotoNaskhArabic',
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C2523),
+                  color: AppColors.textPrimary,
                   height: 1.8,
                 ),
               ),
@@ -268,7 +271,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
                   _selectedSource.language == 'ar' ? 'اللغة: العربية' : 'اللغة: English',
                   style: TextStyle(
                     fontSize: 11.sp,
-                    color: Colors.grey.shade600,
+                    color: AppColors.textSecondary,
                     fontFamily: 'Almarai',
                   ),
                 ),
@@ -277,7 +280,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
                   style: TextStyle(
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primary.withAlpha(200),
+                    color: AppColors.primary,
                     fontFamily: 'Almarai',
                   ),
                 ),
@@ -302,7 +305,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
                           'جاري استرجاع ${_selectedSource.name}...',
                           style: TextStyle(
                             fontSize: 13.sp,
-                            color: Colors.grey.shade600,
+                            color: AppColors.textSecondary,
                             fontFamily: 'Almarai',
                           ),
                         ),
@@ -323,7 +326,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 14.sp,
-                                  color: Colors.grey.shade700,
+                                  color: AppColors.textPrimary,
                                   fontFamily: 'Almarai',
                                 ),
                               ),
@@ -355,7 +358,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
                               style: TextStyle(
                                 fontSize: _fontSize,
                                 height: 2.0,
-                                color: const Color(0xFF222222),
+                                color: AppColors.textPrimary,
                                 fontFamily: isRtl ? 'NotoNaskhArabic' : null,
                               ),
                             ),

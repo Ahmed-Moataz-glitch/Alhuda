@@ -538,7 +538,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                             ),
                           ),
                           trailing: isSelected
-                              ? const Icon(
+                              ? Icon(
                                   Icons.check_circle,
                                   color: AppColors.primary,
                                 )
@@ -571,7 +571,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
@@ -673,7 +673,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                       icon: Icon(
                         Icons.volume_up_rounded,
                         color: AppColors.primary,
-                        size: 22.sp,
+                        size: 24.sp,
                       ),
                       tooltip: 'أصوات الأذان والتنبيهات',
                       onPressed: () => AdhanSettingsBottomSheet.show(context),
@@ -708,10 +708,10 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
               width: double.infinity,
               padding: EdgeInsets.all(20.r),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [
                     AppColors.primary,
-                    Color(0xFF6D4C41),
+                    const Color(0xFF6D4C41),
                   ],
                   begin: Alignment.topRight,
                   end: Alignment.bottomLeft,
@@ -813,33 +813,37 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                     ],
                   ),
                   SizedBox(height: 10.h),
-                  Container(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(40),
-                      borderRadius: BorderRadius.circular(30.r),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.hourglass_top_rounded,
-                          color: AppColors.background,
-                          size: 18.sp,
-                        ),
-                        SizedBox(width: 8.w),
-                        Text(
-                          'متبقي ${_formatDuration(timeRemaining)}',
-                          textDirection: TextDirection.ltr,
-                          style: TextStyle(
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
+                  SizedBox(
+                    width: 220.w,
+                    child: Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(40),
+                        borderRadius: BorderRadius.circular(30.r),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.hourglass_top_rounded,
                             color: AppColors.background,
+                            size: 20.sp,
                           ),
-                        ),
-                      ],
+                          SizedBox(width: 8.w),
+                          Text(
+                            'متبقي ${_formatDuration(timeRemaining)}',
+                            textDirection: TextDirection.ltr,
+                            style: TextStyle(
+                              fontSize: 18.sp,
+                              fontFamily: 'Rubik',
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.2,
+                              color: AppColors.background,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -859,7 +863,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                 decoration: BoxDecoration(
                   color: isNext
                       ? AppColors.primary.withAlpha(25)
-                      : AppColors.background,
+                      : AppColors.card,
                   borderRadius: BorderRadius.circular(14.r),
                   border: Border.all(
                     color: isNext
@@ -889,7 +893,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                       ),
                       child: Icon(
                         item.icon,
-                        color: isNext ? AppColors.background : AppColors.primary,
+                        color: isNext ? AppColors.onPrimary : AppColors.primary,
                         size: 20.sp,
                       ),
                     ),
@@ -946,7 +950,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                               color: _audioService.isPrayerAlertEnabled(item.name)
                                   ? AppColors.primary
                                   : AppColors.black.withAlpha(70),
-                              size: 18.sp,
+                              size: 24.sp,
                             ),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -1147,10 +1151,10 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
                   color: AppColors.black.withAlpha(120),
                 ),
                 prefixIcon:
-                    const Icon(Icons.search, color: AppColors.primary),
+                    Icon(Icons.search, color: AppColors.primary),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, color: AppColors.primary),
+                        icon: Icon(Icons.clear, color: AppColors.primary),
                         onPressed: () {
                           _searchController.clear();
                           _performSearch('');
@@ -1224,7 +1228,7 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
             ),
             SizedBox(height: 10.h),
             if (_isSearching)
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: CircularProgressIndicator(color: AppColors.primary),
                 ),

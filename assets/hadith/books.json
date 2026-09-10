@@ -1,0 +1,38 @@
+[
+  {
+    "id": "bukhari",
+    "numericId": 1,
+    "title": "صحيح البخاري",
+    "author": "الإمام محمد بن إسماعيل البخاري (١٩٤ - ٢٥٦ هـ)",
+    "subtitle": "الجامع المسند الصحيح المختصر من أمور رسول الله ﷺ وسننه وأيامه",
+    "badge": "أصح كتاب بعد القرآن",
+    "color": 4279983648,
+    "totalHadiths": 7277,
+    "totalChapters": 97,
+    "iconName": "auto_stories_rounded"
+  },
+  {
+    "id": "muslim",
+    "numericId": 2,
+    "title": "صحيح مسلم",
+    "author": "الإمام مسلم بن الحجاج النيسابوري (٢٠٦ - ٢٦١ هـ)",
+    "subtitle": "المسند الصحيح المختصر بنقل العدل عن العدل إلى رسول الله ﷺ",
+    "badge": "ثاني الصحيحين",
+    "color": 4279060385,
+    "totalHadiths": 7459,
+    "totalChapters": 57,
+    "iconName": "menu_book_rounded"
+  },
+  {
+    "id": "nawawi40",
+    "numericId": 10,
+    "title": "الأربعون النووية",
+    "author": "الإمام يحيى بن شرف النووي (٦٣١ - ٦٧٦ هـ)",
+    "subtitle": "اثنان وأربعون حديثاً نبوياً مشتملاً على كليات وقواعد الدين",
+    "badge": "جامع كليات الإسلام",
+    "color": 4285143962,
+    "totalHadiths": 42,
+    "totalChapters": 1,
+    "iconName": "stars_rounded"
+  }
+]

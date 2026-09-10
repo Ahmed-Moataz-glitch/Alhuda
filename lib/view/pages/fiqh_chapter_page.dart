@@ -129,7 +129,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
           backgroundColor: AppColors.background,
           elevation: 0,
           centerTitle: true,
-          iconTheme: const IconThemeData(color: AppColors.primary),
+          iconTheme: IconThemeData(color: AppColors.primary),
           title: Column(
             children: [
               Text(
@@ -182,7 +182,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
               padding: EdgeInsets.all(14.r),
               margin: EdgeInsets.only(bottom: 16.h),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card,
                 borderRadius: BorderRadius.circular(16.r),
                 border: Border.all(color: AppColors.primary.withAlpha(30)),
                 boxShadow: [
@@ -249,7 +249,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
               return Container(
                 margin: EdgeInsets.only(bottom: 16.h),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card,
                   borderRadius: BorderRadius.circular(18.r),
                   border: Border.all(
                     color: AppColors.primary.withAlpha(35),
@@ -353,7 +353,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                       style: TextStyle(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                         fontFamily: 'Almarai',
                       ),
                     ),
@@ -368,7 +368,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                         fontSize: _fontSize,
                         fontFamily: 'Rubik',
                         height: 1.8,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
 
@@ -418,7 +418,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                                       child: Container(
                                         width: 5.w,
                                         height: 5.w,
-                                        decoration: const BoxDecoration(
+                                        decoration: BoxDecoration(
                                           color: AppColors.primary,
                                           shape: BoxShape.circle,
                                         ),

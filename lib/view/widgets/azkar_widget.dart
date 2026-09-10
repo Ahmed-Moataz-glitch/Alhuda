@@ -93,7 +93,7 @@ class _AzkarWidgetState extends State<AzkarWidget> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
@@ -116,7 +116,7 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                   // Search Box
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.card,
                       borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(
                         color: AppColors.primary.withAlpha(40),
@@ -134,7 +134,7 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontFamily: 'Almarai',
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                       onChanged: (value) {
                         setState(() {
@@ -146,7 +146,7 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                         hintStyle: TextStyle(
                           fontSize: 13.sp,
                           fontFamily: 'Almarai',
-                          color: Colors.black38,
+                          color: AppColors.textSecondary,
                         ),
                         prefixIcon: Icon(
                           Icons.search_rounded,
@@ -218,8 +218,8 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                       subtitle: 'حفظ وبركة ليومك',
                       timeBadge: 'الفجر حتى الضحى',
                       icon: Icons.wb_sunny_rounded,
-                      gradientColors: const [
-                        Color(0xFF8D6E63),
+                      gradientColors: [
+                        const Color(0xFF8D6E63),
                         AppColors.primary,
                       ],
                       onTap: () => _openChapter(27, 'أَذْكَارُ الصَّـبَاحِ'),
@@ -271,8 +271,8 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                       subtitle: 'تثبيت للأجر',
                       timeBadge: 'عقب الصلوات',
                       icon: Icons.mosque_rounded,
-                      gradientColors: const [
-                        Color(0xFF6D4C41),
+                      gradientColors: [
+                        const Color(0xFF6D4C41),
                         AppColors.primary,
                       ],
                       onTap: () => _openChapter(
@@ -388,7 +388,7 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                         return Container(
                           margin: EdgeInsets.only(bottom: 10.h),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.card,
                             borderRadius: BorderRadius.circular(14.r),
                             border: Border.all(
                               color: AppColors.primary.withAlpha(25),
@@ -445,7 +445,7 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                                             style: TextStyle(
                                               fontSize: 14.5.sp,
                                               fontWeight: FontWeight.w600,
-                                              color: Colors.black87,
+                                              color: AppColors.textPrimary,
                                               fontFamily: 'Rubik',
                                             ),
                                           ),
@@ -597,7 +597,7 @@ class _AzkarWidgetState extends State<AzkarWidget> {
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
+          color: isSelected ? AppColors.primary : AppColors.card,
           borderRadius: BorderRadius.circular(20.r),
           border: Border.all(
             color: isSelected

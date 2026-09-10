@@ -92,14 +92,14 @@ class _FiqhWidgetState extends State<FiqhWidget> {
               padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 8.h),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card,
                   borderRadius: BorderRadius.circular(16.r),
                   border: Border.all(
                     color: AppColors.primary.withAlpha(40),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.black.withAlpha(8),
+                      color: AppColors.shadow,
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -110,7 +110,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontFamily: 'Almarai',
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                   onChanged: (val) {
                     setState(() {
@@ -401,7 +401,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(horizontal: 13.w, vertical: 6.h),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
+          color: isSelected ? AppColors.primary : AppColors.card,
           borderRadius: BorderRadius.circular(20.r),
           border: Border.all(
             color: isSelected
@@ -447,14 +447,14 @@ class _FiqhWidgetState extends State<FiqhWidget> {
     return Container(
       margin: EdgeInsets.only(bottom: 11.h),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
           color: AppColors.primary.withAlpha(30),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withAlpha(6),
+            color: AppColors.shadow,
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -498,7 +498,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                               style: TextStyle(
                                 fontSize: 15.sp,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: AppColors.textPrimary,
                                 fontFamily: 'Almarai',
                               ),
                             ),
@@ -531,7 +531,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11.5.sp,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                           fontFamily: 'Almarai',
                         ),
                       ),
@@ -599,9 +599,9 @@ class _FiqhWidgetState extends State<FiqhWidget> {
             width: 175.w,
             padding: EdgeInsets.all(12.r),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [
-                  Color(0xFF795548),
+                  const Color(0xFF795548),
                   AppColors.primary,
                 ],
                 begin: Alignment.topRight,
@@ -696,12 +696,12 @@ class _FiqhWidgetState extends State<FiqhWidget> {
     return Container(
       margin: EdgeInsets.only(bottom: 10.h),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(14.r),
         border: Border.all(color: AppColors.primary.withAlpha(30)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withAlpha(6),
+            color: AppColors.shadow,
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -727,7 +727,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                         style: TextStyle(
                           fontSize: 14.5.sp,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: AppColors.textPrimary,
                           fontFamily: 'Almarai',
                         ),
                       ),
@@ -760,7 +760,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12.sp,
-                    color: Colors.black54,
+                    color: AppColors.textSecondary,
                     fontFamily: 'Rubik',
                     height: 1.4,
                   ),
@@ -797,12 +797,12 @@ class _FiqhWidgetState extends State<FiqhWidget> {
     return Container(
       margin: EdgeInsets.only(bottom: 10.h),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(14.r),
         border: Border.all(color: AppColors.primary.withAlpha(30)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withAlpha(6),
+            color: AppColors.shadow,
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -833,7 +833,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                         style: TextStyle(
                           fontSize: 14.5.sp,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: AppColors.textPrimary,
                           fontFamily: 'Almarai',
                         ),
                       ),
@@ -844,7 +844,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11.5.sp,
-                          color: Colors.black54,
+                          color: AppColors.textSecondary,
                           fontFamily: 'Rubik',
                           height: 1.4,
                         ),

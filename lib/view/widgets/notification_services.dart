@@ -11,7 +11,7 @@ abstract class NotificationServices {
   static const AndroidInitializationSettings androidInitializationSettings =
       AndroidInitializationSettings(AppConstants.notificationIcon);
 
-  static const AndroidNotificationDetails androidNotificationDetails =
+  static final AndroidNotificationDetails androidNotificationDetails =
       AndroidNotificationDetails(
         'channelId',
         'channelName',
@@ -22,7 +22,7 @@ abstract class NotificationServices {
         priority: Priority.high,
       );
 
-  static const NotificationDetails notificationDetails = NotificationDetails(
+  static final NotificationDetails notificationDetails = NotificationDetails(
     android: androidNotificationDetails,
   );
 

@@ -1,3 +1,4 @@
+import 'package:alhuda/services/theme_service.dart';
 import 'package:alhuda/view/widgets/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -16,9 +17,15 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
   late HijriDate _todayHijri;
   late DateTime _todayGregorian;
 
-  late int _selectedYear;
-  late int _selectedMonth;
-  late int _selectedDay;
+  late int _viewedYear;
+  late int _viewedMonth;
+
+  int? _selectedYear;
+  int? _selectedMonth;
+  int? _selectedDay;
+
+  late ScrollController _scrollController;
+  bool _isNext = true;
 
   final List<String> _weekDays = const [
     'السبت',
@@ -34,52 +41,86 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
   void initState() {
     super.initState();
     HijriDate.setLocal('ar');
+    _scrollController = ScrollController();
     _todayGregorian = DateTime.now();
     _todayHijri = HijriDate.fromDate(_todayGregorian);
+
+    _viewedYear = _todayHijri.hYear;
+    _viewedMonth = _todayHijri.hMonth;
 
     _selectedYear = _todayHijri.hYear;
     _selectedMonth = _todayHijri.hMonth;
     _selectedDay = _todayHijri.hDay;
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   void _previousMonth() {
     setState(() {
-      if (_selectedMonth == 1) {
-        _selectedMonth = 12;
-        _selectedYear--;
+      _isNext = false;
+      if (_viewedMonth == 1) {
+        _viewedMonth = 12;
+        _viewedYear--;
       } else {
-        _selectedMonth--;
+        _viewedMonth--;
       }
-      final maxDays = HijriDate().getDaysInMonth(_selectedYear, _selectedMonth);
-      if (_selectedDay > maxDays) {
-        _selectedDay = maxDays;
+      if (_viewedYear == _todayHijri.hYear &&
+          _viewedMonth == _todayHijri.hMonth) {
+        _selectedYear = _todayHijri.hYear;
+        _selectedMonth = _todayHijri.hMonth;
+        _selectedDay = _todayHijri.hDay;
+      } else {
+        _selectedYear = null;
+        _selectedMonth = null;
+        _selectedDay = null;
       }
     });
   }
 
   void _nextMonth() {
     setState(() {
-      if (_selectedMonth == 12) {
-        _selectedMonth = 1;
-        _selectedYear++;
+      _isNext = true;
+      if (_viewedMonth == 12) {
+        _viewedMonth = 1;
+        _viewedYear++;
       } else {
-        _selectedMonth++;
+        _viewedMonth++;
       }
-      final maxDays = HijriDate().getDaysInMonth(_selectedYear, _selectedMonth);
-      if (_selectedDay > maxDays) {
-        _selectedDay = maxDays;
+      if (_viewedYear == _todayHijri.hYear &&
+          _viewedMonth == _todayHijri.hMonth) {
+        _selectedYear = _todayHijri.hYear;
+        _selectedMonth = _todayHijri.hMonth;
+        _selectedDay = _todayHijri.hDay;
+      } else {
+        _selectedYear = null;
+        _selectedMonth = null;
+        _selectedDay = null;
       }
     });
   }
 
   void _jumpToToday() {
     setState(() {
+      _isNext = false;
       _todayGregorian = DateTime.now();
       _todayHijri = HijriDate.fromDate(_todayGregorian);
+      _viewedYear = _todayHijri.hYear;
+      _viewedMonth = _todayHijri.hMonth;
       _selectedYear = _todayHijri.hYear;
       _selectedMonth = _todayHijri.hMonth;
       _selectedDay = _todayHijri.hDay;
     });
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   String _getArabicMonthName(int month) {
@@ -157,18 +198,33 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final currentHijriSelection =
-        HijriDate.fromHijri(_selectedYear, _selectedMonth, _selectedDay);
-    final selectedGregorian =
-        HijriDate().hijriToGregorian(_selectedYear, _selectedMonth, _selectedDay);
-    final moonInfo = currentHijriSelection.getMoonPhase();
-    final dayEvents = _getEventsForDay(_selectedMonth, _selectedDay);
+    final hasSelectedDay = _selectedYear != null &&
+        _selectedMonth != null &&
+        _selectedDay != null &&
+        _selectedYear == _viewedYear &&
+        _selectedMonth == _viewedMonth;
+
+    final currentHijriSelection = hasSelectedDay
+        ? HijriDate.fromHijri(_selectedYear!, _selectedMonth!, _selectedDay!)
+        : null;
+    final selectedGregorian = hasSelectedDay
+        ? HijriDate().hijriToGregorian(
+            _selectedYear!, _selectedMonth!, _selectedDay!)
+        : null;
+    final moonInfo = currentHijriSelection?.getMoonPhase();
+    final dayEvents = hasSelectedDay
+        ? _getEventsForDay(_selectedMonth!, _selectedDay!)
+        : <IslamicEvent>[];
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: ListView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
           children: [
             // 1. Today & Moon Phase Header Card
@@ -180,12 +236,18 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
             SizedBox(height: 16.h),
 
             // 3. Selected Day Details Card
-            _buildSelectedDayCard(
-              currentHijriSelection,
-              selectedGregorian,
-              moonInfo,
-              dayEvents,
-            ),
+            if (hasSelectedDay &&
+                currentHijriSelection != null &&
+                selectedGregorian != null &&
+                moonInfo != null)
+              _buildSelectedDayCard(
+                currentHijriSelection,
+                selectedGregorian,
+                moonInfo,
+                dayEvents,
+              )
+            else
+              _buildNoDaySelectedCard(),
             SizedBox(height: 16.h),
 
             // 4. Upcoming Islamic Occasions
@@ -209,10 +271,10 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
       width: double.infinity,
       padding: EdgeInsets.all(18.r),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [
             AppColors.primary,
-            Color(0xFF5D4037),
+            const Color(0xFF5D4037),
           ],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
@@ -372,11 +434,11 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
 
   Widget _buildMonthCalendarCard() {
     final daysInMonth =
-        HijriDate().getDaysInMonth(_selectedYear, _selectedMonth);
+        HijriDate().getDaysInMonth(_viewedYear, _viewedMonth);
     final firstDayGregorian =
-        HijriDate().hijriToGregorian(_selectedYear, _selectedMonth, 1);
+        HijriDate().hijriToGregorian(_viewedYear, _viewedMonth, 1);
     final lastDayGregorian =
-        HijriDate().hijriToGregorian(_selectedYear, _selectedMonth, daysInMonth);
+        HijriDate().hijriToGregorian(_viewedYear, _viewedMonth, daysInMonth);
 
     // Week starts on Saturday (offset calculation where Sat = 0)
     // Dart weekday: Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6, Sun=7
@@ -387,223 +449,270 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
     final gregorianSpan =
         '${firstDayGregorian.day} ${_getGregorianMonthName(firstDayGregorian.month)} - ${lastDayGregorian.day} ${_getGregorianMonthName(lastDayGregorian.month)} ${lastDayGregorian.year}';
 
-    return Container(
-      padding: EdgeInsets.all(16.r),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(12),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Month Header Navigation
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_forward_ios_rounded),
-                iconSize: 18.sp,
-                color: AppColors.primary,
-                tooltip: 'الشهر السابق',
-                onPressed: _previousMonth,
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      '${_getArabicMonthName(_selectedMonth)} $_selectedYear هـ',
-                      style: TextStyle(
-                        fontSize: 18.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 2.h),
-                    Text(
-                      gregorianSpan,
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        color: Colors.grey.shade600,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        // In RTL: swipe left (negative velocity) moves to next month,
+        // swipe right (positive velocity) moves to previous month
+        if (velocity < -150) {
+          _nextMonth();
+        } else if (velocity > 150) {
+          _previousMonth();
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(20.r),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Month Header Navigation
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_rounded),
+                  iconSize: 18.sp,
+                  color: AppColors.primary,
+                  tooltip: 'الشهر السابق',
+                  onPressed: _previousMonth,
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_rounded),
-                iconSize: 18.sp,
-                color: AppColors.primary,
-                tooltip: 'الشهر القادم',
-                onPressed: _nextMonth,
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          const Divider(height: 1),
-          SizedBox(height: 8.h),
-
-          // Weekdays Bar
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: _weekDays.map((day) {
-              final isFriday = day == 'الجمعة';
-              return Expanded(
-                child: Center(
-                  child: Text(
-                    day,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.bold,
-                      color: isFriday ? AppColors.primary : Colors.grey.shade700,
-                    ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        '${_getArabicMonthName(_viewedMonth)} $_viewedYear هـ',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 2.h),
+                      Text(
+                        gregorianSpan,
+                        style: TextStyle(
+                          fontSize: 11.sp,
+                          color: Colors.grey.shade600,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-              );
-            }).toList(),
-          ),
-          SizedBox(height: 8.h),
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios_rounded),
+                  iconSize: 18.sp,
+                  color: AppColors.primary,
+                  tooltip: 'الشهر القادم',
+                  onPressed: _nextMonth,
+                ),
+              ],
+            ),
+            SizedBox(height: 12.h),
+            const Divider(height: 1),
+            SizedBox(height: 8.h),
 
-          // Calendar Days Grid
-          Column(
-            children: List.generate(totalRows, (rowIndex) {
-              return Padding(
-                padding: EdgeInsets.symmetric(vertical: 4.h),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: List.generate(7, (colIndex) {
-                    final cellIndex = rowIndex * 7 + colIndex;
-                    final dayNum = cellIndex - firstWeekdayOffset + 1;
+            // Weekdays Bar
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: _weekDays.map((day) {
+                final isFriday = day == 'الجمعة';
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.bold,
+                        color: isFriday ? AppColors.primary : Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            SizedBox(height: 8.h),
 
-                    if (dayNum < 1 || dayNum > daysInMonth) {
-                      return const Expanded(child: SizedBox.shrink());
-                    }
+            // Calendar Days Grid with smooth animated transition
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final offsetTween = Tween<Offset>(
+                  begin: Offset(_isNext ? -0.15 : 0.15, 0.0),
+                  end: Offset.zero,
+                );
+                return SlideTransition(
+                  position: offsetTween.animate(animation),
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey('$_viewedYear-$_viewedMonth'),
+                child: Column(
+                  children: List.generate(totalRows, (rowIndex) {
+                    return Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4.h),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: List.generate(7, (colIndex) {
+                          final cellIndex = rowIndex * 7 + colIndex;
+                          final dayNum = cellIndex - firstWeekdayOffset + 1;
 
-                    final gregDate = HijriDate().hijriToGregorian(
-                      _selectedYear,
-                      _selectedMonth,
-                      dayNum,
-                    );
-                    final isToday = dayNum == _todayHijri.hDay &&
-                        _selectedMonth == _todayHijri.hMonth &&
-                        _selectedYear == _todayHijri.hYear;
-                    final isSelected = dayNum == _selectedDay;
-                    final hasEvents =
-                        _getEventsForDay(_selectedMonth, dayNum).isNotEmpty;
-                    final isWhiteDay = _isWhiteDay(dayNum);
+                          if (dayNum < 1 || dayNum > daysInMonth) {
+                            return const Expanded(child: SizedBox.shrink());
+                          }
 
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedDay = dayNum;
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: EdgeInsets.all(2.r),
-                          padding: EdgeInsets.symmetric(vertical: 6.h),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.primary
-                                : (isToday
-                                    ? AppColors.primary.withAlpha(35)
-                                    : (isWhiteDay
-                                        ? const Color(0xFFFFF8E1)
-                                        : Colors.transparent)),
-                            borderRadius: BorderRadius.circular(12.r),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : (isToday
+                          final gregDate = HijriDate().hijriToGregorian(
+                            _viewedYear,
+                            _viewedMonth,
+                            dayNum,
+                          );
+                          final isToday = dayNum == _todayHijri.hDay &&
+                              _viewedMonth == _todayHijri.hMonth &&
+                              _viewedYear == _todayHijri.hYear;
+                          final isSelected = dayNum == _selectedDay &&
+                              _viewedMonth == _selectedMonth &&
+                              _viewedYear == _selectedYear;
+                          final hasEvents =
+                              _getEventsForDay(_viewedMonth, dayNum).isNotEmpty;
+                          final isWhiteDay = _isWhiteDay(dayNum);
+
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedYear = _viewedYear;
+                                  _selectedMonth = _viewedMonth;
+                                  _selectedDay = dayNum;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                margin: EdgeInsets.all(2.r),
+                                padding: EdgeInsets.symmetric(vertical: 6.h),
+                                decoration: BoxDecoration(
+                                  color: isSelected
                                       ? AppColors.primary
-                                      : Colors.transparent),
-                              width: isToday && !isSelected ? 1.5 : 1,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '$dayNum',
-                                style: TextStyle(
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.bold,
-                                  color: isSelected
-                                      ? Colors.white
                                       : (isToday
-                                          ? AppColors.primary
-                                          : Colors.black87),
-                                ),
-                              ),
-                              SizedBox(height: 2.h),
-                              Text(
-                                '${gregDate.day}',
-                                style: TextStyle(
-                                  fontSize: 9.sp,
-                                  color: isSelected
-                                      ? Colors.white70
-                                      : Colors.grey.shade500,
-                                ),
-                              ),
-                              SizedBox(height: 2.h),
-                              if (hasEvents)
-                                Container(
-                                  width: 4.w,
-                                  height: 4.w,
-                                  decoration: BoxDecoration(
+                                          ? AppColors.primary.withAlpha(35)
+                                          : (isWhiteDay
+                                              ? const Color(0xFFFFF8E1)
+                                              : Colors.transparent)),
+                                  borderRadius: BorderRadius.circular(12.r),
+                                  border: Border.all(
                                     color: isSelected
-                                        ? const Color(0xFFFFD54F)
-                                        : const Color(0xFFE65100),
-                                    shape: BoxShape.circle,
+                                        ? AppColors.primary
+                                        : (isToday
+                                            ? AppColors.primary
+                                            : Colors.transparent),
+                                    width: isToday && !isSelected ? 1.5 : 1,
                                   ),
-                                )
-                              else
-                                SizedBox(height: 4.w),
-                            ],
-                          ),
-                        ),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '$dayNum',
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSelected
+                                            ? AppColors.onPrimary
+                                            : (isToday
+                                                ? AppColors.primary
+                                                : (isWhiteDay
+                                                    ? const Color(0xFF5D4037)
+                                                    : AppColors.textPrimary)),
+                                      ),
+                                    ),
+                                    SizedBox(height: 2.h),
+                                    Text(
+                                      '${gregDate.day}',
+                                      style: TextStyle(
+                                        fontSize: 9.sp,
+                                        color: isSelected
+                                            ? AppColors.onPrimary.withAlpha(180)
+                                            : (isWhiteDay
+                                                ? const Color(0xFF8D6E63)
+                                                : AppColors.textSecondary),
+                                      ),
+                                    ),
+                                    SizedBox(height: 2.h),
+                                    if (hasEvents)
+                                      Container(
+                                        width: 4.w,
+                                        height: 4.w,
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? const Color(0xFFFFD54F)
+                                              : const Color(0xFFE65100),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      )
+                                    else
+                                      SizedBox(height: 4.w),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
                       ),
                     );
                   }),
                 ),
-              );
-            }),
-          ),
-          SizedBox(height: 10.h),
+              ),
+            ),
+            SizedBox(height: 10.h),
 
-          // Legend Hints
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 12.w,
-            runSpacing: 6.h,
-            children: [
-              _buildLegendItem(
-                color: AppColors.primary.withAlpha(40),
-                borderColor: AppColors.primary,
-                label: 'اليوم الحالي',
-              ),
-              _buildLegendItem(
-                color: const Color(0xFFFFF8E1),
-                borderColor: const Color(0xFFFFD54F),
-                label: 'الأيام البيض',
-              ),
-              _buildLegendDot(
-                color: const Color(0xFFE65100),
-                label: 'مناسبة إسلامية',
-              ),
-            ],
-          ),
-        ],
+            // Legend Hints
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12.w,
+              runSpacing: 6.h,
+              children: [
+                _buildLegendItem(
+                  color: AppColors.primary,
+                  borderColor: AppColors.primary,
+                  label: 'اليوم المحدد',
+                ),
+                _buildLegendItem(
+                  color: AppColors.primary.withAlpha(40),
+                  borderColor: AppColors.primary,
+                  label: 'اليوم الحالي',
+                ),
+                _buildLegendItem(
+                  color: const Color(0xFFFFF8E1),
+                  borderColor: const Color(0xFFFFD54F),
+                  label: 'الأيام البيض',
+                ),
+                _buildLegendDot(
+                  color: const Color(0xFFE65100),
+                  label: 'مناسبة إسلامية',
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -653,23 +762,93 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
     );
   }
 
+  Widget _buildNoDaySelectedCard() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(20.r),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                color: AppColors.primary,
+                size: 20.sp,
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                'تفاصيل اليوم المحدد',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(color: AppColors.border, width: 0.8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.touch_app_rounded,
+                  color: AppColors.primary,
+                  size: 22.sp,
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: Text(
+                    'اضغط على أي يوم في التقويم لعرض تفاصيله وأطوار القمر والمناسبات',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSelectedDayCard(
     HijriDate currentHijriSelection,
     DateTime selectedGregorian,
     MoonPhaseInfo moonInfo,
     List<IslamicEvent> dayEvents,
   ) {
-    final isWhiteDay = _isWhiteDay(_selectedDay);
+    final isWhiteDay = _isWhiteDay(currentHijriSelection.hDay);
 
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(10),
+            color: AppColors.shadow,
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -720,11 +899,11 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${currentHijriSelection.dayWeName}، $_selectedDay ${_getArabicMonthName(_selectedMonth)} $_selectedYear هـ',
+                      '${currentHijriSelection.dayWeName}، ${currentHijriSelection.hDay} ${_getArabicMonthName(currentHijriSelection.hMonth)} ${currentHijriSelection.hYear} هـ',
                       style: TextStyle(
                         fontSize: 15.sp,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     SizedBox(height: 2.h),
@@ -732,7 +911,7 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
                       _formatGregorianDate(selectedGregorian),
                       style: TextStyle(
                         fontSize: 12.sp,
-                        color: Colors.grey.shade600,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -757,7 +936,7 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
                     'طور القمر: ${moonInfo.arabicName}',
                     style: TextStyle(
                       fontSize: 12.sp,
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -768,7 +947,7 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
                   'نسبة الإضاءة: ${(moonInfo.illumination * 100).toStringAsFixed(0)}%',
                   style: TextStyle(
                     fontSize: 12.sp,
-                    color: Colors.grey.shade700,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -886,11 +1065,11 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
     return Container(
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(20.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(10),
+            color: AppColors.shadow,
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -933,7 +1112,7 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(12.r),
                 border: Border.all(
-                  color: Colors.grey.shade300,
+                  color: AppColors.border,
                   width: 0.8,
                 ),
               ),
@@ -962,7 +1141,7 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
                       style: TextStyle(
                         fontSize: 13.sp,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -1028,10 +1207,16 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return _DateConverterBottomSheet(
-          initialHijri:
-              HijriDate.fromHijri(_selectedYear, _selectedMonth, _selectedDay),
+          initialHijri: _selectedYear != null &&
+                  _selectedMonth != null &&
+                  _selectedDay != null
+              ? HijriDate.fromHijri(
+                  _selectedYear!, _selectedMonth!, _selectedDay!)
+              : HijriDate.fromHijri(_viewedYear, _viewedMonth, 1),
           onSelectDate: (hijriDate) {
             setState(() {
+              _viewedYear = hijriDate.hYear;
+              _viewedMonth = hijriDate.hMonth;
               _selectedYear = hijriDate.hYear;
               _selectedMonth = hijriDate.hMonth;
               _selectedDay = hijriDate.hDay;
@@ -1081,7 +1266,7 @@ class _DateConverterBottomSheetState extends State<_DateConverterBottomSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+            colorScheme: ColorScheme.light(
               primary: AppColors.primary,
               onPrimary: Colors.white,
               onSurface: Colors.black,
@@ -1107,7 +1292,7 @@ class _DateConverterBottomSheetState extends State<_DateConverterBottomSheet> {
       child: Container(
         padding: EdgeInsets.all(20.r),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.card,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
         ),
         child: Column(
@@ -1119,7 +1304,7 @@ class _DateConverterBottomSheetState extends State<_DateConverterBottomSheet> {
                 width: 40.w,
                 height: 4.h,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: ThemeService.instance.isDarkMode ? Colors.white24 : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
@@ -1141,7 +1326,7 @@ class _DateConverterBottomSheetState extends State<_DateConverterBottomSheet> {
               style: TextStyle(
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade800,
+                color: AppColors.textPrimary,
               ),
             ),
             SizedBox(height: 6.h),
@@ -1153,7 +1338,7 @@ class _DateConverterBottomSheetState extends State<_DateConverterBottomSheet> {
                 decoration: BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(12.r),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1163,10 +1348,10 @@ class _DateConverterBottomSheetState extends State<_DateConverterBottomSheet> {
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    const Icon(Icons.edit_calendar_rounded,
+                    Icon(Icons.edit_calendar_rounded,
                         color: AppColors.primary),
                   ],
                 ),
@@ -1180,7 +1365,7 @@ class _DateConverterBottomSheetState extends State<_DateConverterBottomSheet> {
               style: TextStyle(
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade800,
+                color: AppColors.textPrimary,
               ),
             ),
             SizedBox(height: 6.h),
@@ -1208,7 +1393,7 @@ class _DateConverterBottomSheetState extends State<_DateConverterBottomSheet> {
                     'طور القمر: ${_convertedHijri.getMoonPhase().arabicName}',
                     style: TextStyle(
                       fontSize: 12.sp,
-                      color: Colors.brown.shade700,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],

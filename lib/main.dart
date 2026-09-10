@@ -1,5 +1,7 @@
 import 'package:alhuda/services/quran_service.dart';
+import 'package:alhuda/services/theme_service.dart';
 import 'package:alhuda/view/pages/home_page.dart';
+import 'package:alhuda/view/theme/app_theme.dart';
 import 'package:alhuda/view/widgets/app_constants.dart';
 import 'package:alhuda/view/widgets/notification_services.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
@@ -13,6 +15,12 @@ void main() async {
 
   // Initialize Hijri date in Arabic
   HijriDate.setLocal('ar');
+
+  try {
+    await ThemeService.instance.init();
+  } catch (e) {
+    debugPrint('ThemeService initialization error: $e');
+  }
 
   try {
     await AndroidAlarmManager.initialize();
@@ -43,6 +51,17 @@ void main() async {
   NotificationServices.requestNotificationPermission();
 }
 
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(
+      parent: AlwaysScrollableScrollPhysics(),
+    );
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -53,14 +72,19 @@ class MyApp extends StatelessWidget {
       designSize: const Size(411, 869),
       minTextAdapt: true,
       splitScreenMode: true,
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: AppConstants.appName,
-        theme: ThemeData(
-          fontFamily: "Almarai",
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        ),
-        home: const HomePage(),
+      child: ListenableBuilder(
+        listenable: ThemeService.instance,
+        builder: (context, _) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: AppConstants.appName,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: ThemeService.instance.themeMode,
+            scrollBehavior: const AppScrollBehavior(),
+            home: const HomePage(),
+          );
+        },
       ),
     );
   }
