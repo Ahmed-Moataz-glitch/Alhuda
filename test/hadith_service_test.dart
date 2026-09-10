@@ -1,4 +1,3 @@
-import 'package:alhuda/model/hadith_model.dart';
 import 'package:alhuda/services/hadith_service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

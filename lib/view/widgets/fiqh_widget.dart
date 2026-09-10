@@ -1,4 +1,3 @@
-import 'package:alhuda/model/fiqh_model.dart';
 import 'package:alhuda/services/fiqh_service.dart';
 import 'package:alhuda/view/pages/fiqh_book_page.dart';
 import 'package:alhuda/view/pages/fiqh_chapter_page.dart';

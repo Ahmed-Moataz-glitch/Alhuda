@@ -1,4 +1,3 @@
-import 'package:alhuda/model/allah_name_model.dart';
 import 'package:alhuda/services/allah_names_data.dart';
 import 'package:alhuda/services/allah_names_service.dart';
 import 'package:flutter_test/flutter_test.dart';

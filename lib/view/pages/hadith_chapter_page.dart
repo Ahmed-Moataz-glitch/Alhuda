@@ -1,4 +1,3 @@
-import 'package:alhuda/model/hadith_model.dart';
 import 'package:alhuda/services/hadith_service.dart';
 import 'package:alhuda/view/widgets/app_colors.dart';
 import 'package:flutter/material.dart';

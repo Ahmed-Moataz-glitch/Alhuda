@@ -1,293 +1,64 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:alhuda/model/fiqh_model.dart';
-import 'package:alhuda/services/fiqh_data.dart';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:alhuda/features/fiqh/data/repositories/fiqh_repository_impl.dart';
+import 'package:alhuda/features/fiqh/domain/entities/fiqh_entities.dart';
+import 'package:alhuda/features/fiqh/domain/repositories/fiqh_repository.dart';
 
-/// نتيجة بحث في الفقه الإسلامي
-class FiqhSearchResult {
-  final FiqhBook book;
-  final FiqhChapter chapter;
-  final FiqhIssue issue;
-  final String matchedSnippet;
+export 'package:alhuda/features/fiqh/domain/entities/fiqh_entities.dart';
+export 'package:alhuda/features/fiqh/domain/repositories/fiqh_repository.dart';
+export 'package:alhuda/features/fiqh/data/repositories/fiqh_repository_impl.dart';
+export 'package:alhuda/features/fiqh/presentation/view_models/fiqh_view_model.dart';
 
-  const FiqhSearchResult({
-    required this.book,
-    required this.chapter,
-    required this.issue,
-    required this.matchedSnippet,
-  });
-}
-
-/// خدمة الفقه الإسلامي المركزية (إدارة البيانات، البحث، والمفضلات)
 class FiqhService {
   FiqhService._();
   static final FiqhService instance = FiqhService._();
 
-  List<FiqhBook>? _cachedBooks;
-  final List<FiqhBookmark> _bookmarks = [];
-  File? _bookmarksFile;
-  bool _isBookmarksLoaded = false;
+  final FiqhRepository _repository = FiqhRepositoryImpl();
 
-  /// الحصول على جميع كتب الفقه الـ 12
-  List<FiqhBook> getAllBooks() {
-    _cachedBooks ??= FiqhData.getBooks();
-    return _cachedBooks!;
-  }
+  List<FiqhBook> getAllBooks() => _repository.getAllBooks();
 
-  /// فلترة الكتب حسب التصنيف
-  List<FiqhBook> getBooksByCategory(FiqhCategory category) {
-    return getAllBooks().where((b) => b.category == category).toList();
-  }
+  List<FiqhBook> getBooksByCategory(FiqhCategory category) =>
+      _repository.getBooksByCategory(category);
 
-  /// البحث عن كتاب بواسطة معرفه
-  FiqhBook? getBookById(String bookId) {
-    try {
-      return getAllBooks().firstWhere((b) => b.id == bookId);
-    } catch (_) {
-      return null;
-    }
-  }
+  FiqhBook? getBookById(String bookId) => _repository.getBookById(bookId);
 
-  /// البحث عن باب بواسطة معرفه ومعرف الكتاب
-  FiqhChapter? getChapterById(String bookId, String chapterId) {
-    final book = getBookById(bookId);
-    if (book == null) return null;
-    try {
-      return book.chapters.firstWhere((c) => c.id == chapterId);
-    } catch (_) {
-      return null;
-    }
-  }
+  FiqhChapter? getChapterById(String bookId, String chapterId) =>
+      _repository.getChapterById(bookId, chapterId);
 
-  /// البحث عن مسألة بواسطة معرفها
   ({FiqhBook book, FiqhChapter chapter, FiqhIssue issue})? getIssueById(
-      String issueId) {
-    for (final book in getAllBooks()) {
-      for (final chapter in book.chapters) {
-        for (final issue in chapter.issues) {
-          if (issue.id == issueId) {
-            return (book: book, chapter: chapter, issue: issue);
-          }
-        }
-      }
-    }
-    return null;
-  }
+          String issueId) =>
+      _repository.getIssueById(issueId);
 
-  /// إجمالي عدد الأبواب الفقهية في التطبيق
-  int get totalChaptersCount {
-    return getAllBooks().fold(0, (sum, book) => sum + book.chaptersCount);
-  }
+  int get totalChaptersCount =>
+      getAllBooks().fold(0, (sum, book) => sum + book.chaptersCount);
 
-  /// إجمالي عدد المسائل الفقهية في التطبيق
-  int get totalIssuesCount {
-    return getAllBooks().fold(0, (sum, book) => sum + book.totalIssuesCount);
-  }
+  int get totalIssuesCount =>
+      getAllBooks().fold(0, (sum, book) => sum + book.totalIssuesCount);
 
-  /// تطبيع النصوص العربية للبحث الدقيق المتجاهل للتشكيل والحروف المتشابهة
-  static String normalizeArabic(String input) {
-    if (input.isEmpty) return '';
+  static String normalizeArabic(String input) =>
+      FiqhRepositoryImpl().normalizeArabic(input);
 
-    var result = input;
-    // إزالة التشكيل
-    result = result.replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '');
-    // إزالة التطويل
-    result = result.replaceAll('\u0640', '');
-    // توحيد الهمزات والألف
-    result = result.replaceAll(RegExp(r'[إأآٱ]'), 'ا');
-    // توحيد الياء والألف المقصورة
-    result = result.replaceAll('ى', 'ي');
-    // توحيد التاء المربوطة والهاء
-    result = result.replaceAll('ة', 'ه');
-    // إزالة علامات الترقيم والرموز
-    result = result.replaceAll(RegExp(r'[^\w\s\u0600-\u06FF]'), ' ');
-    result = result.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+  List<FiqhSearchResult> search(String rawQuery) =>
+      _repository.searchIssues(rawQuery);
 
-    return result;
-  }
-
-  /// محرك بحث سريع في جميع الكتب والأبواب والمسائل والأدلة
-  List<FiqhSearchResult> search(String rawQuery) {
-    final query = normalizeArabic(rawQuery);
-    if (query.isEmpty) return [];
-
-    final results = <FiqhSearchResult>[];
-
-    for (final book in getAllBooks()) {
-      for (final chapter in book.chapters) {
-        for (final issue in chapter.issues) {
-          final normTitle = normalizeArabic(issue.title);
-          final normContent = normalizeArabic(issue.content);
-          final normChapter = normalizeArabic(chapter.title);
-          final normBook = normalizeArabic(book.title);
-
-          String? matchedSnippet;
-
-          if (normTitle.contains(query)) {
-            matchedSnippet = issue.title;
-          } else if (normContent.contains(query)) {
-            matchedSnippet = _extractSnippet(issue.content, rawQuery);
-          } else if (normChapter.contains(query)) {
-            matchedSnippet = '${chapter.title} - ${issue.title}';
-          } else if (normBook.contains(query)) {
-            matchedSnippet = '${book.title} - ${chapter.title}';
-          } else {
-            // البحث في الأدلة والشروط
-            for (final ev in issue.evidences) {
-              if (normalizeArabic(ev.text).contains(query)) {
-                matchedSnippet = ev.text;
-                break;
-              }
-            }
-            if (matchedSnippet == null) {
-              for (final cond in issue.conditions) {
-                if (normalizeArabic(cond).contains(query)) {
-                  matchedSnippet = cond;
-                  break;
-                }
-              }
-            }
-            if (matchedSnippet == null) {
-              for (final note in issue.notes) {
-                if (normalizeArabic(note).contains(query)) {
-                  matchedSnippet = note;
-                  break;
-                }
-              }
-            }
-          }
-
-          if (matchedSnippet != null) {
-            results.add(FiqhSearchResult(
-              book: book,
-              chapter: chapter,
-              issue: issue,
-              matchedSnippet: matchedSnippet,
-            ));
-          }
-        }
-      }
-    }
-
-    return results;
-  }
-
-  static String _extractSnippet(String text, String rawQuery) {
-    final normText = normalizeArabic(text);
-    final normQuery = normalizeArabic(rawQuery);
-    final idx = normText.indexOf(normQuery);
-    if (idx == -1) return text.length > 80 ? '${text.substring(0, 80)}...' : text;
-
-    final start = (idx - 30).clamp(0, text.length);
-    final end = (idx + normQuery.length + 50).clamp(0, text.length);
-    var snippet = text.substring(start, end).replaceAll('\n', ' ').trim();
-    if (start > 0) snippet = '...$snippet';
-    if (end < text.length) snippet = '$snippet...';
-    return snippet;
-  }
-
-  /// أهم المسائل الفقهية الشائعة واليومية (الوصول السريع)
   List<({FiqhBook book, FiqhChapter chapter, FiqhIssue issue})>
-      getFeaturedIssues() {
-    const featuredIds = [
-      'issue_wudu_faraid_detail',
-      'issue_wudu_nawaqid_list',
-      'issue_sujood_sahw_rules',
-      'issue_patient_traveler_salah',
-      'issue_zakat_fitr_all',
-      'issue_mufattirat_all_details',
-      'issue_umrah_steps_all',
-      'issue_riba_and_sarf_detail',
-      'issue_faraid_principles',
-      'issue_oaths_classification',
-      'issue_parents_and_neighbors',
-      'issue_jihad_fadl_shuroot',
-    ];
+      getFeaturedIssues() => _repository.getFeaturedIssues();
 
-    final list = <({FiqhBook book, FiqhChapter chapter, FiqhIssue issue})>[];
-    for (final id in featuredIds) {
-      final res = getIssueById(id);
-      if (res != null) list.add(res);
-    }
-    return list;
-  }
+  bool isBookmarked(String issueId) => _repository.isBookmarked(issueId);
 
-  // ════════════════════════════════════════════════════════════════════════
-  // إدارة المفضلة والإشارات المرجعية (Bookmarks)
-  // ════════════════════════════════════════════════════════════════════════
+  Future<void> ensureBookmarksLoaded() => _repository.ensureBookmarksLoaded();
 
-  Future<void> ensureBookmarksLoaded() async {
-    if (_isBookmarksLoaded) return;
-    try {
-      final appDoc = await getApplicationDocumentsDirectory();
-      _bookmarksFile = File('${appDoc.path}/alhuda_fiqh_bookmarks.json');
-      if (await _bookmarksFile!.exists()) {
-        final jsonStr = await _bookmarksFile!.readAsString();
-        final List<dynamic> list = jsonDecode(jsonStr);
-        _bookmarks.clear();
-        for (final item in list) {
-          if (item is Map<String, dynamic>) {
-            _bookmarks.add(FiqhBookmark.fromJson(item));
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('FiqhService ensureBookmarksLoaded error: $e');
-    } finally {
-      _isBookmarksLoaded = true;
-    }
-  }
+  List<FiqhBookmark> getBookmarks() => _repository.getBookmarks();
 
-  List<FiqhBookmark> getBookmarks() => List.unmodifiable(_bookmarks);
+  Future<void> removeBookmark(String issueId) =>
+      _repository.removeBookmark(issueId);
 
-  bool isBookmarked(String issueId) {
-    return _bookmarks.any((b) => b.issueId == issueId);
-  }
-
-  Future<void> toggleBookmark({
+  Future<bool> toggleBookmark({
     required FiqhBook book,
     required FiqhChapter chapter,
     required FiqhIssue issue,
-  }) async {
-    await ensureBookmarksLoaded();
-    final index = _bookmarks.indexWhere((b) => b.issueId == issue.id);
-    if (index >= 0) {
-      _bookmarks.removeAt(index);
-    } else {
-      _bookmarks.insert(
-        0,
-        FiqhBookmark(
-          issueId: issue.id,
-          chapterId: chapter.id,
-          bookId: book.id,
-          issueTitle: issue.title,
-          chapterTitle: chapter.title,
-          bookTitle: book.title,
-          snippet: issue.content.length > 90
-              ? '${issue.content.substring(0, 90)}...'
-              : issue.content,
-          savedAt: DateTime.now(),
-        ),
+  }) =>
+      _repository.toggleBookmark(
+        book: book,
+        chapter: chapter,
+        issue: issue,
       );
-    }
-    await _saveBookmarksToDisk();
-  }
-
-  Future<void> removeBookmark(String issueId) async {
-    await ensureBookmarksLoaded();
-    _bookmarks.removeWhere((b) => b.issueId == issueId);
-    await _saveBookmarksToDisk();
-  }
-
-  Future<void> _saveBookmarksToDisk() async {
-    if (_bookmarksFile == null) return;
-    try {
-      final list = _bookmarks.map((b) => b.toJson()).toList();
-      await _bookmarksFile!.writeAsString(jsonEncode(list), flush: true);
-    } catch (e) {
-      debugPrint('FiqhService _saveBookmarksToDisk error: $e');
-    }
-  }
 }

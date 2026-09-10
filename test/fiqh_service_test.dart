@@ -1,4 +1,3 @@
-import 'package:alhuda/model/fiqh_model.dart';
 import 'package:alhuda/services/fiqh_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 

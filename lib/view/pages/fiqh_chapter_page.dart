@@ -1,4 +1,3 @@
-import 'package:alhuda/model/fiqh_model.dart';
 import 'package:alhuda/services/fiqh_service.dart';
 import 'package:alhuda/view/widgets/app_colors.dart';
 import 'package:flutter/material.dart';

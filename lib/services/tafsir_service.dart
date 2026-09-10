@@ -1,27 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:alhuda/features/quran/domain/entities/tafsir_entities.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
-/// Represents a Tafsir book source with its metadata
-class TafsirSource {
-  final String id;
-  final String key;
-  final String name;
-  final String author;
-  final String language;
-  final String apiType; // 'qurancdn' or 'alquran_cloud'
-
-  const TafsirSource({
-    required this.id,
-    required this.key,
-    required this.name,
-    required this.author,
-    this.language = 'ar',
-    required this.apiType,
-  });
-}
+export 'package:alhuda/features/quran/domain/entities/tafsir_entities.dart';
+export 'package:alhuda/features/quran/domain/repositories/tafsir_repository.dart';
+export 'package:alhuda/features/quran/data/repositories/tafsir_repository_impl.dart';
+export 'package:alhuda/features/quran/presentation/view_models/tafsir_view_model.dart';
 
 /// Comprehensive service for fetching and caching Quran Tafsirs
 class TafsirService {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import '../../model/allah_name_model.dart';
 import '../../services/allah_names_service.dart';
 import '../../services/theme_service.dart';
 import 'app_colors.dart';
