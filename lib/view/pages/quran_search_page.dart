@@ -66,6 +66,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
               textDirection: TextDirection.rtl,
               child: TextField(
                 controller: _controller,
+                onTapOutside: (_) => FocusScope.of(context).unfocus(),
                 autofocus: true,
                 style: TextStyle(fontFamily: 'NotoNaskhArabic', color: AppColors.textPrimary),
                 decoration: InputDecoration(

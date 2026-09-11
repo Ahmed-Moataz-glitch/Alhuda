@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:alhuda/model/mushaf_edition.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +11,9 @@ class TajweedDownloadProgress {
   final bool isDownloading;
   final bool isComplete;
   final String? error;
+  final String? editionId;
+  final String approximateSize;
+  final double approximateSizeMB;
 
   const TajweedDownloadProgress({
     this.downloaded = 0,
@@ -17,22 +21,34 @@ class TajweedDownloadProgress {
     this.isDownloading = false,
     this.isComplete = false,
     this.error,
+    this.editionId,
+    this.approximateSize = '85 ميجابايت',
+    this.approximateSizeMB = 85.0,
   });
 
   double get percentage => total > 0 ? (downloaded / total).clamp(0.0, 1.0) : 0.0;
   int get percentInt => (percentage * 100).toInt();
+  double get downloadedMB => percentage * approximateSizeMB;
 }
 
-/// Central cache and image management service for Dar Al-Ma'rifah Tajweed Quran pages (604 pages)
+/// Central cache and image management service for Quran pages (604 pages)
+/// Supporting multiple authentic editions:
+/// - Hafs Tajweed (Dar Al-Ma'rifah)
+/// - Madinah Hafs (King Fahd Complex)
+/// - Madinah Warsh (King Fahd Complex)
 class TajweedPageCacheService {
   TajweedPageCacheService._();
   static final TajweedPageCacheService instance = TajweedPageCacheService._();
 
-  static const String _baseUrl =
-      'https://raw.githubusercontent.com/QuranHub/quran-pages-images/main/easyquran.com/hafs-tajweed';
+  MushafEdition _currentEdition = MushafEdition.hafsTajweed;
+  final ValueNotifier<MushafEdition> editionNotifier =
+      ValueNotifier<MushafEdition>(MushafEdition.hafsTajweed);
 
-  Directory? _cacheDir;
-  final Set<int> _activeDownloads = {};
+  MushafEdition get currentEdition => _currentEdition;
+
+  Directory? _baseDocDir;
+  final Map<String, Directory> _editionDirs = {};
+  final Set<String> _activeDownloads = {};
 
   bool _isBatchDownloading = false;
   bool _cancelBatchRequested = false;
@@ -52,79 +68,146 @@ class TajweedPageCacheService {
     492, 502, 512, 522, 531, 542, 551, 560, 569, 582,
   ];
 
-  /// Initialize local cache directory
+  /// Initialize local cache directory and saved preferences
   Future<void> init() async {
-    if (_cacheDir != null) return;
+    if (_baseDocDir != null) return;
     try {
-      final docDir = await getApplicationDocumentsDirectory();
-      _cacheDir = Directory('${docDir.path}/quran_tajweed_pages');
-      if (!await _cacheDir!.exists()) {
-        await _cacheDir!.create(recursive: true);
+      _baseDocDir = await getApplicationDocumentsDirectory();
+
+      // Read saved edition preference
+      final configFile = File('${_baseDocDir!.path}/alhuda_mushaf_edition.json');
+      if (await configFile.exists()) {
+        final savedId = (await configFile.readAsString()).trim();
+        _currentEdition = MushafEdition.fromId(savedId);
+        editionNotifier.value = _currentEdition;
       }
+
+      // Initialize folders for each edition
+      for (final ed in MushafEdition.availableEditions) {
+        final dir = Directory('${_baseDocDir!.path}/${ed.folderName}');
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+        _editionDirs[ed.id] = dir;
+      }
+
       refreshDownloadStatus();
     } catch (e) {
       debugPrint('TajweedPageCacheService init error: $e');
     }
   }
 
-  /// Get direct remote URL for a page
-  String getPageUrl(int page) => '$_baseUrl/$page.jpg';
+  /// Switch active Mushaf edition and persist choice
+  Future<void> switchEdition(MushafEdition edition) async {
+    if (_currentEdition.id == edition.id) return;
+    if (_isBatchDownloading) {
+      cancelBatchDownload();
+    }
+    _currentEdition = edition;
+    editionNotifier.value = edition;
+
+    try {
+      if (_baseDocDir != null) {
+        final configFile =
+            File('${_baseDocDir!.path}/alhuda_mushaf_edition.json');
+        await configFile.writeAsString(edition.id);
+      }
+    } catch (e) {
+      debugPrint('Error saving mushaf edition: $e');
+    }
+
+    refreshDownloadStatus();
+  }
+
+  Directory? _getDirForEdition(MushafEdition? edition) {
+    final ed = edition ?? _currentEdition;
+    if (_editionDirs.containsKey(ed.id)) {
+      return _editionDirs[ed.id];
+    }
+    if (_baseDocDir != null) {
+      return Directory('${_baseDocDir!.path}/${ed.folderName}');
+    }
+    return null;
+  }
+
+  /// Get direct remote URL for a page in the specified (or active) edition
+  String getPageUrl(int page, [MushafEdition? edition]) {
+    final ed = edition ?? _currentEdition;
+    return '${ed.baseUrl}/$page.jpg';
+  }
 
   /// Get local file path for a page
-  File? getLocalFile(int page) {
-    if (_cacheDir == null) return null;
-    return File('${_cacheDir!.path}/$page.jpg');
+  File? getLocalFile(int page, [MushafEdition? edition]) {
+    final dir = _getDirForEdition(edition);
+    if (dir == null) return null;
+    return File('${dir.path}/$page.jpg');
   }
 
   /// Check whether a page image is already cached locally
-  bool isPageCached(int page) {
-    final file = getLocalFile(page);
+  bool isPageCached(int page, [MushafEdition? edition]) {
+    final file = getLocalFile(page, edition);
     return file != null && file.existsSync() && file.lengthSync() > 1000;
   }
 
-  /// Count how many pages are cached locally
-  int getCachedPagesCount() {
-    if (_cacheDir == null) return 0;
+  /// Count how many pages are cached locally for an edition
+  int getCachedPagesCount([MushafEdition? edition]) {
+    final ed = edition ?? _currentEdition;
     int count = 0;
-    for (int p = 1; p <= 604; p++) {
-      if (isPageCached(p)) count++;
+    for (int p = 1; p <= ed.totalPages; p++) {
+      if (isPageCached(p, ed)) count++;
     }
     return count;
   }
 
+  /// Check if an edition is 100% downloaded
+  bool isEditionComplete(MushafEdition edition) {
+    return getCachedPagesCount(edition) >= edition.totalPages;
+  }
+
   /// Refresh download progress state from current local cache
-  void refreshDownloadStatus() {
-    final cached = getCachedPagesCount();
+  void refreshDownloadStatus([MushafEdition? edition]) {
+    final ed = edition ?? _currentEdition;
+    final cached = getCachedPagesCount(ed);
     downloadProgressNotifier.value = TajweedDownloadProgress(
       downloaded: cached,
-      total: 604,
+      total: ed.totalPages,
       isDownloading: _isBatchDownloading,
-      isComplete: cached >= 604,
+      isComplete: cached >= ed.totalPages,
+      editionId: ed.id,
+      approximateSize: ed.approximateSize,
+      approximateSizeMB: ed.approximateSizeMB,
     );
   }
 
-  /// Download all 604 pages in parallel using a worker pool
-  Future<void> startBatchDownload({int concurrency = 6}) async {
+  /// Download all 604 pages in parallel using a worker pool for the active edition
+  Future<void> startBatchDownload({
+    int concurrency = 6,
+    MushafEdition? targetEdition,
+  }) async {
     await init();
     if (_isBatchDownloading) return;
 
+    final ed = targetEdition ?? _currentEdition;
     _isBatchDownloading = true;
     _cancelBatchRequested = false;
 
     // Collect all missing pages
     final missingPages = <int>[];
-    for (int p = 1; p <= 604; p++) {
-      if (!isPageCached(p)) {
+    for (int p = 1; p <= ed.totalPages; p++) {
+      if (!isPageCached(p, ed)) {
         missingPages.add(p);
       }
     }
 
-    int currentCached = 604 - missingPages.length;
+    int currentCached = ed.totalPages - missingPages.length;
     downloadProgressNotifier.value = TajweedDownloadProgress(
       downloaded: currentCached,
-      total: 604,
+      total: ed.totalPages,
       isDownloading: true,
       isComplete: missingPages.isEmpty,
+      editionId: ed.id,
+      approximateSize: ed.approximateSize,
+      approximateSizeMB: ed.approximateSizeMB,
     );
 
     if (missingPages.isEmpty) {
@@ -143,28 +226,31 @@ class TajweedPageCacheService {
         page = missingPages[nextIndex++];
 
         try {
-          final file = getLocalFile(page);
+          final file = getLocalFile(page, ed);
           if (file != null && (!file.existsSync() || file.lengthSync() <= 1000)) {
             final response = await http
-                .get(Uri.parse(getPageUrl(page)))
+                .get(Uri.parse(getPageUrl(page, ed)))
                 .timeout(const Duration(seconds: 25));
             if (response.statusCode == 200 && response.bodyBytes.length > 1000) {
               await file.writeAsBytes(response.bodyBytes, flush: true);
             }
           }
         } catch (e) {
-          debugPrint('Batch download error for page $page: $e');
+          debugPrint('Batch download error for page $page (${ed.id}): $e');
         }
 
-        if (isPageCached(page)) {
+        if (isPageCached(page, ed)) {
           currentCached++;
         }
 
         downloadProgressNotifier.value = TajweedDownloadProgress(
           downloaded: currentCached,
-          total: 604,
-          isDownloading: !_cancelBatchRequested && currentCached < 604,
-          isComplete: currentCached >= 604,
+          total: ed.totalPages,
+          isDownloading: !_cancelBatchRequested && currentCached < ed.totalPages,
+          isComplete: currentCached >= ed.totalPages,
+          editionId: ed.id,
+          approximateSize: ed.approximateSize,
+          approximateSizeMB: ed.approximateSizeMB,
         );
       }
     }
@@ -174,12 +260,15 @@ class TajweedPageCacheService {
     await Future.wait(workers);
 
     _isBatchDownloading = false;
-    final finalCount = getCachedPagesCount();
+    final finalCount = getCachedPagesCount(ed);
     downloadProgressNotifier.value = TajweedDownloadProgress(
       downloaded: finalCount,
-      total: 604,
+      total: ed.totalPages,
       isDownloading: false,
-      isComplete: finalCount >= 604,
+      isComplete: finalCount >= ed.totalPages,
+      editionId: ed.id,
+      approximateSize: ed.approximateSize,
+      approximateSizeMB: ed.approximateSizeMB,
     );
   }
 
@@ -191,14 +280,16 @@ class TajweedPageCacheService {
   }
 
   /// Fetch page file: returns cached File if present, otherwise downloads and saves it
-  Future<File?> getPageFile(int page) async {
+  Future<File?> getPageFile(int page, [MushafEdition? edition]) async {
     await init();
-    final file = getLocalFile(page);
+    final ed = edition ?? _currentEdition;
+    final file = getLocalFile(page, ed);
     if (file != null && await file.exists() && await file.length() > 1000) {
       return file;
     }
 
-    if (_activeDownloads.contains(page)) {
+    final downloadKey = '${ed.id}_$page';
+    if (_activeDownloads.contains(downloadKey)) {
       // Wait for ongoing download to finish
       for (int i = 0; i < 20; i++) {
         await Future.delayed(const Duration(milliseconds: 250));
@@ -208,9 +299,11 @@ class TajweedPageCacheService {
       }
     }
 
-    _activeDownloads.add(page);
+    _activeDownloads.add(downloadKey);
     try {
-      final response = await http.get(Uri.parse(getPageUrl(page))).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(Uri.parse(getPageUrl(page, ed)))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200 && response.bodyBytes.length > 1000) {
         if (file != null) {
           await file.writeAsBytes(response.bodyBytes, flush: true);
@@ -218,24 +311,29 @@ class TajweedPageCacheService {
         }
       }
     } catch (e) {
-      debugPrint('Error downloading Tajweed page $page: $e');
+      debugPrint('Error downloading page $page (${ed.id}): $e');
     } finally {
-      _activeDownloads.remove(page);
+      _activeDownloads.remove(downloadKey);
     }
     return null;
   }
 
   /// Prefetch adjacent pages in background (ahead and behind)
-  void prefetchPages(int currentPage, {int radius = 5}) {
+  void prefetchPages(int currentPage, {int radius = 5, MushafEdition? edition}) {
+    final ed = edition ?? _currentEdition;
     for (int offset = 1; offset <= radius; offset++) {
       final nextPage = currentPage + offset;
       final prevPage = currentPage - offset;
 
-      if (nextPage <= 604 && !isPageCached(nextPage) && !_activeDownloads.contains(nextPage)) {
-        getPageFile(nextPage);
+      if (nextPage <= ed.totalPages &&
+          !isPageCached(nextPage, ed) &&
+          !_activeDownloads.contains('${ed.id}_$nextPage')) {
+        getPageFile(nextPage, ed);
       }
-      if (prevPage >= 1 && !isPageCached(prevPage) && !_activeDownloads.contains(prevPage)) {
-        getPageFile(prevPage);
+      if (prevPage >= 1 &&
+          !isPageCached(prevPage, ed) &&
+          !_activeDownloads.contains('${ed.id}_$prevPage')) {
+        getPageFile(prevPage, ed);
       }
     }
   }

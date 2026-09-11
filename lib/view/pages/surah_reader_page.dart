@@ -96,17 +96,20 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
     if (!canPlay && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 10.w),
-              const Expanded(
-                child: Text(
-                  'يتطلب الاستماع لتلاوة القارئ اتصالاً بالإنترنت',
-                  style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold),
+          content: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Row(
+              children: [
+                const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 10.w),
+                const Expanded(
+                  child: Text(
+                    'يتطلب الاستماع لتلاوة القارئ اتصالاً بالإنترنت',
+                    style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           backgroundColor: Colors.brown.shade800,
           behavior: SnackBarBehavior.floating,
@@ -579,9 +582,12 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                           setState(() {});
                           messenger.showSnackBar(
                             SnackBar(
-                              content: Text(
-                                isBookmarked ? 'تمت إزالة العلامة المرجعية' : 'تم حفظ العلامة المرجعية بنجاح',
-                                style: const TextStyle(fontFamily: 'Almarai'),
+                              content: Directionality(
+                                textDirection: TextDirection.rtl,
+                                child: Text(
+                                  isBookmarked ? 'تمت إزالة العلامة المرجعية' : 'تم حفظ العلامة المرجعية بنجاح',
+                                  style: const TextStyle(fontFamily: 'Almarai'),
+                                ),
                               ),
                               duration: const Duration(seconds: 1),
                               behavior: SnackBarBehavior.floating,
@@ -601,7 +607,10 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                           ));
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Text('تم نسخ نص الآية', style: TextStyle(fontFamily: 'Almarai')),
+                              content: const Directionality(
+                                textDirection: TextDirection.rtl,
+                                child: Text('تم نسخ نص الآية', style: TextStyle(fontFamily: 'Almarai')),
+                              ),
                               duration: const Duration(seconds: 1),
                               behavior: SnackBarBehavior.floating,
                               backgroundColor: AppColors.primary,

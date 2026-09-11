@@ -144,6 +144,7 @@ class _HadithSearchPageState extends State<HadithSearchPage> {
                 ),
                 child: TextField(
                   controller: _controller,
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
                   autofocus: true,
                   onChanged: _onSearch,
                   decoration: InputDecoration(

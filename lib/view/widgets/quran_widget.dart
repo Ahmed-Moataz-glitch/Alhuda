@@ -100,31 +100,35 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
         SizedBox(height: 10.h),
 
         // Inner Tab Bar (السور - الأجزاء - العلامات)
-        Container(
-          margin: EdgeInsets.symmetric(horizontal: 16.w),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surface : Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(10.r),
-          ),
-          child: TabBar(
-            controller: _innerTabController,
-            indicator: BoxDecoration(
-              color: AppColors.primary,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10.r),
+          child: Container(
+            margin: EdgeInsets.symmetric(horizontal: 16.w),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.surface : Colors.grey.shade200,
               borderRadius: BorderRadius.circular(10.r),
             ),
-            labelColor: AppColors.onPrimary,
-            unselectedLabelColor: isDark ? AppColors.textSecondary : Colors.grey.shade700,
-            labelStyle: TextStyle(
-              fontFamily: 'Almarai',
-              fontSize: 13.sp,
-              fontWeight: FontWeight.bold,
+            child: TabBar(
+              controller: _innerTabController,
+              indicator: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(10.r)
+              ),
+              dividerColor: isDark ? AppColors.surface : Colors.grey.shade200,
+              labelColor: AppColors.onPrimary,
+              unselectedLabelColor: isDark ? AppColors.textSecondary : Colors.grey.shade700,
+              labelStyle: TextStyle(
+                fontFamily: 'Almarai',
+                fontSize: 13.sp,
+                fontWeight: FontWeight.bold,
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              tabs: [
+                const Tab(text: 'السور'),
+                const Tab(text: 'الأجزاء'),
+                Tab(text: 'العلامات (${bookmarks.length})'),
+              ],
             ),
-            indicatorSize: TabBarIndicatorSize.tab,
-            tabs: [
-              const Tab(text: 'السور'),
-              const Tab(text: 'الأجزاء'),
-              Tab(text: 'العلامات (${bookmarks.length})'),
-            ],
           ),
         ),
 

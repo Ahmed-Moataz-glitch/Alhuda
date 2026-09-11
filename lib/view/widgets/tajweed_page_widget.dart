@@ -15,7 +15,7 @@ class _TajweedCropPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Exact inner Quran text bounding box
+    // Exact inner Quran text bounding box for Dar Al-Ma'rifah
     final double sx1 = (18.0 / 645.0) * image.width;
     final double sy1 = (25.0 / 1000.0) * image.height;
     final double sx2 = (627.0 / 645.0) * image.width;
@@ -30,6 +30,23 @@ class _TajweedCropPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TajweedCropPainter oldDelegate) => oldDelegate.image != image;
+}
+
+/// A painter that preserves the full authentic Medina Mushaf frame and border
+class _FullPagePainter extends CustomPainter {
+  final ui.Image image;
+  _FullPagePainter(this.image);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final srcRect = Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
+    final dstRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final paint = Paint()..filterQuality = FilterQuality.medium;
+    canvas.drawImageRect(image, srcRect, dstRect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FullPagePainter oldDelegate) => oldDelegate.image != image;
 }
 
 /// Authentic Tajweed Mushaf Page Widget matching the Dar Al-Ma'rifah 15-line layout exactly
@@ -62,7 +79,18 @@ class _TajweedPageWidgetState extends State<TajweedPageWidget> {
   @override
   void initState() {
     super.initState();
+    TajweedPageCacheService.instance.editionNotifier.addListener(_onEditionChanged);
     _loadImage();
+  }
+
+  void _onEditionChanged() {
+    if (mounted) {
+      setState(() {
+        _decodedImage = null;
+        _isLoading = true;
+      });
+      _loadImage();
+    }
   }
 
   @override
@@ -77,6 +105,7 @@ class _TajweedPageWidgetState extends State<TajweedPageWidget> {
 
   @override
   void dispose() {
+    TajweedPageCacheService.instance.editionNotifier.removeListener(_onEditionChanged);
     _decodedImage = null;
     super.dispose();
   }
@@ -223,8 +252,12 @@ class _TajweedPageWidgetState extends State<TajweedPageWidget> {
 
   Widget _buildPageContent() {
     if (_decodedImage != null) {
+      final isCrop = TajweedPageCacheService
+          .instance.currentEdition.cropPublisherBorders;
       return CustomPaint(
-        painter: _TajweedCropPainter(_decodedImage!),
+        painter: isCrop
+            ? _TajweedCropPainter(_decodedImage!)
+            : _FullPagePainter(_decodedImage!),
         size: Size.infinite,
       );
     }

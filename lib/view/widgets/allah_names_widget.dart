@@ -73,6 +73,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_isLoading) {
       return Center(
         child: Column(
@@ -144,7 +145,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final item = filteredList[index];
-                      return _buildGridCard(item);
+                      return _buildGridCard(item, isDark);
                     },
                     childCount: filteredList.length,
                   ),
@@ -412,6 +413,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
             ),
             child: TextField(
               controller: _searchController,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
               onChanged: (val) {
                 setState(() => _searchQuery = val);
               },
@@ -570,7 +572,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
   }
 
   // --- Grid View Card ---
-  Widget _buildGridCard(AllahNameModel item) {
+  Widget _buildGridCard(AllahNameModel item, bool isDark) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -668,7 +670,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                       style: TextStyle(
                         fontFamily: 'NotoNaskhArabic',
                         fontSize: 10.sp,
-                        color: Colors.white,
+                        color: isDark ? AppColors.textPrimary : AppColors.textSecondary,
                         height: 1.3,
                       ),
                     ),

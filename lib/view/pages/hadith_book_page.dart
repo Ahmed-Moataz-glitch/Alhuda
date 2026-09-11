@@ -233,6 +233,7 @@ class _HadithBookPageState extends State<HadithBookPage> {
                         ),
                         child: TextField(
                           controller: _searchController,
+                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
                           onChanged: (val) {
                             setState(() => _searchQuery = val);
                           },

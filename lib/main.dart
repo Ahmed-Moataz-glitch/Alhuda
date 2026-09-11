@@ -82,6 +82,12 @@ class MyApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: ThemeService.instance.themeMode,
             scrollBehavior: const AppScrollBehavior(),
+            builder: (context, child) {
+              return Directionality(
+                textDirection: TextDirection.rtl,
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
             home: const HomePage(),
           );
         },

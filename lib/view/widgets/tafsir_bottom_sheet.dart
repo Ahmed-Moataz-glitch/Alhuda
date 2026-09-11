@@ -93,9 +93,12 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'تم نسخ الآية مع التفسير بنجاح',
-          style: TextStyle(fontFamily: 'Almarai'),
+        content: const Directionality(
+          textDirection: TextDirection.rtl,
+          child: Text(
+            'تم نسخ الآية مع التفسير بنجاح',
+            style: TextStyle(fontFamily: 'Almarai'),
+          ),
         ),
         backgroundColor: AppColors.primary,
         behavior: SnackBarBehavior.floating,
@@ -352,7 +355,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
                           padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 14.h),
                           child: Directionality(
                             textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
-                            child: SelectableText(
+                            child: Text(
                               _tafsirContent,
                               textAlign: isRtl ? TextAlign.justify : TextAlign.left,
                               style: TextStyle(

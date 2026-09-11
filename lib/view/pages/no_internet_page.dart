@@ -34,14 +34,17 @@ class _NoInternetPageState extends State<NoInternetPage> {
       if (!isOnline) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'ما زال الاتصال بالإنترنت غير متاح، يرجى المحاولة بعد قليل.',
-              style: TextStyle(
-                fontFamily: 'Almarai',
-                fontSize: 13.sp,
-                color: Colors.white,
+            content: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Text(
+                'ما زال الاتصال بالإنترنت غير متاح، يرجى المحاولة بعد قليل.',
+                style: TextStyle(
+                  fontFamily: 'Almarai',
+                  fontSize: 13.sp,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
             backgroundColor: Colors.brown.shade800,
             behavior: SnackBarBehavior.floating,

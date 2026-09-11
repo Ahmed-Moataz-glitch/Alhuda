@@ -100,6 +100,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                 ),
                 child: TextField(
                   controller: _searchController,
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontFamily: 'Almarai',

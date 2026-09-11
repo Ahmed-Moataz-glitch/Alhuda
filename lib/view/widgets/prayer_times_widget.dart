@@ -69,7 +69,8 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
       final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.always ||
           permission == LocationPermission.whileInUse) {
-        position = await Geolocator.getLastKnownPosition() ??
+        position =
+            await Geolocator.getLastKnownPosition() ??
             await Geolocator.getCurrentPosition(
               locationSettings: const LocationSettings(
                 accuracy: LocationAccuracy.medium,
@@ -85,8 +86,9 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
         );
 
         if (matchedLocation != null) {
-          final localizedLoc =
-              LocationArabicHelper.toArabicLocation(matchedLocation);
+          final localizedLoc = LocationArabicHelper.toArabicLocation(
+            matchedLocation,
+          );
           _currentLocation = localizedLoc;
           _displayName = '${localizedLoc.name}، ${localizedLoc.countryName}';
         } else {
@@ -192,7 +194,11 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
 
     for (final entry in prayers) {
       if (_now.isBefore(entry.value)) {
-        return _NextPrayerInfo(name: entry.key, time: entry.value, isToday: true);
+        return _NextPrayerInfo(
+          name: entry.key,
+          time: entry.value,
+          isToday: true,
+        );
       }
     }
 
@@ -264,11 +270,13 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
         return _CitySearchBottomSheet(
           muslimRepo: _muslimRepo,
           onLocationSelected: (location) {
-            final localizedLoc =
-                LocationArabicHelper.toArabicLocation(location);
+            final localizedLoc = LocationArabicHelper.toArabicLocation(
+              location,
+            );
             setState(() {
               _currentLocation = localizedLoc;
-              _displayName = '${localizedLoc.name}، ${localizedLoc.countryName}';
+              _displayName =
+                  '${localizedLoc.name}، ${localizedLoc.countryName}';
             });
             _fetchPrayersForLocation(localizedLoc);
           },
@@ -298,7 +306,8 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
           builder: (context, setModalState) {
             final isDark = Theme.of(context).brightness == Brightness.dark;
             final isSummer = EgyptDstHelper.isEgyptDst(_now);
-            final isEgypt = _currentLocation != null &&
+            final isEgypt =
+                _currentLocation != null &&
                 EgyptDstHelper.isEgyptLocation(_currentLocation!);
 
             return Directionality(
@@ -309,6 +318,9 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                 ),
                 padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 16.h),
                 child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 16.h,
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,7 +473,9 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                                             : Icons.radio_button_off,
                                         color: isSelected
                                             ? AppColors.primary
-                                            : AppColors.textSecondary.withAlpha(120),
+                                            : AppColors.textSecondary.withAlpha(
+                                                120,
+                                              ),
                                         size: 18.sp,
                                       ),
                                       SizedBox(width: 10.w),
@@ -504,7 +518,9 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                                 '* الموقع المحدد حالياً خارج مصر، لذا لن يتم تطبيق تعديل التوقيت الصيفي المصري تلقائياً.',
                                 style: TextStyle(
                                   fontSize: 11.sp,
-                                  color: isDark ? Colors.red.shade300 : Colors.red.shade700,
+                                  color: isDark
+                                      ? Colors.red.shade300
+                                      : Colors.red.shade700,
                                 ),
                               ),
                             ],
@@ -574,9 +590,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
+      return Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     final nextPrayer = _getNextPrayer();
@@ -619,7 +633,12 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
       textDirection: TextDirection.rtl,
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+        padding: EdgeInsets.only(
+          right: 16.w,
+          left: 16.w,
+          top: 12.h,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16.h,
+        ),
         child: Column(
           children: [
             // Top Bar with Location and Settings
@@ -630,8 +649,10 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                   onTap: _showCitySearchDialog,
                   borderRadius: BorderRadius.circular(20.r),
                   child: Container(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 6.h,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withAlpha(20),
                       borderRadius: BorderRadius.circular(20.r),
@@ -712,10 +733,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
               padding: EdgeInsets.all(20.r),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    const Color(0xFF6D4C41),
-                  ],
+                  colors: [AppColors.primary, const Color(0xFF6D4C41)],
                   begin: Alignment.topRight,
                   end: Alignment.bottomLeft,
                 ),
@@ -812,8 +830,10 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                   SizedBox(
                     width: 220.w,
                     child: Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20.w,
+                        vertical: 8.h,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withAlpha(40),
                         borderRadius: BorderRadius.circular(30.r),
@@ -894,8 +914,9 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                             item.name,
                             style: TextStyle(
                               fontSize: 16.sp,
-                              fontWeight:
-                                  isNext ? FontWeight.bold : FontWeight.w600,
+                              fontWeight: isNext
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
                               color: isPassed && !isNext
                                   ? AppColors.textSecondary
                                   : AppColors.primary,
@@ -921,8 +942,9 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                           textDirection: TextDirection.ltr,
                           style: TextStyle(
                             fontSize: 17.sp,
-                            fontWeight:
-                                isNext ? FontWeight.bold : FontWeight.w600,
+                            fontWeight: isNext
+                                ? FontWeight.bold
+                                : FontWeight.w600,
                             color: isPassed && !isNext
                                 ? AppColors.textSecondary
                                 : AppColors.primary,
@@ -935,7 +957,8 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                               _audioService.isPrayerAlertEnabled(item.name)
                                   ? Icons.volume_up_rounded
                                   : Icons.volume_off_rounded,
-                              color: _audioService.isPrayerAlertEnabled(item.name)
+                              color:
+                                  _audioService.isPrayerAlertEnabled(item.name)
                                   ? AppColors.primary
                                   : AppColors.textSecondary.withAlpha(100),
                               size: 24.sp,
@@ -944,10 +967,12 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                             constraints: const BoxConstraints(),
                             tooltip: 'تنبيه الأذان',
                             onPressed: () {
-                              final enabled =
-                                  _audioService.isPrayerAlertEnabled(item.name);
+                              final enabled = _audioService
+                                  .isPrayerAlertEnabled(item.name);
                               _audioService.togglePrayerAlert(
-                                  item.name, !enabled);
+                                item.name,
+                                !enabled,
+                              );
                               if (_prayerTime != null) {
                                 PrayerSchedulerService()
                                     .scheduleUpcomingPrayers(_prayerTime!);
@@ -986,11 +1011,7 @@ class _PrayerItemData {
   final DateTime? time;
   final IconData icon;
 
-  _PrayerItemData({
-    required this.name,
-    required this.time,
-    required this.icon,
-  });
+  _PrayerItemData({required this.name, required this.time, required this.icon});
 }
 
 class _CitySearchBottomSheet extends StatefulWidget {
@@ -1003,8 +1024,7 @@ class _CitySearchBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<_CitySearchBottomSheet> createState() =>
-      _CitySearchBottomSheetState();
+  State<_CitySearchBottomSheet> createState() => _CitySearchBottomSheetState();
 }
 
 class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
@@ -1044,8 +1064,9 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
     // Fallback: search external DB if local dataset has no match
     setState(() => _isSearching = true);
     try {
-      final remoteResults =
-          await widget.muslimRepo.searchLocations(locationName: query.trim());
+      final remoteResults = await widget.muslimRepo.searchLocations(
+        locationName: query.trim(),
+      );
       if (mounted) {
         setState(() {
           _displayList = remoteResults
@@ -1111,8 +1132,10 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
                   ),
                 ),
                 Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 4.h,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withAlpha(20),
                     borderRadius: BorderRadius.circular(12.r),
@@ -1131,6 +1154,7 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
             SizedBox(height: 12.h),
             TextField(
               controller: _searchController,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
               onChanged: _performSearch,
               decoration: InputDecoration(
                 hintText: 'ابحث عن اسم المدينة أو المحافظة...',
@@ -1138,8 +1162,7 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
                   fontSize: 13.sp,
                   color: AppColors.textSecondary,
                 ),
-                prefixIcon:
-                    Icon(Icons.search, color: AppColors.primary),
+                prefixIcon: Icon(Icons.search, color: AppColors.primary),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: Icon(Icons.clear, color: AppColors.primary),
@@ -1151,8 +1174,10 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
                     : null,
                 filled: true,
                 fillColor: AppColors.primary.withAlpha(15),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 14.w,
+                  vertical: 10.h,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14.r),
                   borderSide: BorderSide.none,

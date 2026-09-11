@@ -73,10 +73,13 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'تم نسخ المسألة الفقهية مع أدلتها للحافظة',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontFamily: 'Almarai'),
+        content: const Directionality(
+          textDirection: TextDirection.rtl,
+          child: Text(
+            'تم نسخ المسألة الفقهية مع أدلتها للحافظة',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontFamily: 'Almarai'),
+          ),
         ),
         backgroundColor: AppColors.primary,
         duration: const Duration(seconds: 2),
@@ -100,10 +103,13 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
       final isSaved = FiqhService.instance.isBookmarked(issue.id);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            isSaved ? 'تمت إضافة المسألة إلى المفضلة' : 'تمت إزالة المسألة من المفضلة',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontFamily: 'Almarai'),
+          content: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Text(
+              isSaved ? 'تمت إضافة المسألة إلى المفضلة' : 'تمت إزالة المسألة من المفضلة',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontFamily: 'Almarai'),
+            ),
           ),
           backgroundColor: isSaved ? Colors.green.shade800 : AppColors.primary,
           duration: const Duration(seconds: 2),

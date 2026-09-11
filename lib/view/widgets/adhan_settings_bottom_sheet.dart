@@ -467,9 +467,11 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
-                    'جاري تشغيل صوت ${_audioService.selectedSound.title}',
+                  content: Directionality(
                     textDirection: TextDirection.rtl,
+                    child: Text(
+                      'جاري تشغيل صوت ${_audioService.selectedSound.title}',
+                    ),
                   ),
                   backgroundColor: AppColors.primary,
                   duration: const Duration(seconds: 3),
@@ -508,9 +510,11 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text(
-                    'تمت جدولة الأذان بعد 10 ثوانٍ.. أغلق التطبيق الآن للتجربة!',
+                  content: const Directionality(
                     textDirection: TextDirection.rtl,
+                    child: Text(
+                      'تمت جدولة الأذان بعد 10 ثوانٍ.. أغلق التطبيق الآن للتجربة!',
+                    ),
                   ),
                   backgroundColor: AppColors.primary,
                   duration: const Duration(seconds: 4),

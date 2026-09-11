@@ -89,15 +89,18 @@ class _HadithChapterPageState extends State<HadithChapterPage> {
     Clipboard.setData(ClipboardData(text: textToCopy));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white),
-            SizedBox(width: 8.w),
-            const Text(
-              'تم نسخ الحديث والتخريج بنجاح',
-              style: TextStyle(fontFamily: 'Almarai'),
-            ),
-          ],
+        content: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white),
+              SizedBox(width: 8.w),
+              const Text(
+                'تم نسخ الحديث والتخريج بنجاح',
+                style: TextStyle(fontFamily: 'Almarai'),
+              ),
+            ],
+          ),
         ),
         backgroundColor: widget.book.color,
         behavior: SnackBarBehavior.floating,
@@ -127,9 +130,12 @@ class _HadithChapterPageState extends State<HadithChapterPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            isSaved ? 'تمت إضافة الحديث إلى المفضلة' : 'تمت إزالة الحديث من المفضلة',
-            style: const TextStyle(fontFamily: 'Almarai'),
+          content: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Text(
+              isSaved ? 'تمت إضافة الحديث إلى المفضلة' : 'تمت إزالة الحديث من المفضلة',
+              style: const TextStyle(fontFamily: 'Almarai'),
+            ),
           ),
           backgroundColor: isSaved ? widget.book.color : Colors.grey[800],
           behavior: SnackBarBehavior.floating,
@@ -401,7 +407,7 @@ class _HadithChapterPageState extends State<HadithChapterPage> {
                                       // نص الحديث النبوي
                                       Padding(
                                         padding: EdgeInsets.all(16.r),
-                                        child: SelectableText(
+                                        child: Text(
                                           hadith.arabic,
                                           textAlign: TextAlign.justify,
                                           style: TextStyle(

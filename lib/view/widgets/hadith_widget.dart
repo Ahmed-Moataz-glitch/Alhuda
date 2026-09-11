@@ -82,13 +82,16 @@ class _HadithWidgetState extends State<HadithWidget> {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white),
-            SizedBox(width: 8),
-            Text('تم نسخ حديث اليوم وتخريجه',
-                style: TextStyle(fontFamily: 'Almarai')),
-          ],
+        content: const Directionality(
+          textDirection: TextDirection.rtl,
+          child: Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white),
+              SizedBox(width: 8),
+              Text('تم نسخ حديث اليوم وتخريجه',
+                  style: TextStyle(fontFamily: 'Almarai')),
+            ],
+          ),
         ),
         backgroundColor: d.book.color,
         behavior: SnackBarBehavior.floating,

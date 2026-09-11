@@ -354,7 +354,12 @@ class _QiblaWidgetState extends State<QiblaWidget>
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      padding: EdgeInsets.only(
+        left: 16.w,
+        right: 16.w,
+        top: 12.h,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16.h,
+      ),
       child: Column(
         children: [
           // شريط التحكم بالوضع والموقع
@@ -709,7 +714,12 @@ class _QiblaWidgetState extends State<QiblaWidget>
 
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+          padding: EdgeInsets.only(
+            left: 16.w,
+            right: 16.w,
+            top: 12.h,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16.h,
+          ),
           child: Column(
             children: [
               _buildTopBar(isSensorless: false),
@@ -1704,6 +1714,7 @@ class _CitySelectionModalState extends State<_CitySelectionModal> {
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
               child: TextField(
                 controller: _searchController,
+                onTapOutside: (_) => FocusScope.of(context).unfocus(),
                 onChanged: _onSearchChanged,
                 decoration: InputDecoration(
                   hintText: 'ابحث عن اسم المدينة أو المحافظة...',

@@ -117,10 +117,13 @@ ${name.quranVerse} [${name.surahRef}]
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'تم نسخ تفاصيل الاسم بنجاح',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontFamily: 'Almarai'),
+        content: const Directionality(
+          textDirection: TextDirection.rtl,
+          child: Text(
+            'تم نسخ تفاصيل الاسم بنجاح',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontFamily: 'Almarai'),
+          ),
         ),
         backgroundColor: AppColors.primary,
         duration: const Duration(seconds: 2),

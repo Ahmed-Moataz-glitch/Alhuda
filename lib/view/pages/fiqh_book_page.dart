@@ -205,6 +205,7 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                   ),
                   child: TextField(
                     controller: _searchController,
+                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
                     style: TextStyle(
                       fontSize: 13.5.sp,
                       fontFamily: 'Almarai',

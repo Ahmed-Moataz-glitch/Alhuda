@@ -89,10 +89,13 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'تمت إعادة ضبط جميع العدادات',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontFamily: 'Almarai'),
+        content: const Directionality(
+          textDirection: TextDirection.rtl,
+          child: Text(
+            'تمت إعادة ضبط جميع العدادات',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontFamily: 'Almarai'),
+          ),
         ),
         backgroundColor: AppColors.primary,
         duration: const Duration(seconds: 2),
@@ -118,16 +121,19 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
   void _showCompletionSnackBar() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white),
-            SizedBox(width: 8.w),
-            const Text(
-              'هنيئاً لك! أتممت قراءة الأذكار، تقبل الله منا ومنكم.',
-              style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold),
-            ),
-          ],
+        content: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white),
+              SizedBox(width: 8.w),
+              const Text(
+                'هنيئاً لك! أتممت قراءة الأذكار، تقبل الله منا ومنكم.',
+                style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
         ),
         backgroundColor: Colors.green.shade800,
         duration: const Duration(seconds: 4),
@@ -151,10 +157,13 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'تم نسخ الذكر إلى الحافظة',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontFamily: 'Almarai'),
+        content: const Directionality(
+          textDirection: TextDirection.rtl,
+          child: Text(
+            'تم نسخ الذكر إلى الحافظة',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontFamily: 'Almarai'),
+          ),
         ),
         backgroundColor: AppColors.primary,
         duration: const Duration(seconds: 2),
