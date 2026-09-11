@@ -123,5 +123,63 @@ void main() {
       expect(ids.contains('miqbas'), isTrue);
       expect(ids.contains('en_sahih'), isTrue);
     });
+
+    test('Offline packages configure Al-Muyassar and Ibn Kathir with valid endpoints', () {
+      final packages = TafsirService.offlinePackages;
+      expect(packages.length, 2);
+
+      final muyassar = packages.firstWhere((p) => p.id == 'muyassar');
+      expect(muyassar.name, 'التفسير الميسر');
+      expect(muyassar.cdnUrl.contains('muyassar.json'), isTrue);
+      expect(muyassar.fallbackUrl.contains('muyassar.json'), isTrue);
+      expect(muyassar.approximateSizeBytes, greaterThan(1000000));
+
+      final ibnKathir = packages.firstWhere((p) => p.id == 'ibn_kathir');
+      expect(ibnKathir.name, 'تفسير ابن كثير');
+      expect(ibnKathir.cdnUrl.contains('katheer.json'), isTrue);
+      expect(ibnKathir.fallbackUrl.contains('katheer.json'), isTrue);
+      expect(ibnKathir.approximateSizeBytes, greaterThan(10000000));
+    });
+
+    test('TafsirDownloadProgress accurately calculates percentages and sizeText', () {
+      const progress = TafsirDownloadProgress(
+        tafsirId: 'muyassar',
+        isDownloading: true,
+        progress: 0.654,
+        receivedBytes: 2000000,
+        totalBytes: 3072000,
+      );
+
+      expect(progress.percentInt, 65);
+      expect(progress.sizeText.contains('ميجابايت'), isTrue);
+      expect(progress.isDownloading, isTrue);
+    });
+
+    test('Offline indexed Tafsir returns instant O(1) commentary for verses and pages', () async {
+      final service = TafsirService.instance;
+      service.setMockOfflineTafsir('muyassar', {
+        '1:1': 'تفسير بسم الله الرحمن الرحيم الميسر أوفلاين',
+        '1:2': 'تفسير الحمد لله رب العالمين الميسر أوفلاين',
+        '1:3': 'تفسير الرحمن الرحيم الميسر أوفلاين',
+        '1:4': 'تفسير مالك يوم الدين الميسر أوفلاين',
+        '1:5': 'تفسير إياك نعبد وإياك نستعين الميسر أوفلاين',
+        '1:6': 'تفسير اهدنا الصراط المستقيم الميسر أوفلاين',
+        '1:7': 'تفسير صراط الذين أنعمت عليهم الميسر أوفلاين',
+      });
+
+      expect(service.isOfflineDownloaded('muyassar'), isTrue);
+
+      final source = TafsirService.availableTafsirs.firstWhere((t) => t.id == 'muyassar');
+      final singleAyah = await service.getTafsir(source: source, surah: 1, ayah: 1);
+      expect(singleAyah, 'تفسير بسم الله الرحمن الرحيم الميسر أوفلاين');
+
+      final page1Tafsir = await service.getPageTafsir(source: source, pageNumber: 1);
+      expect(page1Tafsir.length, 7);
+      expect(page1Tafsir.first.surahNumber, 1);
+      expect(page1Tafsir.first.ayahNumber, 1);
+      expect(page1Tafsir.first.tafsirText, 'تفسير بسم الله الرحمن الرحيم الميسر أوفلاين');
+      expect(page1Tafsir.first.isOffline, isTrue);
+      expect(page1Tafsir.last.ayahNumber, 7);
+    });
   });
 }

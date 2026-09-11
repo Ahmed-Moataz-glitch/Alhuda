@@ -3,32 +3,35 @@ import 'package:flutter/material.dart';
 
 /// Provides colors for Tajweed rules matching the King Fahd Complex & Medina Tajweed Mushaf.
 class TajweedPalette {
-  // Light mode colors (optimized for readability & contrast on parchment / white paper)
+  // Light mode colors (optimized for readability & contrast matching Dar Al-Ma'rifah & Madinah Tajweed Mushaf)
+  static const Color tafkheemLight = Color(0xFF0D47A1);       // Tafkheem (خص ضغط قظ، ر، ل) - Deep Navy / Royal Blue
+  static const Color qalqalaLight = Color(0xFF0288D1);        // Qalqala (قطب جد) - Vivid Royal Cyan / Sky Blue
+  static const Color ghunnaLight = Color(0xFF1B5E20);         // Ghunna, Ikhfa & Idgham - Rich Emerald Green
   static const Color maddLazimLight = Color(0xFFB71C1C);      // 6 counts - Deep Crimson / Dark Red
   static const Color maddMuttasilLight = Color(0xFFD32F2F);   // 4-5 counts - Vivid Red
-  static const Color maddMunfasilLight = Color(0xFFEF6C00);   // 2-4-6 counts - Vivid Orange
-  static const Color maddTabiiLight = Color(0xFFD84315);      // 2 counts - Warm Coral / Amber (Dagger Alif & Silah Sughra)
-  static const Color ghunnaLight = Color(0xFF1B5E20);         // Ghunna, Ikhfa & Idgham - Rich Emerald Green
-  static const Color qalqalaLight = Color(0xFF0288D1);        // Qalqala - Vivid Royal Cyan / Blue
+  static const Color maddMunfasilLight = Color(0xFFC2185B);   // 2-4-5 counts - Rose / Fuchsia
+  static const Color maddTabiiLight = Color(0xFFF57C00);      // 2 counts - Warm Amber / Orange (Aarid, Leen & Tabii)
   static const Color sakinLight = Color(0xFF8E8E93);          // Sakin & Silent & Wasl - Soft Gray
   static const Color waqfLight = Color(0xFF9E6500);           // Waqf Marks (صلى، قلى، ج) - Golden Bronze
 
   // Dark mode colors (vibrant and clear against dark backgrounds)
+  static const Color tafkheemDark = Color(0xFF2979FF);        // Tafkheem - Bright Royal Blue
+  static const Color qalqalaDark = Color(0xFF00E5FF);         // Qalqala - Vivid Cyan
+  static const Color ghunnaDark = Color(0xFF4CAF50);          // Ghunna & Ikhfa - Vibrant Green
   static const Color maddLazimDark = Color(0xFFFF1744);       // 6 counts - Vivid Crimson
   static const Color maddMuttasilDark = Color(0xFFFF5252);    // 4-5 counts - Bright Red
-  static const Color maddMunfasilDark = Color(0xFFFFB74D);    // 2-4-6 counts - Warm Amber
-  static const Color maddTabiiDark = Color(0xFFFF8A65);       // 2 counts - Light Coral / Peach
-  static const Color ghunnaDark = Color(0xFF4CAF50);          // Ghunna & Ikhfa - Vibrant Green
-  static const Color qalqalaDark = Color(0xFF00E5FF);         // Qalqala - Vivid Cyan
+  static const Color maddMunfasilDark = Color(0xFFFF4081);    // 2-4-5 counts - Vivid Pink / Rose
+  static const Color maddTabiiDark = Color(0xFFFFB74D);       // 2 counts - Warm Amber
   static const Color sakinDark = Color(0xFFAAAAAA);           // Silent & Wasl - Soft Light Gray
   static const Color waqfDark = Color(0xFFFFD54F);            // Waqf Marks - Bright Warm Gold
 
+  static Color tafkheem(bool isDark) => isDark ? tafkheemDark : tafkheemLight;
+  static Color qalqala(bool isDark) => isDark ? qalqalaDark : qalqalaLight;
+  static Color ghunna(bool isDark) => isDark ? ghunnaDark : ghunnaLight;
   static Color maddLazim(bool isDark) => isDark ? maddLazimDark : maddLazimLight;
   static Color maddMuttasil(bool isDark) => isDark ? maddMuttasilDark : maddMuttasilLight;
   static Color maddMunfasil(bool isDark) => isDark ? maddMunfasilDark : maddMunfasilLight;
   static Color maddTabii(bool isDark) => isDark ? maddTabiiDark : maddTabiiLight;
-  static Color ghunna(bool isDark) => isDark ? ghunnaDark : ghunnaLight;
-  static Color qalqala(bool isDark) => isDark ? qalqalaDark : qalqalaLight;
   static Color sakin(bool isDark) => isDark ? sakinDark : sakinLight;
   static Color waqf(bool isDark) => isDark ? waqfDark : waqfLight;
 }

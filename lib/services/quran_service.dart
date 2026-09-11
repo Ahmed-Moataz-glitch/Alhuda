@@ -260,6 +260,40 @@ class QuranService {
     return _bookmarks.any((b) => b.surahNumber == surah && b.ayahNumber == ayah);
   }
 
+  bool isPageBookmarked(int pageNumber) {
+    return _bookmarks.any((b) => b.pageNumber == pageNumber);
+  }
+
+  Future<bool> togglePageBookmark(int pageNumber) async {
+    final pageData = getPageData(pageNumber);
+    final first = pageData.isNotEmpty ? pageData.first : {'surah': 1, 'start': 1};
+    final surahNum = first['surah'] ?? 1;
+    final ayahNum = first['start'] ?? 1;
+    final surahName = getPageSurahName(pageNumber);
+    final snippet = getVerseUthmani(surahNum, ayahNum);
+
+    final index = _bookmarks.indexWhere((b) => b.pageNumber == pageNumber);
+    if (index >= 0) {
+      _bookmarks.removeAt(index);
+      await _saveBookmarksToDisk();
+      return false; // Removed
+    } else {
+      _bookmarks.insert(
+        0,
+        QuranBookmark(
+          surahNumber: surahNum,
+          surahName: surahName,
+          ayahNumber: ayahNum,
+          pageNumber: pageNumber,
+          snippet: snippet,
+          timestamp: DateTime.now(),
+        ),
+      );
+      await _saveBookmarksToDisk();
+      return true; // Added
+    }
+  }
+
   Future<void> toggleBookmark({
     required int surah,
     required String surahName,

@@ -1,15 +1,17 @@
 import 'package:alhuda/services/quran_service.dart';
+import 'package:alhuda/services/tajweed_page_cache_service.dart';
 import 'package:alhuda/services/tajweed_span_builder.dart';
 import 'package:alhuda/view/pages/surah_reader_page.dart';
 import 'package:alhuda/view/widgets/app_colors.dart';
-import 'package:alhuda/view/widgets/mushaf_page_widget.dart';
+import 'package:alhuda/services/tafsir_service.dart';
+import 'package:alhuda/view/widgets/mushaf_page_widget.dart' show MushafThemeMode;
+import 'package:alhuda/view/widgets/page_tafsir_bottom_sheet.dart';
+import 'package:alhuda/view/widgets/tajweed_page_widget.dart';
 import 'package:alhuda/view/widgets/tafsir_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:quran_kit/audio.dart';
-import 'package:quran_kit/core.dart';
-import 'package:quran_kit/rendering.dart';
 
 /// Full Madinah Mushaf Page View (604 pages)
 class MushafPageView extends StatefulWidget {
@@ -37,10 +39,8 @@ class _MushafPageState extends State<MushafPageView> {
   int? _selectedAyah;
   String? _selectedAyahText;
   bool _showOverlay = true;
-  bool _showTajweed = true;
-  QpcV4AssetsStore? _store;
+  bool _autoAdvancePages = true;
   MushafThemeMode _themeMode = MushafThemeMode.parchment;
-  late double _fontSize;
 
   int? _lastPlayingSurah;
   int? _lastPlayingAyah;
@@ -49,12 +49,14 @@ class _MushafPageState extends State<MushafPageView> {
   @override
   void initState() {
     super.initState();
-    _fontSize = widget.initialFontSize ?? 26.0;
     _currentPage = widget.initialPage.clamp(1, 604);
     _selectedSurah = widget.highlightedSurah;
     _selectedAyah = widget.highlightedAyah;
     if (_selectedSurah != null && _selectedAyah != null) {
-      _selectedAyahText = QuranService.instance.getVerseUthmani(_selectedSurah!, _selectedAyah!);
+      _selectedAyahText = QuranService.instance.getVerseUthmani(
+        _selectedSurah!,
+        _selectedAyah!,
+      );
     }
     _pageController = PageController(initialPage: _currentPage - 1);
     _updateLastRead(_currentPage);
@@ -68,19 +70,21 @@ class _MushafPageState extends State<MushafPageView> {
     }
     QuranService.instance.audioService.state.addListener(_onAudioStateChanged);
 
-    // Initialize QPC v4 store and safely prefetch fonts if online
-    _store = QuranService.instance.qpcStore;
-    if (_store == null) {
-      QuranService.instance.ensureQpcStore().then((store) {
-        if (mounted) setState(() => _store = store);
-      });
-    }
     _safePrefetch(_currentPage);
+
+    // Initialize Tajweed Page Cache Service and refresh download count
+    TajweedPageCacheService.instance.init().then((_) {
+      if (mounted) {
+        TajweedPageCacheService.instance.refreshDownloadStatus();
+      }
+    });
   }
 
   @override
   void dispose() {
-    QuranService.instance.audioService.state.removeListener(_onAudioStateChanged);
+    QuranService.instance.audioService.state.removeListener(
+      _onAudioStateChanged,
+    );
     _pageController.dispose();
     super.dispose();
   }
@@ -91,7 +95,9 @@ class _MushafPageState extends State<MushafPageView> {
     final surah = isActive ? s.surah : null;
     final ayah = isActive ? s.ayah : null;
 
-    if (isActive != _lastIsActive || surah != _lastPlayingSurah || ayah != _lastPlayingAyah) {
+    if (isActive != _lastIsActive ||
+        surah != _lastPlayingSurah ||
+        ayah != _lastPlayingAyah) {
       _lastIsActive = isActive;
       _lastPlayingSurah = surah;
       _lastPlayingAyah = ayah;
@@ -101,14 +107,19 @@ class _MushafPageState extends State<MushafPageView> {
         if (isActive && surah != null && ayah != null) {
           final targetPage = QuranService.instance.getPageNumber(surah, ayah);
           if (targetPage != _currentPage) {
-            if ((targetPage - _currentPage).abs() == 1) {
-              _pageController.animateToPage(
-                targetPage - 1,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
+            if (_autoAdvancePages) {
+              if ((targetPage - _currentPage).abs() == 1) {
+                _pageController.animateToPage(
+                  targetPage - 1,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              } else {
+                _jumpToPage(targetPage);
+              }
             } else {
-              _jumpToPage(targetPage);
+              // User opted not to auto-advance past the current page
+              QuranService.instance.audioService.stop();
             }
           }
         }
@@ -117,14 +128,163 @@ class _MushafPageState extends State<MushafPageView> {
     }
   }
 
-  void _safePrefetch(int page) {
-    QuranService.instance.hasInternetConnection().then((isOnline) {
-      if (isOnline) {
-        try {
-          FontDownloader.instance.prefetch(page, radius: 3);
-        } catch (_) {}
+  /// Play the entire page from its first Ayah
+  Future<void> _playCurrentPage() async {
+    final pageData = QuranService.instance.getPageData(_currentPage);
+    if (pageData.isEmpty) return;
+    final first = pageData.first;
+    final startSurah = first['surah'] ?? 1;
+    final startAyah = first['start'] ?? 1;
+
+    final canPlay = await _verifyAudioPlayable(startSurah);
+    if (!canPlay) return;
+
+    try {
+      await QuranService.instance.audioService.playAyah(startSurah, startAyah);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تعذر تشغيل التلاوة، يرجى التأكد من الاتصال بالإنترنت',
+            ),
+          ),
+        );
       }
-    });
+    }
+  }
+
+  /// Toggle play/pause for the current page
+  void _togglePageAudio() async {
+    final audio = QuranService.instance.audioService;
+    final s = audio.state.value;
+    if (s.isActive) {
+      final playingPage = QuranService.instance.getPageNumber(s.surah, s.ayah);
+      if (playingPage == _currentPage) {
+        audio.togglePlayPause();
+      } else {
+        await _playCurrentPage();
+      }
+    } else {
+      await _playCurrentPage();
+    }
+  }
+
+  /// Show reciter picker bottom sheet
+  void _showReciterPicker() {
+    final reciters = QuranService.instance.reciters;
+    final currentReciterIndex = QuranService.instance.audioService.reciterIndex;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.7,
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.all(16.r),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.record_voice_over_rounded,
+                            color: AppColors.primary,
+                          ),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'اختيار القارئ المفضل',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                              fontFamily: 'Almarai',
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: reciters.length,
+                    itemBuilder: (context, index) {
+                      final reciter = reciters[index];
+                      final isSelected = index == currentReciterIndex;
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isSelected
+                              ? AppColors.primary
+                              : AppColors.primary.withAlpha(20),
+                          child: Icon(
+                            Icons.person_rounded,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.primary,
+                            size: 20.r,
+                          ),
+                        ),
+                        title: Text(
+                          reciter.nameAr,
+                          style: TextStyle(
+                            fontFamily: 'Almarai',
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? AppColors.primary
+                                : _themeMode == MushafThemeMode.parchment
+                                ? Colors.white
+                                : Colors.black87,
+                            fontSize: 14.sp,
+                          ),
+                        ),
+                        subtitle: Text(
+                          reciter.nameEn,
+                          style: TextStyle(
+                            fontSize: 11.sp,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? Icon(
+                                Icons.check_circle_rounded,
+                                color: AppColors.primary,
+                              )
+                            : null,
+                        onTap: () {
+                          QuranService.instance.audioService.setReciter(index);
+                          Navigator.pop(context);
+                          setState(() {});
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _safePrefetch(int page) {
+    TajweedPageCacheService.instance.prefetchPages(page, radius: 5);
   }
 
   Future<bool> _verifyAudioPlayable(int surahNumber) async {
@@ -139,14 +299,19 @@ class _MushafPageState extends State<MushafPageView> {
               const Expanded(
                 child: Text(
                   'يتطلب الاستماع لتلاوة القارئ اتصالاً بالإنترنت',
-                  style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontFamily: 'Almarai',
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
           backgroundColor: Colors.brown.shade800,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10.r),
+          ),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -184,14 +349,7 @@ class _MushafPageState extends State<MushafPageView> {
     _safePrefetch(clamped);
   }
 
-  void _onAyahTapped(int surahNumber, int verseNumber, String verseText) {
-    setState(() {
-      _selectedSurah = surahNumber;
-      _selectedAyah = verseNumber;
-      _selectedAyahText = verseText;
-      _showOverlay = true;
-    });
-  }
+
 
   void _onPageBackgroundTapped() {
     setState(() {
@@ -224,196 +382,257 @@ class _MushafPageState extends State<MushafPageView> {
           child: Directionality(
             textDirection: TextDirection.rtl,
             child: SizedBox(
-            height: MediaQuery.of(context).size.height * 0.75,
-            child: Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.all(16.r),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'الانتقال في المصحف الشريف',
-                        style: TextStyle(
-                          fontFamily: 'Almarai',
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+              height: MediaQuery.of(context).size.height * 0.75,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(16.r),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'الانتقال في المصحف الشريف',
+                          style: TextStyle(
+                            fontFamily: 'Almarai',
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TabBar(
+                    labelColor: AppColors.primary,
+                    unselectedLabelColor: Colors.grey,
+                    labelStyle: TextStyle(
+                      fontFamily: 'Almarai',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.sp,
+                    ),
+                    indicatorColor: AppColors.primary,
+                    tabs: const [
+                      Tab(text: 'رقم الصفحة'),
+                      Tab(text: 'فهرس السور'),
+                      Tab(text: 'فهرس الأجزاء'),
                     ],
                   ),
-                ),
-                TabBar(
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: Colors.grey,
-                  labelStyle: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold, fontSize: 13.sp),
-                  indicatorColor: AppColors.primary,
-                  tabs: const [
-                    Tab(text: 'رقم الصفحة'),
-                    Tab(text: 'فهرس السور'),
-                    Tab(text: 'فهرس الأجزاء'),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      // 1. Direct Page Number Input
-                      Padding(
-                        padding: EdgeInsets.all(24.r),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'أدخل رقم الصفحة (1 - 604):',
-                              style: TextStyle(fontFamily: 'Almarai', fontSize: 15.sp),
-                            ),
-                            SizedBox(height: 16.h),
-                            TextField(
-                              controller: pageInputController,
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.bold),
-                              decoration: InputDecoration(
-                                hintText: 'مثال: 77',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.r)),
-                                contentPadding: EdgeInsets.symmetric(vertical: 12.h),
-                              ),
-                            ),
-                            SizedBox(height: 20.h),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(horizontal: 40.w, vertical: 12.h),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-                              ),
-                              onPressed: () {
-                                final p = int.tryParse(pageInputController.text.trim());
-                                if (p != null && p >= 1 && p <= 604) {
-                                  Navigator.pop(context);
-                                  _jumpToPage(p);
-                                }
-                              },
-                              child: Text('انتقال للصفحة', style: TextStyle(fontFamily: 'Almarai', fontSize: 14.sp)),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // 2. Surah Index
-                      ListView.builder(
-                        itemCount: surahs.length,
-                        itemBuilder: (context, i) {
-                          final s = surahs[i];
-                          final isMeccan = s.revelationType == 'مكية';
-                          return ListTile(
-                            leading: Container(
-                              width: 36.r,
-                              height: 36.r,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withAlpha(15),
-                                borderRadius: BorderRadius.circular(8.r),
-                                border: Border.all(color: AppColors.primary.withAlpha(50)),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '${s.number}',
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        // 1. Direct Page Number Input
+                        Padding(
+                          padding: EdgeInsets.all(24.r),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'أدخل رقم الصفحة (1 - 604):',
                                 style: TextStyle(
+                                  fontFamily: 'Almarai',
                                   fontSize: 15.sp,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                            title: Row(
-                              children: [
-                                Text(
-                                  'سورة ${s.arabicName}',
+                              SizedBox(height: 16.h),
+                              TextField(
+                                controller: pageInputController,
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 22.sp,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'مثال: 77',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12.r),
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    vertical: 12.h,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 20.h),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 40.w,
+                                    vertical: 12.h,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.r),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  final p = int.tryParse(
+                                    pageInputController.text.trim(),
+                                  );
+                                  if (p != null && p >= 1 && p <= 604) {
+                                    Navigator.pop(context);
+                                    _jumpToPage(p);
+                                  }
+                                },
+                                child: Text(
+                                  'انتقال للصفحة',
                                   style: TextStyle(
+                                    fontFamily: 'Almarai',
                                     fontSize: 14.sp,
-                                    fontFamily: 'Rubik',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // 2. Surah Index
+                        ListView.builder(
+                          itemCount: surahs.length,
+                          itemBuilder: (context, i) {
+                            final s = surahs[i];
+                            final isMeccan = s.revelationType == 'مكية';
+                            return ListTile(
+                              leading: Container(
+                                width: 36.r,
+                                height: 36.r,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withAlpha(15),
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  border: Border.all(
+                                    color: AppColors.primary.withAlpha(50),
+                                  ),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '${s.number}',
+                                  style: TextStyle(
+                                    fontSize: 15.sp,
+                                    color: AppColors.primary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                SizedBox(width: 8.w),
-                                Container(
-                                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.h),
-                                  decoration: BoxDecoration(
-                                    color: isMeccan ? const Color(0xFFFFF8E1) : const Color(0xFFE0F2F1),
-                                    borderRadius: BorderRadius.circular(4.r),
-                                    border: Border.all(
-                                      color: isMeccan ? const Color(0xFFFFB300) : const Color(0xFF26A69A),
-                                      width: 0.8,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    s.revelationType,
-                                    style: TextStyle(
-                                      fontFamily: 'Rubik',
-                                      fontSize: 10.sp,
-                                      fontWeight: FontWeight.bold,
-                                      color: isMeccan ? const Color(0xFF8D6E63) : const Color(0xFF00695C),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            subtitle: Text(
-                              'آياتها ${QuranService.toArabicDigits(s.totalAyahs)} • ${s.englishName}',
-                              style: TextStyle(fontSize: 11.sp, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
-                            ),
-                            trailing: Text(
-                              'صفحة ${s.startPage}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                                fontSize: 12.sp,
                               ),
-                            ),
-                            onTap: () {
-                              Navigator.pop(context);
-                              _jumpToPage(s.startPage);
-                            },
-                          );
-                        },
-                      ),
+                              title: Row(
+                                children: [
+                                  Text(
+                                    'سورة ${s.arabicName}',
+                                    style: TextStyle(
+                                      fontSize: 14.sp,
+                                      fontFamily: 'Rubik',
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 6.w,
+                                      vertical: 1.h,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isMeccan
+                                          ? const Color(0xFFFFF8E1)
+                                          : const Color(0xFFE0F2F1),
+                                      borderRadius: BorderRadius.circular(4.r),
+                                      border: Border.all(
+                                        color: isMeccan
+                                            ? const Color(0xFFFFB300)
+                                            : const Color(0xFF26A69A),
+                                        width: 0.8,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      s.revelationType,
+                                      style: TextStyle(
+                                        fontFamily: 'Rubik',
+                                        fontSize: 10.sp,
+                                        fontWeight: FontWeight.bold,
+                                        color: isMeccan
+                                            ? const Color(0xFF8D6E63)
+                                            : const Color(0xFF00695C),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                'آياتها ${QuranService.toArabicDigits(s.totalAyahs)} • ${s.englishName}',
+                                style: TextStyle(
+                                  fontSize: 11.sp,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              trailing: Text(
+                                'صفحة ${s.startPage}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                  fontSize: 12.sp,
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _jumpToPage(s.startPage);
+                              },
+                            );
+                          },
+                        ),
 
-                      // 3. Juz Index
-                      ListView.builder(
-                        itemCount: juzs.length,
-                        itemBuilder: (context, i) {
-                          final j = juzs[i];
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: AppColors.primary,
-                              child: Text('${j.number}', style: const TextStyle(color: Colors.white)),
-                            ),
-                            title: Text('الجزء ${j.number}', style: const TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold)),
-                            subtitle: Text('يبدأ من سورة ${j.startSurahName} (آية ${j.startAyahNumber})', style: TextStyle(fontSize: 11.sp)),
-                            trailing: Text('صفحة ${j.startPage}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 12.sp)),
-                            onTap: () {
-                              Navigator.pop(context);
-                              _jumpToPage(j.startPage);
-                            },
-                          );
-                        },
-                      ),
-                    ],
+                        // 3. Juz Index
+                        ListView.builder(
+                          itemCount: juzs.length,
+                          itemBuilder: (context, i) {
+                            final j = juzs[i];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: AppColors.primary,
+                                child: Text(
+                                  '${j.number}',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                              title: Text(
+                                'الجزء ${j.number}',
+                                style: const TextStyle(
+                                  fontFamily: 'Almarai',
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'يبدأ من سورة ${j.startSurahName} (آية ${j.startAyahNumber})',
+                                style: TextStyle(fontSize: 11.sp),
+                              ),
+                              trailing: Text(
+                                'صفحة ${j.startPage}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                  fontSize: 12.sp,
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _jumpToPage(j.startPage);
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   void _showTajweedRulesDialog() {
     showModalBottomSheet(
@@ -423,103 +642,237 @@ class _MushafPageState extends State<MushafPageView> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) {
-        return Container(
-          padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.palette_outlined, color: AppColors.primary),
-                      SizedBox(width: 8.w),
-                      Text(
-                        'دليل ألوان أحكام التجويد',
-                        style: TextStyle(
-                          fontFamily: 'Almarai',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16.sp,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const Divider(),
-              SizedBox(height: 6.h),
-              Text(
-                textAlign: TextAlign.right,
-                'ألوان المصحف الشريف المعتمدة برواية حفص عن عاصم (مجمع الملك فهد)',
-                style: TextStyle(
-                  fontFamily: 'Almarai',
-                  fontSize: 12.sp,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-              SizedBox(height: 10.h),
-              ...[
-                (name: 'المد اللازم (6 حركات)', desc: 'دَابَّة، الضَّالِّينَ', color: TajweedPalette.maddLazimLight),
-                (name: 'المد المتصل (4-5 حركات)', desc: 'جَاءَ، سُوءَ، إِسْرَائِيلَ', color: TajweedPalette.maddMuttasilLight),
-                (name: 'المد المنفصل والصلة الكبرى (2-4-6 حركات)', desc: 'إِلَّا أَمَانِيَّ، عَهْدَهُۥٓ أَمْ', color: TajweedPalette.maddMunfasilLight),
-                (name: 'المد الطبيعي والألف الخنجرية (حركتان)', desc: 'الْكِتَٰبَ، هَٰذَا، الصَّلَوٰةَ، بِهِۦ', color: TajweedPalette.maddTabiiLight),
-                (name: 'الغنة والإخفاء والإدغام بغنة', desc: 'أَنَّ، ثُمَّ، مِّمَّا، عِندَ، مَّعْدُودَةً', color: TajweedPalette.ghunnaLight),
-                (name: 'القلقلة (قطب جد)', desc: 'ق، ط، ب، ج، د الساكنة', color: TajweedPalette.qalqalaLight),
-                (name: 'علامات الوقف (صلى، قلى، ج)', desc: 'ۖ ، ۗ ، ۚ ، ۘ ، ۛ ، ۜ', color: TajweedPalette.waqfLight),
-                (name: 'ألف الوصل والحروف التي لا تلفظ', desc: 'ٱل، وَقَالُواْ، أُوْلَٰئِكَ', color: TajweedPalette.sakinLight),
-              ].map((rule) {
-                return Padding(
-                  padding: EdgeInsets.symmetric(vertical: 5.h),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 22.r,
-                        height: 22.r,
-                        decoration: BoxDecoration(
-                          color: rule.color,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black12, width: 1),
-                          boxShadow: [
-                            BoxShadow(
-                              color: rule.color.withAlpha(90),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Text(
-                          rule.name,
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 20.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.palette_outlined, color: AppColors.primary),
+                        SizedBox(width: 8.w),
+                        Text(
+                          'دليل ألوان أحكام التجويد',
                           style: TextStyle(
-                            fontFamily: 'NotoNaskhArabic',
+                            fontFamily: 'Almarai',
                             fontWeight: FontWeight.bold,
-                            fontSize: 13.sp,
-                            color: AppColors.primary.withAlpha(220),
+                            fontSize: 16.sp,
+                            color: AppColors.primary,
                           ),
                         ),
-                      ),
-                      Text(
-                        rule.desc,
-                        style: TextStyle(
-                          fontFamily: 'NotoNaskhArabic',
-                          fontSize: 11.sp,
-                          color: Colors.grey.shade600,
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                SizedBox(height: 4.h),
+                Text(
+                  'اصطلاحات ألوان مصحف التجويد الملون (دار المعرفة) برواية حفص عن عاصم',
+                  style: TextStyle(
+                    fontFamily: 'Almarai',
+                    fontSize: 11.5.sp,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                SizedBox(height: 10.h),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      ...[
+                        (
+                          name: 'تفخيم الحروف',
+                          hakam: 'أزرق داكن (كحلي)',
+                          desc:
+                              'حروف الاستعلاء (خ، ص، ض، غ، ط، ق، ظ)، والراء المفخمة، ولام لفظ الجلالة المفخمة',
+                          example:
+                              'يُبْصِرُونَ، خَلَقَكُمْ، الصَّوَٰعِقِ، رِزْقًا، قَبْلِكُمْ',
+                          color: TajweedPalette.tafkheemLight,
                         ),
-                      ),
+                        (
+                          name: 'القلقلة',
+                          hakam: 'أزرق سماوي (فاتح)',
+                          desc:
+                              'حروف (ق، ط، ب، ج، د) عند سكونها أو الوقف عليها',
+                          example:
+                              'يَجْعَلُونَ، أَصَٰبِعَهُم، قَبْلِكُمْ، وَادْعُواْ',
+                          color: TajweedPalette.qalqalaLight,
+                        ),
+                        (
+                          name: 'الغنة والإخفاء والإدغام بغنة',
+                          hakam: 'أخضر (حركتان)',
+                          desc:
+                              'النون والميم المشددتان، الإخفاء الحقيقي والشفوي، الإدغام بغنة، والقلب',
+                          example:
+                              'أَنَّ، ثُمَّ، مِّمَّا، عِندَ، مَّعْدُودَةً، أَندَادًا، كُنتُمْ',
+                          color: TajweedPalette.ghunnaLight,
+                        ),
+                        (
+                          name: 'المد اللازم',
+                          hakam: 'أحمر داكن (6 حركات)',
+                          desc: 'المد اللازم الكلمي والحرفي المثقل والمخفف',
+                          example: 'الضَّالِّينَ، دَابَّة، الحَاقَّة، الٓمٓ',
+                          color: TajweedPalette.maddLazimLight,
+                        ),
+                        (
+                          name: 'المد الواجب المتصل',
+                          hakam: 'أحمر فاقع (4 أو 5 حركات)',
+                          desc: 'أن يأتي حرف المد وبعده همزة في نفس الكلمة',
+                          example:
+                              'السَّمَاءِ، جَاءَ، سُوءَ، إِسْرَائِيلَ، بِنَاءً',
+                          color: TajweedPalette.maddMuttasilLight,
+                        ),
+                        (
+                          name: 'المد المنفصل والصلة الكبرى',
+                          hakam: 'وردي / فوشيا (2-4-5 حركات)',
+                          desc:
+                              'أن يأتي حرف المد في كلمة وهمزة القطع في الكلمة التي تليها',
+                          example:
+                              'فِي آذَانِهِمْ، بِمَا أُنزِلَ، قَالُوا إِنَّا، عَهْدَهُۥٓ أَمْ',
+                          color: TajweedPalette.maddMunfasilLight,
+                        ),
+                        (
+                          name: 'المد العارض واللين والبدل والطبيعي',
+                          hakam: 'برتقالي / كموني (2 أو 4 أو 6 حركات)',
+                          desc:
+                              'المد العارض للسكون عند الوقف، مد اللين، ومد الصلة الصغرى والألف الخنجرية',
+                          example:
+                              'يَرْجِعُونَ، تَتَّقُونَ، تَعْلَمُونَ، صَادِقِينَ، خَوْفٍ',
+                          color: TajweedPalette.maddTabiiLight,
+                        ),
+                        (
+                          name: 'الحروف التي لا تلفظ',
+                          hakam: 'رمادي',
+                          desc:
+                              'همزة الوصل، اللام الشمسية، الألف الفارقة، والإدغام الكامل بغير غنة',
+                          example:
+                              'وَٱلَّذِينَ، قَالُواْ، أُوْلَٰئِكَ، مِن رَّبِّهِم',
+                          color: TajweedPalette.sakinLight,
+                        ),
+                        (
+                          name: 'علامات الوقف وضبط المصحف',
+                          hakam: 'ذهبي / برونزي',
+                          desc:
+                              'م (لازم)، لا (ممنوع)، ج (جائز)، قلى (الوقف أولى)، صلى (الوصل أولى)، ۛ (تعانق)',
+                          example: 'ۚ ، ۗ ، ۖ ، ۘ ، ۛ ، ۜ',
+                          color: TajweedPalette.waqfLight,
+                        ),
+                      ].map((rule) {
+                        return Container(
+                          margin: EdgeInsets.symmetric(vertical: 4.h),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 10.w,
+                            vertical: 8.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: rule.color.withAlpha(12),
+                            borderRadius: BorderRadius.circular(10.r),
+                            border: Border.all(color: rule.color.withAlpha(40)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                margin: EdgeInsets.only(top: 2.h),
+                                width: 22.r,
+                                height: 22.r,
+                                decoration: BoxDecoration(
+                                  color: rule.color,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1.5,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 10.w),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            rule.name,
+                                            style: TextStyle(
+                                              fontFamily: 'Almarai',
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13.sp,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 6.w,
+                                            vertical: 1.h,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: rule.color.withAlpha(30),
+                                            borderRadius: BorderRadius.circular(
+                                              6.r,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            rule.hakam,
+                                            style: TextStyle(
+                                              fontFamily: 'Almarai',
+                                              fontSize: 10.sp,
+                                              fontWeight: FontWeight.bold,
+                                              color: rule.color,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 3.h),
+                                    Text(
+                                      rule.desc,
+                                      style: TextStyle(
+                                        fontFamily: 'Almarai',
+                                        fontSize: 11.sp,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4.h),
+                                    Text(
+                                      'أمثلة: ${rule.example}',
+                                      style: TextStyle(
+                                        fontFamily: 'NotoNaskhArabic',
+                                        fontSize: 11.5.sp,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primary.withAlpha(200),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                     ],
                   ),
-                );
-              }),
-            ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -529,130 +882,444 @@ class _MushafPageState extends State<MushafPageView> {
   void _showSettingsSheet() {
     showModalBottomSheet(
       context: context,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20.r))),
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.all(20.r),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'خيارات العرض والقراءة',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold, fontSize: 16.sp, color: AppColors.primary),
-                    ),
-                    SizedBox(height: 16.h),
+            final reciters = QuranService.instance.reciters;
+            final reciterIndex =
+                QuranService.instance.audioService.reciterIndex;
+            final currentReciter =
+                (reciterIndex >= 0 && reciterIndex < reciters.length)
+                ? reciters[reciterIndex]
+                : reciters.first;
 
-                    // Theme Selection
-                    Text('مظهر ورقة المصحف:', style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold, fontSize: 13.sp)),
-                    SizedBox(height: 8.h),
-                    Row(
-                      children: [
-                        _buildThemeChip('مصحفي كريمي', MushafThemeMode.parchment, const Color(0xFFFAF7EE), setSheetState),
-                        SizedBox(width: 8.w),
-                        _buildThemeChip('أبيض ناصع', MushafThemeMode.white, Colors.white, setSheetState),
-                        SizedBox(width: 8.w),
-                        _buildThemeChip('ليلي داكن', MushafThemeMode.dark, const Color(0xFF181818), setSheetState),
-                      ],
-                    ),
-
-                    SizedBox(height: 16.h),
-
-                    SizedBox(height: 16.h),
-
-                    // Font Size
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('حجم الخط القرآني:', style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold, fontSize: 13.sp)),
-                        Text('${_fontSize.toInt()}', style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold, fontSize: 14.sp, color: AppColors.primary)),
-                      ],
-                    ),
-                    Slider(
-                      value: _fontSize.clamp(22.0, 32.0),
-                      min: 22.0,
-                      max: 32.0,
-                      divisions: 10,
-                      activeColor: AppColors.primary,
-                      onChanged: (val) {
-                        setSheetState(() => _fontSize = val);
-                        setState(() => _fontSize = val);
-                      },
-                    ),
-
-                    SizedBox(height: 10.h),
-
-                    // Tajweed Color Toggle
-                    SwitchListTile(
-                      title: Text(
-                        'ألوان أحكام التجويد (QFC4)',
-                        style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold, fontSize: 13.sp),
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.settings_outlined,
+                                color: AppColors.primary,
+                              ),
+                              SizedBox(width: 8.w),
+                              Text(
+                                'إعدادات المصحف الشريف',
+                                style: TextStyle(
+                                  fontFamily: 'Almarai',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16.sp,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
                       ),
-                      subtitle: Text(
-                        'تلوين المدود، الغنن، القلقلة، والتفخيم',
-                        style: TextStyle(fontFamily: 'Almarai', fontSize: 11.sp, color: Colors.grey.shade600),
-                      ),
-                      value: _showTajweed,
-                      activeThumbColor: AppColors.primary,
-                      contentPadding: EdgeInsets.zero,
-                      onChanged: (val) {
-                        setSheetState(() => _showTajweed = val);
-                        setState(() => _showTajweed = val);
-                      },
-                    ),
+                      const Divider(),
+                      SizedBox(height: 6.h),
 
-                    // Tajweed Color Guide Link
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          padding: EdgeInsets.zero,
+                      // 1. Audio & Reciter Settings Section (تلاوة واستماع الصفحة)
+                      Container(
+                        padding: EdgeInsets.all(12.r),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(10),
+                          borderRadius: BorderRadius.circular(12.r),
+                          border: Border.all(
+                            color: AppColors.primary.withAlpha(40),
+                          ),
                         ),
-                        icon: const Icon(Icons.palette_outlined, size: 18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.volume_up_rounded,
+                                  color: AppColors.primary,
+                                  size: 20.r,
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'تلاوة واستماع القرآن الكريم',
+                                  style: TextStyle(
+                                    fontFamily: 'Almarai',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13.sp,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 10.h),
+
+                            // Reciter Selector Tile
+                            InkWell(
+                              onTap: () {
+                                Navigator.pop(context);
+                                _showReciterPicker();
+                              },
+                              borderRadius: BorderRadius.circular(8.r),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10.w,
+                                  vertical: 8.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 16.r,
+                                      backgroundColor: AppColors.primary
+                                          .withAlpha(25),
+                                      child: Icon(
+                                        Icons.record_voice_over_rounded,
+                                        color: AppColors.primary,
+                                        size: 16.r,
+                                      ),
+                                    ),
+                                    SizedBox(width: 10.w),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'القارئ الحالي',
+                                            style: TextStyle(
+                                              fontFamily: 'Almarai',
+                                              fontSize: 10.sp,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                          Text(
+                                            currentReciter.nameAr,
+                                            style: TextStyle(
+                                              fontFamily: 'Almarai',
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12.5.sp,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 8.w,
+                                        vertical: 4.h,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withAlpha(15),
+                                        borderRadius: BorderRadius.circular(
+                                          6.r,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'تغيير القارئ',
+                                        style: TextStyle(
+                                          fontFamily: 'Almarai',
+                                          fontSize: 11.sp,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(height: 10.h),
+
+                            // Listen to Current Page Action
+                            ValueListenableBuilder<QuranAudioState>(
+                              valueListenable:
+                                  QuranService.instance.audioService.state,
+                              builder: (context, audioState, _) {
+                                final isThisPage =
+                                    audioState.isActive &&
+                                    QuranService.instance.getPageNumber(
+                                          audioState.surah,
+                                          audioState.ayah,
+                                        ) ==
+                                        _currentPage;
+                                final isPlaying =
+                                    isThisPage && audioState.isPlaying;
+
+                                return ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isPlaying
+                                        ? Colors.amber.shade800
+                                        : AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8.r),
+                                    ),
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: 9.h,
+                                    ),
+                                  ),
+                                  icon: Icon(
+                                    isPlaying
+                                        ? Icons.pause_rounded
+                                        : Icons.headphones_rounded,
+                                    size: 18.r,
+                                  ),
+                                  label: Text(
+                                    isPlaying
+                                        ? 'إيقاف مؤقت لتلاوة الصفحة $_currentPage'
+                                        : 'استماع للصفحة الحالية كاملة (صفحة $_currentPage)',
+                                    style: TextStyle(
+                                      fontFamily: 'Almarai',
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12.sp,
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _togglePageAudio();
+                                  },
+                                );
+                              },
+                            ),
+
+                            SizedBox(height: 6.h),
+
+                            // Auto-advance toggle
+                            SwitchListTile(
+                              title: Text(
+                                'الانتقال التلقائي للصفحة التالية',
+                                style: TextStyle(
+                                  fontFamily: 'Almarai',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.sp,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'متابعة التلاوة تلقائياً عند انتهاء الصفحة الحالية',
+                                style: TextStyle(
+                                  fontFamily: 'Almarai',
+                                  fontSize: 10.5.sp,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              value: _autoAdvancePages,
+                              activeThumbColor: AppColors.primary,
+                              contentPadding: EdgeInsets.zero,
+                              onChanged: (val) {
+                                setSheetState(() => _autoAdvancePages = val);
+                                setState(() => _autoAdvancePages = val);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: 14.h),
+
+                      // 2. Tajweed Guide Card
+                      Container(
+                        padding: EdgeInsets.all(12.r),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50.withAlpha(120),
+                          borderRadius: BorderRadius.circular(12.r),
+                          border: Border.all(color: Colors.amber.shade300),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.palette_outlined,
+                                      color: Colors.amber.shade900,
+                                      size: 20.r,
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    Text(
+                                      'دليل ألوان أحكام التجويد',
+                                      style: TextStyle(
+                                        fontFamily: 'Almarai',
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13.sp,
+                                        color: Colors.brown.shade800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _showTajweedRulesDialog();
+                                  },
+                                  child: Text(
+                                    'عرض الكل',
+                                    style: TextStyle(
+                                      fontFamily: 'Almarai',
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11.sp,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              'دلالة ألوان مصحف التجويد الملون برواية حفص عن عاصم (دار المعرفة)',
+                              style: TextStyle(
+                                fontFamily: 'Almarai',
+                                fontSize: 10.5.sp,
+                                color: Colors.black87,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 8.h),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildTajweedMiniDot(
+                                  TajweedPalette.tafkheemLight,
+                                  'تفخيم',
+                                ),
+                                _buildTajweedMiniDot(
+                                  TajweedPalette.qalqalaLight,
+                                  'قلقلة',
+                                ),
+                                _buildTajweedMiniDot(
+                                  TajweedPalette.ghunnaLight,
+                                  'غنة',
+                                ),
+                                _buildTajweedMiniDot(
+                                  TajweedPalette.maddLazimLight,
+                                  'مد لازم',
+                                ),
+                                _buildTajweedMiniDot(
+                                  TajweedPalette.maddMuttasilLight,
+                                  'مد متصل',
+                                ),
+                                _buildTajweedMiniDot(
+                                  TajweedPalette.sakinLight,
+                                  'لا يلفظ',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: 14.h),
+
+                      // Theme Selection
+                      Text(
+                        'مظهر ورقة المصحف:',
+                        style: TextStyle(
+                          fontFamily: 'Almarai',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13.sp,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      Row(
+                        children: [
+                          _buildThemeChip(
+                            'مصحفي كريمي',
+                            MushafThemeMode.parchment,
+                            const Color(0xFFFAF7EE),
+                            setSheetState,
+                          ),
+                          SizedBox(width: 8.w),
+                          _buildThemeChip(
+                            'أبيض ناصع',
+                            MushafThemeMode.white,
+                            Colors.white,
+                            setSheetState,
+                          ),
+                          SizedBox(width: 8.w),
+                          _buildThemeChip(
+                            'ليلي داكن',
+                            MushafThemeMode.dark,
+                            const Color(0xFF181818),
+                            setSheetState,
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 14.h),
+
+                      // Full Quran Offline Download Card
+                      _buildFullDownloadCard(setSheetState),
+
+                      SizedBox(height: 14.h),
+
+                      // Offline Tafsir Downloads Card
+                      _buildOfflineTafsirSettingsCard(setSheetState),
+
+                      SizedBox(height: 14.h),
+
+                      // Switch View Button (Card View)
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(color: AppColors.primary),
+                          padding: EdgeInsets.symmetric(vertical: 10.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                        ),
+                        icon: const Icon(Icons.view_agenda_outlined),
                         label: const Text(
-                          'عرض دليل ألوان أحكام التجويد',
-                          style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+                          'التبديل إلى عرض بطاقات الآيات المنفصلة',
+                          style: TextStyle(fontFamily: 'Almarai'),
                         ),
                         onPressed: () {
                           Navigator.pop(context);
-                          _showTajweedRulesDialog();
+                          final pageData = QuranService.instance.getPageData(
+                            _currentPage,
+                          );
+                          final surahNum = pageData.isNotEmpty
+                              ? (pageData.first['surah'] ?? 1)
+                              : 1;
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SurahReaderPage(
+                                surahNumber: surahNum,
+                                initialFontSize: widget.initialFontSize ?? 26.0,
+                              ),
+                            ),
+                          );
                         },
                       ),
-                    ),
-
-                    SizedBox(height: 12.h),
-
-                    // Switch View Button (Card View)
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: BorderSide(color: AppColors.primary),
-                        padding: EdgeInsets.symmetric(vertical: 10.h),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-                      ),
-                      icon: const Icon(Icons.view_agenda_outlined),
-                      label: const Text('التبديل إلى عرض بطاقات الآيات المنفصلة', style: TextStyle(fontFamily: 'Almarai')),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        final pageData = QuranService.instance.getPageData(_currentPage);
-                        final surahNum = pageData.isNotEmpty ? (pageData.first['surah'] ?? 1) : 1;
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SurahReaderPage(
-                              surahNumber: surahNum,
-                              initialFontSize: _fontSize,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -662,7 +1329,46 @@ class _MushafPageState extends State<MushafPageView> {
     );
   }
 
-  Widget _buildThemeChip(String label, MushafThemeMode mode, Color color, StateSetter setSheetState) {
+  Widget _buildTajweedMiniDot(Color color, String label) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 14.r,
+          height: 14.r,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: color.withAlpha(80),
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 3.h),
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Almarai',
+            fontSize: 9.sp,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildThemeChip(
+    String label,
+    MushafThemeMode mode,
+    Color color,
+    StateSetter setSheetState,
+  ) {
     final isSelected = _themeMode == mode;
     return Expanded(
       child: InkWell(
@@ -688,10 +1394,350 @@ class _MushafPageState extends State<MushafPageView> {
               fontFamily: 'Almarai',
               fontSize: 11.sp,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: mode == MushafThemeMode.dark ? Colors.white : Colors.black87,
+              color: mode == MushafThemeMode.dark
+                  ? Colors.white
+                  : Colors.black87,
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFullDownloadCard(StateSetter setSheetState) {
+    return ValueListenableBuilder<TajweedDownloadProgress>(
+      valueListenable:
+          TajweedPageCacheService.instance.downloadProgressNotifier,
+      builder: (context, progress, _) {
+        final isComplete = progress.isComplete || progress.downloaded >= 604;
+        final isDownloading = progress.isDownloading;
+
+        return Container(
+          padding: EdgeInsets.all(12.r),
+          decoration: BoxDecoration(
+            color: isComplete
+                ? const Color(0xFFE8F5E9)
+                : (isDownloading
+                      ? const Color(0xFFE3F2FD)
+                      : Colors.grey.shade50),
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(
+              color: isComplete
+                  ? const Color(0xFF81C784)
+                  : (isDownloading
+                        ? const Color(0xFF64B5F6)
+                        : Colors.grey.shade300),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isComplete
+                        ? Icons.check_circle_rounded
+                        : (isDownloading
+                              ? Icons.downloading_rounded
+                              : Icons.cloud_download_rounded),
+                    color: isComplete
+                        ? const Color(0xFF2E7D32)
+                        : (isDownloading
+                              ? const Color(0xFF1976D2)
+                              : AppColors.primary),
+                    size: 24.r,
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'تحميل كامل صفحات المصحف (604 صفحة)',
+                          style: TextStyle(
+                            fontFamily: 'Almarai',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.sp,
+                            color: isComplete
+                                ? const Color(0xFF1B5E20)
+                                : (isDownloading
+                                      ? const Color(0xFF0D47A1)
+                                      : Colors.black87),
+                          ),
+                        ),
+                        SizedBox(height: 2.h),
+                        Text(
+                          isComplete
+                              ? 'تم تحميل جميع الصفحات بنجاح • جاهز للقراءة أوفلاين'
+                              : (isDownloading
+                                    ? 'جارٍ التحميل في الخلفية: ${progress.downloaded} من 604 صفحة (${progress.percentInt}%)'
+                                    : 'تم حفظ ${progress.downloaded} من 604 صفحة أوفلاين'),
+                          style: TextStyle(
+                            fontFamily: 'Almarai',
+                            fontSize: 11.sp,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (isDownloading) ...[
+                SizedBox(height: 10.h),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6.r),
+                  child: LinearProgressIndicator(
+                    value: progress.percentage,
+                    minHeight: 6.h,
+                    backgroundColor: Colors.white,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF1976D2),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 2.h,
+                      ),
+                    ),
+                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                    label: const Text(
+                      'إلغاء التحميل',
+                      style: TextStyle(fontFamily: 'Almarai', fontSize: 11),
+                    ),
+                    onPressed: () {
+                      TajweedPageCacheService.instance.cancelBatchDownload();
+                      setSheetState(() {});
+                    },
+                  ),
+                ),
+              ] else if (!isComplete) ...[
+                SizedBox(height: 10.h),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 9.h),
+                  ),
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  label: const Text(
+                    'تحميل كامل المصحف للقراءة بدون إنترنت',
+                    style: TextStyle(
+                      fontFamily: 'Almarai',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () {
+                    TajweedPageCacheService.instance.startBatchDownload();
+                    setSheetState(() {});
+                  },
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPageTafsir() {
+    PageTafsirBottomSheet.show(context, pageNumber: _currentPage);
+  }
+
+  Widget _buildOfflineTafsirSettingsCard(StateSetter setSheetState) {
+    return Container(
+      padding: EdgeInsets.all(14.r),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9).withAlpha(140),
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.menu_book_rounded,
+                color: Colors.green.shade800,
+                size: 22.r,
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'تحميل التفاسير بدون إنترنت',
+                      style: TextStyle(
+                        fontFamily: 'Almarai',
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade900,
+                      ),
+                    ),
+                    Text(
+                      'حمّل التفسير مرة واحدة ليعمل لجميع صفحات المصحف أوفلاين',
+                      style: TextStyle(
+                        fontFamily: 'Almarai',
+                        fontSize: 10.5.sp,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+
+          // Offline packages: Al-Muyassar and Ibn Kathir
+          ...TafsirService.offlinePackages.map((pkg) {
+            final isDownloaded = TafsirService.instance.isOfflineDownloaded(
+              pkg.id,
+            );
+            return ValueListenableBuilder<Map<String, TafsirDownloadProgress>>(
+              valueListenable: TafsirService.instance.downloadProgressNotifier,
+              builder: (context, progressMap, _) {
+                final progress = progressMap[pkg.id];
+                final isDownloading = progress?.isDownloading ?? false;
+
+                return Container(
+                  margin: EdgeInsets.only(bottom: 8.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 8.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            isDownloaded
+                                ? Icons.check_circle_rounded
+                                : Icons.cloud_download_outlined,
+                            color: isDownloaded
+                                ? Colors.green.shade700
+                                : AppColors.primary,
+                            size: 20.r,
+                          ),
+                          SizedBox(width: 8.w),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  pkg.name,
+                                  style: TextStyle(
+                                    fontFamily: 'Almarai',
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                Text(
+                                  '${pkg.approximateSize} • ${isDownloaded ? "جاهز للاستخدام بدون نت" : pkg.author}',
+                                  style: TextStyle(
+                                    fontFamily: 'Almarai',
+                                    fontSize: 10.sp,
+                                    color: isDownloaded
+                                        ? Colors.green.shade800
+                                        : Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isDownloading)
+                            Text(
+                              '${progress?.percentInt ?? 0}%',
+                              style: TextStyle(
+                                fontFamily: 'Rubik',
+                                fontSize: 11.sp,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          else if (isDownloaded)
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              tooltip: 'حذف التفسير لتوفير المساحة',
+                              onPressed: () async {
+                                await TafsirService.instance
+                                    .deleteOfflineTafsir(pkg.id);
+                                setSheetState(() {});
+                                if (mounted) setState(() {});
+                              },
+                            )
+                          else
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10.w,
+                                  vertical: 4.h,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6.r),
+                                ),
+                              ),
+                              onPressed: () async {
+                                setSheetState(() {});
+                                await TafsirService.instance
+                                    .downloadOfflineTafsir(pkg.id);
+                                setSheetState(() {});
+                                if (mounted) setState(() {});
+                              },
+                              child: const Text(
+                                'تحميل',
+                                style: TextStyle(
+                                  fontFamily: 'Almarai',
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (isDownloading) ...[
+                        SizedBox(height: 6.h),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4.r),
+                          child: LinearProgressIndicator(
+                            value: progress?.progress ?? 0.0,
+                            minHeight: 4.h,
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            );
+          }),
+        ],
       ),
     );
   }
@@ -710,14 +1756,18 @@ class _MushafPageState extends State<MushafPageView> {
         ? (startEntry['surah'] ?? 1)
         : (pageData.isNotEmpty ? (pageData.first['surah'] ?? 1) : 1);
     final surahDataForInfo = QuranService.instance.getSurah(surahNumForInfo);
-    final sPlace = surahDataForInfo?.revelationType ??
+    final sPlace =
+        surahDataForInfo?.revelationType ??
         QuranService.instance.getPlaceOfRevelationArabic(surahNumForInfo);
     final sCountAr = QuranService.toArabicDigits(
-      surahDataForInfo?.totalAyahs ?? QuranService.instance.getVerseCount(surahNumForInfo),
+      surahDataForInfo?.totalAyahs ??
+          QuranService.instance.getVerseCount(surahNumForInfo),
     );
 
     return Scaffold(
-      backgroundColor: _themeMode == MushafThemeMode.dark ? const Color(0xFF121212) : const Color(0xFFFAF7EE),
+      backgroundColor: _themeMode == MushafThemeMode.dark
+          ? const Color(0xFF121212)
+          : const Color(0xFFFAF7EE),
       body: SafeArea(
         child: Stack(
           children: [
@@ -727,7 +1777,8 @@ class _MushafPageState extends State<MushafPageView> {
               child: PageView.builder(
                 controller: _pageController,
                 itemCount: 604,
-                reverse: false, // In RTL: flips forward matching physical Mushaf
+                reverse:
+                    false, // In RTL: flips forward matching physical Mushaf
                 onPageChanged: (index) {
                   setState(() {
                     _currentPage = index + 1;
@@ -740,19 +1791,14 @@ class _MushafPageState extends State<MushafPageView> {
                 },
                 itemBuilder: (context, index) {
                   final pageNum = index + 1;
-                  return MushafPageWidget(
-                    key: ValueKey('mushaf_p${pageNum}_s${_fontSize}_t${_themeMode.index}_tj$_showTajweed'),
+                  return TajweedPageWidget(
+                    key: ValueKey('tajweed_p$pageNum'),
                     pageNumber: pageNum,
-                    store: _store,
-                    showTajweed: _showTajweed,
-                    selectedSurah: _selectedSurah,
-                    selectedAyah: _selectedAyah,
-                    playingSurah: _lastIsActive ? _lastPlayingSurah : null,
-                    playingAyah: _lastIsActive ? _lastPlayingAyah : null,
-                    fontSize: _fontSize,
-                    themeMode: _themeMode,
-                    onAyahTapped: _onAyahTapped,
-                    onPageBackgroundTapped: _onPageBackgroundTapped,
+                    onPageTapped: _onPageBackgroundTapped,
+                    onBookmarkToggled: () => setState(() {}),
+                    onSurahTap: _showJumpDialog,
+                    onPageTap: _showJumpDialog,
+                    onJuzTap: _showJumpDialog,
                   );
                 },
               ),
@@ -779,7 +1825,10 @@ class _MushafPageState extends State<MushafPageView> {
                   child: Row(
                     children: [
                       IconButton(
-                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary),
+                        icon: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: AppColors.primary,
+                        ),
                         onPressed: () => Navigator.pop(context),
                       ),
                       Expanded(
@@ -787,7 +1836,10 @@ class _MushafPageState extends State<MushafPageView> {
                           onTap: _showJumpDialog,
                           borderRadius: BorderRadius.circular(8.r),
                           child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8.w,
+                              vertical: 4.h,
+                            ),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -804,12 +1856,16 @@ class _MushafPageState extends State<MushafPageView> {
                                       ),
                                     ),
                                     SizedBox(width: 4.w),
-                                    Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary, size: 20),
+                                    Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      color: AppColors.primary,
+                                      size: 20,
+                                    ),
                                   ],
                                 ),
                                 Text(
                                   textAlign: TextAlign.center,
-                                  '$juzName • صفحة $_currentPage من 604 • $sPlace • آياتها $sCountAr',
+                                  '$juzName • ${TajweedPageCacheService.getHizbText(_currentPage)} • صفحة $_currentPage من 604 • $sPlace • آياتها $sCountAr',
                                   style: TextStyle(
                                     fontFamily: 'Almarai',
                                     fontSize: 10.sp,
@@ -823,12 +1879,18 @@ class _MushafPageState extends State<MushafPageView> {
                         ),
                       ),
                       IconButton(
-                        icon: Icon(Icons.palette_outlined, color: AppColors.primary),
+                        icon: Icon(
+                          Icons.palette_outlined,
+                          color: AppColors.primary,
+                        ),
                         tooltip: 'دليل ألوان التجويد',
                         onPressed: _showTajweedRulesDialog,
                       ),
                       IconButton(
-                        icon: Icon(Icons.settings_outlined, color: AppColors.primary),
+                        icon: Icon(
+                          Icons.settings_outlined,
+                          color: AppColors.primary,
+                        ),
                         tooltip: 'خيارات العرض',
                         onPressed: _showSettingsSheet,
                       ),
@@ -836,6 +1898,86 @@ class _MushafPageState extends State<MushafPageView> {
                   ),
                 ),
               ),
+
+            // Floating active batch download notification
+            ValueListenableBuilder<TajweedDownloadProgress>(
+              valueListenable:
+                  TajweedPageCacheService.instance.downloadProgressNotifier,
+              builder: (context, progress, _) {
+                if (!progress.isDownloading) return const SizedBox.shrink();
+                return Positioned(
+                  top: _showOverlay ? 60.h : 10.h,
+                  left: 16.w,
+                  right: 16.w,
+                  child: Material(
+                    elevation: 6,
+                    borderRadius: BorderRadius.circular(12.r),
+                    color: AppColors.primary,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 14.w,
+                        vertical: 8.h,
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'جارٍ تحميل المصحف الشريف كاملاً...',
+                                  style: TextStyle(
+                                    fontFamily: 'Almarai',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12.sp,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                SizedBox(height: 2.h),
+                                Text(
+                                  '${progress.downloaded} / 604 صفحة (${progress.percentInt}%)',
+                                  style: TextStyle(
+                                    fontFamily: 'Rubik',
+                                    fontSize: 11.sp,
+                                    color: Colors.white.withAlpha(220),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'إلغاء التحميل',
+                            onPressed: () {
+                              TajweedPageCacheService.instance
+                                  .cancelBatchDownload();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
 
             // Bottom Selected Ayah Action Bar
             if (_selectedSurah != null && _selectedAyah != null)
@@ -848,19 +1990,26 @@ class _MushafPageState extends State<MushafPageView> {
             // Bottom Page Scrubber (when overlay is active and no ayah is selected)
             else if (_showOverlay)
               Positioned(
-                bottom: 8.h,
+                bottom: 24.h,
                 left: 16.w,
                 right: 16.w,
                 child: _buildPageScrubber(),
               ),
 
-            // Audio Player Floating Bar (if active)
-            Positioned(
-              bottom: (_selectedSurah != null && _selectedAyah != null) ? 110.h : (_showOverlay ? 80.h : 12.h),
-              left: 16.w,
-              right: 16.w,
-              child: _buildAudioPlayerBar(),
-            ),
+            // Floating Audio Player Bar (when audio recitation is active and no ayah is selected)
+            if (_selectedSurah == null)
+              ValueListenableBuilder<QuranAudioState>(
+                valueListenable: QuranService.instance.audioService.state,
+                builder: (context, audioState, _) {
+                  if (!audioState.isActive) return const SizedBox.shrink();
+                  return Positioned(
+                    bottom: _showOverlay ? 116.h : 20.h,
+                    left: 16.w,
+                    right: 16.w,
+                    child: _buildAudioPlayerBar(audioState),
+                  );
+                },
+              ),
           ],
         ),
       ),
@@ -872,8 +2021,11 @@ class _MushafPageState extends State<MushafPageView> {
     final surahNum = _selectedSurah!;
     final ayahNum = _selectedAyah!;
     final surah = QuranService.instance.getSurah(surahNum);
-    final surahName = surah?.arabicName ?? QuranService.instance.getSurahNameArabic(surahNum);
-    final ayahText = _selectedAyahText ?? QuranService.instance.getVerseUthmani(surahNum, ayahNum);
+    final surahName =
+        surah?.arabicName ?? QuranService.instance.getSurahNameArabic(surahNum);
+    final ayahText =
+        _selectedAyahText ??
+        QuranService.instance.getVerseUthmani(surahNum, ayahNum);
     final isBookmarked = QuranService.instance.isBookmarked(surahNum, ayahNum);
 
     return Container(
@@ -921,7 +2073,11 @@ class _MushafPageState extends State<MushafPageView> {
                     ),
                   ),
                   SizedBox(width: 6.w),
-                  Icon(Icons.touch_app_rounded, color: AppColors.primary, size: 16),
+                  Icon(
+                    Icons.touch_app_rounded,
+                    color: AppColors.primary,
+                    size: 16,
+                  ),
                 ],
               ),
             ],
@@ -977,7 +2133,9 @@ class _MushafPageState extends State<MushafPageView> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('تعذر تشغيل التلاوة، يرجى التأكد من الاتصال بالإنترنت'),
+                          content: Text(
+                            'تعذر تشغيل التلاوة، يرجى التأكد من الاتصال بالإنترنت',
+                          ),
                         ),
                       );
                     }
@@ -987,9 +2145,13 @@ class _MushafPageState extends State<MushafPageView> {
 
               // 3. Bookmark Button
               _buildActionButton(
-                icon: isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                icon: isBookmarked
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
                 label: isBookmarked ? 'محفوظة' : 'حفظ علامة',
-                color: isBookmarked ? Colors.amber.shade800 : Colors.grey.shade700,
+                color: isBookmarked
+                    ? Colors.amber.shade800
+                    : Colors.grey.shade700,
                 onTap: () async {
                   await QuranService.instance.toggleBookmark(
                     surah: surahNum,
@@ -1003,7 +2165,9 @@ class _MushafPageState extends State<MushafPageView> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          isBookmarked ? 'تمت إزالة العلامة المرجعية' : 'تم حفظ العلامة المرجعية بنجاح',
+                          isBookmarked
+                              ? 'تمت إزالة العلامة المرجعية'
+                              : 'تم حفظ العلامة المرجعية بنجاح',
                           style: const TextStyle(fontFamily: 'Almarai'),
                         ),
                         duration: const Duration(seconds: 2),
@@ -1019,12 +2183,17 @@ class _MushafPageState extends State<MushafPageView> {
                 label: 'نسخ',
                 color: Colors.blueGrey.shade700,
                 onTap: () {
-                  Clipboard.setData(ClipboardData(
-                    text: '﴿ $ayahText ﴾ [سورة $surahName: $ayahNum]',
-                  ));
+                  Clipboard.setData(
+                    ClipboardData(
+                      text: '﴿ $ayahText ﴾ [سورة $surahName: $ayahNum]',
+                    ),
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('تم نسخ الآية الكريمة إلى الحافظة', style: TextStyle(fontFamily: 'Almarai')),
+                      content: Text(
+                        'تم نسخ الآية الكريمة إلى الحافظة',
+                        style: TextStyle(fontFamily: 'Almarai'),
+                      ),
                       duration: Duration(seconds: 2),
                     ),
                   );
@@ -1068,133 +2237,402 @@ class _MushafPageState extends State<MushafPageView> {
     );
   }
 
-  /// Fast page scrubber when controls are visible
+  /// Fast page scrubber and quick audio actions when controls are visible
   Widget _buildPageScrubber() {
+    final reciters = QuranService.instance.reciters;
+    final reciterIndex = QuranService.instance.audioService.reciterIndex;
+    final reciter = (reciterIndex >= 0 && reciterIndex < reciters.length)
+        ? reciters[reciterIndex]
+        : reciters.first;
+
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
       decoration: BoxDecoration(
         color: AppColors.card.withAlpha(245),
         borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(20),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withAlpha(25),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Next Page Button
-          IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: AppColors.primary),
-            tooltip: 'الصفحة التالية',
-            onPressed: _currentPage < 604 ? () => _jumpToPage(_currentPage + 1) : null,
-          ),
+          // Row with Listen to Page Button + Current Reciter Info
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Listen to Page button
+                  ValueListenableBuilder<QuranAudioState>(
+                    valueListenable: QuranService.instance.audioService.state,
+                    builder: (context, audioState, _) {
+                      final isThisPage =
+                          audioState.isActive &&
+                          QuranService.instance.getPageNumber(
+                                audioState.surah,
+                                audioState.ayah,
+                              ) ==
+                              _currentPage;
+                      final isPlaying = isThisPage && audioState.isPlaying;
 
-          // Slider across 604 pages (Page 1 on the Left, Page 604 on the Right)
-          Directionality(
-            textDirection: TextDirection.rtl,
-            child: Expanded(
-              child: Slider(
-                value: _currentPage.toDouble(),
-                min: 1.0,
-                max: 604.0,
-                divisions: 603,
-                activeColor: AppColors.primary,
-                inactiveColor: AppColors.primary.withAlpha(80),
-                onChanged: (val) {
-                  _jumpToPage(val.round());
-                },
+                      return InkWell(
+                        onTap: _togglePageAudio,
+                        borderRadius: BorderRadius.circular(8.r),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 10.w,
+                            vertical: 6.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isPlaying
+                                ? Colors.amber.shade800
+                                : AppColors.primary,
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.headphones_rounded,
+                                color: Colors.white,
+                                size: 14.r,
+                              ),
+                              SizedBox(width: 4.w),
+                              Text(
+                                isPlaying ? 'إيقاف مؤقت' : 'استماع',
+                                style: TextStyle(
+                                  fontFamily: 'Almarai',
+                                  fontSize: 11.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(width: 6.w),
+
+                  // Page Tafsir button
+                  InkWell(
+                    onTap: _showPageTafsir,
+                    borderRadius: BorderRadius.circular(8.r),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 10.w,
+                        vertical: 6.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(20),
+                        borderRadius: BorderRadius.circular(8.r),
+                        border: Border.all(
+                          color: AppColors.primary.withAlpha(60),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.menu_book_rounded,
+                            color: AppColors.primary,
+                            size: 14.r,
+                          ),
+                          SizedBox(width: 4.w),
+                          Text(
+                            'تفسير الصفحة',
+                            style: TextStyle(
+                              fontFamily: 'Almarai',
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ),
 
-          // Previous Page Button
-          IconButton(
-            icon: Icon(Icons.arrow_forward_rounded, color: AppColors.primary),
-            tooltip: 'الصفحة السابقة',
-            onPressed: _currentPage > 1 ? () => _jumpToPage(_currentPage - 1) : null,
+              // Reciter Selector Button
+              InkWell(
+                onTap: _showReciterPicker,
+                borderRadius: BorderRadius.circular(8.r),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 4.h),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.record_voice_over_rounded,
+                        size: 14.r,
+                        color: AppColors.primary,
+                      ),
+                      SizedBox(width: 4.w),
+                      Text(
+                        reciter.nameAr,
+                        style: TextStyle(
+                          fontFamily: 'Almarai',
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_drop_down_rounded,
+                        size: 16.r,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 4.h),
+
+          // Slider across 604 pages
+          Row(
+            children: [
+              // Next Page Button
+              IconButton(
+                icon: Icon(Icons.arrow_back_rounded, color: AppColors.primary),
+                tooltip: 'الصفحة التالية',
+                onPressed: _currentPage < 604
+                    ? () => _jumpToPage(_currentPage + 1)
+                    : null,
+              ),
+
+              // Slider across 604 pages (Page 1 on the Left, Page 604 on the Right)
+              Directionality(
+                textDirection: TextDirection.rtl,
+                child: Expanded(
+                  child: Slider(
+                    value: _currentPage.toDouble(),
+                    min: 1.0,
+                    max: 604.0,
+                    divisions: 603,
+                    activeColor: AppColors.primary,
+                    inactiveColor: AppColors.primary.withAlpha(80),
+                    onChanged: (val) {
+                      _jumpToPage(val.round());
+                    },
+                  ),
+                ),
+              ),
+
+              // Previous Page Button
+              IconButton(
+                icon: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: AppColors.primary,
+                ),
+                tooltip: 'الصفحة السابقة',
+                onPressed: _currentPage > 1
+                    ? () => _jumpToPage(_currentPage - 1)
+                    : null,
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  /// Floating mini Audio bar if recitation is currently playing
-  Widget _buildAudioPlayerBar() {
-    return ValueListenableBuilder<QuranAudioState>(
-      valueListenable: QuranService.instance.audioService.state,
-      builder: (context, state, _) {
-        if (!state.isActive) {
-          return const SizedBox.shrink();
-        }
+  /// Floating Audio Player Bar when audio is active
+  Widget _buildAudioPlayerBar(QuranAudioState state) {
+    final reciters = QuranService.instance.reciters;
+    final reciter =
+        (state.reciterIndex >= 0 && state.reciterIndex < reciters.length)
+        ? reciters[state.reciterIndex]
+        : reciters.first;
+    final surahData = QuranService.instance.getSurah(state.surah);
+    final surahName =
+        surahData?.arabicName ??
+        QuranService.instance.getSurahNameArabic(state.surah);
+    final playingPage = QuranService.instance.getPageNumber(
+      state.surah,
+      state.ayah,
+    );
 
-        final reciter = QuranService.instance.reciters[state.reciterIndex];
-
-        return Container(
-          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(14.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(25),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-            border: Border.all(color: AppColors.primary.withAlpha(40)),
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(30),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          child: Row(
+        ],
+        border: Border.all(color: AppColors.primary.withAlpha(35), width: 1),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Info Row: Reciter & Current Ayah Info + Close button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                tooltip: 'إيقاف التلاوة',
                 onPressed: () => QuranService.instance.audioService.stop(),
               ),
               Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'تلاوة الآية ${state.ayah} • ${reciter.nameAr}',
-                      style: TextStyle(
-                        fontFamily: 'Almarai',
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'تلاوة صفحة $playingPage • سورة $surahName (آية ${state.ayah})',
+                        style: TextStyle(
+                          fontFamily: 'Almarai',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                    if (state.isLoading)
-                      LinearProgressIndicator(minHeight: 2.h, color: AppColors.primary),
-                  ],
+                      SizedBox(height: 2.h),
+                      InkWell(
+                        onTap: _showReciterPicker,
+                        borderRadius: BorderRadius.circular(4.r),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.record_voice_over_rounded,
+                              size: 12.r,
+                              color: Colors.teal.shade700,
+                            ),
+                            SizedBox(width: 4.w),
+                            Text(
+                              reciter.nameAr,
+                              style: TextStyle(
+                                fontFamily: 'Almarai',
+                                fontSize: 11.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.teal.shade800,
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_drop_down_rounded,
+                              size: 14.r,
+                              color: Colors.teal.shade800,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.skip_previous_rounded, color: AppColors.primary, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(
+                  Icons.person_pin_rounded,
+                  color: AppColors.primary,
+                  size: 20.r,
+                ),
+                tooltip: 'تغيير القارئ',
+                onPressed: _showReciterPicker,
+              ),
+            ],
+          ),
+
+          // Buffering progress
+          if (state.isLoading) ...[
+            SizedBox(height: 6.h),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4.r),
+              child: LinearProgressIndicator(
+                minHeight: 2.5.h,
+                color: AppColors.primary,
+                backgroundColor: AppColors.primary.withAlpha(20),
+              ),
+            ),
+          ],
+
+          SizedBox(height: 6.h),
+
+          // Controls Row: Next Ayah (Right in RTL), Play/Pause (Center), Prev Ayah (Left in RTL)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Next Ayah
+              IconButton(
+                icon: Icon(
+                  Icons.skip_next_rounded,
+                  color: AppColors.primary,
+                  size: 26.r,
+                ),
+                tooltip: 'الآية التالية',
                 onPressed: () async {
                   final canPlay = await _verifyAudioPlayable(state.surah);
                   if (!canPlay) return;
                   QuranService.instance.audioService.skipNext();
                 },
               ),
-              IconButton(
-                icon: Icon(
-                  state.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                  color: AppColors.primary,
-                  size: 28.r,
-                ),
-                onPressed: () async {
+              SizedBox(width: 14.w),
+
+              // Play / Pause
+              GestureDetector(
+                onTap: () async {
                   if (!state.isPlaying) {
                     final canPlay = await _verifyAudioPlayable(state.surah);
                     if (!canPlay) return;
                   }
                   QuranService.instance.audioService.togglePlayPause();
                 },
+                child: Container(
+                  width: 42.r,
+                  height: 42.r,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withAlpha(70),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    state.isPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 24.r,
+                  ),
+                ),
               ),
+              SizedBox(width: 14.w),
+
+              // Previous Ayah
               IconButton(
-                icon: Icon(Icons.skip_next_rounded, color: AppColors.primary, size: 20),
+                icon: Icon(
+                  Icons.skip_previous_rounded,
+                  color: AppColors.primary,
+                  size: 26.r,
+                ),
+                tooltip: 'الآية السابقة',
                 onPressed: () async {
                   final canPlay = await _verifyAudioPlayable(state.surah);
                   if (!canPlay) return;
@@ -1203,8 +2641,8 @@ class _MushafPageState extends State<MushafPageView> {
               ),
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
