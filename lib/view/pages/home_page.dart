@@ -7,7 +7,7 @@ import 'package:alhuda/view/widgets/fiqh_widget.dart';
 import 'package:alhuda/view/widgets/hadith_widget.dart';
 import 'package:alhuda/view/widgets/hijri_calendar_widget.dart';
 import 'package:alhuda/view/widgets/prayer_times_widget.dart';
-import 'package:alhuda/view/widgets/qibla_widget.dart';
+import 'package:alhuda/view/widgets/qiblah_main_screen.dart';
 import 'package:alhuda/view/widgets/quran_widget.dart';
 import 'package:alhuda/view/widgets/tasbeeh_widget.dart';
 import 'package:flutter/material.dart';
@@ -132,10 +132,10 @@ class _HomePageState extends State<HomePage> {
         ),
         _HomeFeatureItem(
           title: 'القبلة',
-          subtitle: 'بوصلة تفاعلية دقيقة للكعبة',
-          badge: 'بوصلة دقيقة',
-          icon: Icons.explore_rounded,
-          builder: () => const QiblaWidget(),
+          subtitle: 'تحديد القبلة بالشمس بدون إنترنت ومستشعر',
+          badge: 'طريقة الشمس',
+          icon: Icons.wb_sunny_rounded,
+          builder: () => const QiblahMainScreen(hasScaffold: false),
         ),
       ];
 
