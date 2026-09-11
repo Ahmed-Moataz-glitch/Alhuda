@@ -222,7 +222,7 @@ class _HomePageState extends State<HomePage> {
               sliver: SliverGrid(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 1.05,
+                  childAspectRatio: 1.15,
                   crossAxisSpacing: 12.w,
                   mainAxisSpacing: 12.h,
                 ),
@@ -257,13 +257,6 @@ class _HomePageState extends State<HomePage> {
           end: Alignment.bottomLeft,
         ),
         borderRadius: BorderRadius.circular(20.r),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withAlpha(60),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -342,13 +335,6 @@ class _HomePageState extends State<HomePage> {
           color: AppColors.primary.withAlpha(30),
           width: 1.2,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,

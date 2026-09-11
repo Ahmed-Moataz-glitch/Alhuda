@@ -217,13 +217,6 @@ class _HadithChapterPageState extends State<HadithChapterPage> {
                                 end: Alignment.bottomLeft,
                               ),
                               borderRadius: BorderRadius.circular(16.r),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: widget.book.color.withValues(alpha: 0.25),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

@@ -220,13 +220,6 @@ class _HadithWidgetState extends State<HadithWidget> {
                       end: Alignment.bottomLeft,
                     ),
                     borderRadius: BorderRadius.circular(20.r),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _dailyHadith!.book.color.withValues(alpha: 0.28),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
