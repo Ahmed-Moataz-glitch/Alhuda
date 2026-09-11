@@ -79,5 +79,17 @@ void main() {
       expect(QiblaHelper.isFacingQibla(358.0, 1.0, threshold: 4.0), isTrue);
       expect(QiblaHelper.isFacingQibla(350.0, 1.0, threshold: 4.0), isFalse);
     });
+
+    test('Floating GPS Compass presets accurately align towards Kaaba', () {
+      final cairoQibla = qiblaAngle(30.0444, 31.2357);
+      // When aligned to Kaaba angle, it must be facing
+      expect(QiblaHelper.isFacingQibla(cairoQibla, cairoQibla), isTrue);
+
+      // Fast preset alignment at threshold
+      expect(QiblaHelper.calculateDifference(cairoQibla, cairoQibla), equals(0.0));
+      expect(QiblaHelper.isFacingQibla(cairoQibla + 3.0, cairoQibla, threshold: 5.0), isTrue);
+      expect(QiblaHelper.isFacingQibla(cairoQibla - 3.0, cairoQibla, threshold: 5.0), isTrue);
+      expect(QiblaHelper.isFacingQibla(cairoQibla + 6.0, cairoQibla, threshold: 5.0), isFalse);
+    });
   });
 }

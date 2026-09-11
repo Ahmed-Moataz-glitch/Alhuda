@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:alhuda/model/city_locations_data.dart';
 import 'package:alhuda/view/widgets/app_colors.dart';
@@ -46,14 +47,26 @@ class QiblaWidget extends StatefulWidget {
   State<QiblaWidget> createState() => _QiblaWidgetState();
 }
 
-class _QiblaWidgetState extends State<QiblaWidget> {
+class _QiblaWidgetState extends State<QiblaWidget>
+    with SingleTickerProviderStateMixin {
   final _locationStreamController =
       StreamController<LocationStatus>.broadcast();
 
-  // هل يدعم الجهاز مستشعر البوصلة؟ (null = جاري الفحص)
+  // قناة الاتصال الأصلية لفحص وجود مستشعر مغناطيسي حقيقي
+  static const MethodChannel _customSensorChannel =
+      MethodChannel('com.example.alhuda/sensors');
+
+  // متحكم حركة الطفو الانسيابي للبوصلة العائمة (Floating Compass)
+  late AnimationController _floatingController;
+  late Animation<double> _floatingAnimation;
+
+  // اشتراك تيار موقع وتوجيه الـ GPS الحي
+  StreamSubscription<Position>? _positionStreamSubscription;
+
+  // هل يدعم الجهاز مستشعر البوصلة المغناطيسي الحقيقي؟ (null = جاري الفحص)
   bool? _hasHardwareSensor;
 
-  // هل تم تفعيل وضع الحساب الجغرافي (بدون مستشعر)؟
+  // هل تم تفعيل وضع بوصلة GPS العائمة (بدون مستشعر مغناطيسي)؟
   bool _isSensorlessMode = false;
 
   // الإحداثيات الحالية (افتراضياً القاهرة حتى يتم جلب الموقع أو اختيار مدينة)
@@ -73,6 +86,20 @@ class _QiblaWidgetState extends State<QiblaWidget> {
   @override
   void initState() {
     super.initState();
+
+    // تشغيل أنيميشن الطفو الانسيابي للبوصلة
+    _floatingController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat(reverse: true);
+
+    _floatingAnimation = Tween<double>(begin: -1.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _floatingController,
+        curve: Curves.easeInOutSine,
+      ),
+    );
+
     _checkSensorSupport();
     _checkLocationStatus();
     _fetchCurrentPosition();
@@ -80,20 +107,43 @@ class _QiblaWidgetState extends State<QiblaWidget> {
 
   @override
   void dispose() {
+    _floatingController.dispose();
+    _positionStreamSubscription?.cancel();
     _locationStreamController.close();
     FlutterQiblah().dispose();
     super.dispose();
   }
 
-  /// فحص دعم مستشعر البوصلة بدون إيقاف المستخدم إذا لم يكن مدعوماً
+  /// فحص دعم مستشعر البوصلة المغناطيسي الحقيقي (Magnetometer)
   Future<void> _checkSensorSupport() async {
     try {
-      final support = await FlutterQiblah.androidDeviceSensorSupport();
+      bool hasMagnetometer = false;
+      if (Platform.isAndroid) {
+        try {
+          final nativeResult = await _customSensorChannel
+              .invokeMethod<bool>('hasMagnetometer');
+          if (nativeResult != null) {
+            hasMagnetometer = nativeResult;
+          } else {
+            final support =
+                await FlutterQiblah.androidDeviceSensorSupport();
+            hasMagnetometer = support == true;
+          }
+        } catch (_) {
+          final support =
+              await FlutterQiblah.androidDeviceSensorSupport();
+          hasMagnetometer = support == true;
+        }
+      } else {
+        // في نظام iOS أجهزة الآيفون تحتوي بوصلة قياسية
+        hasMagnetometer = true;
+      }
+
       if (mounted) {
         setState(() {
-          _hasHardwareSensor = support == true;
-          // في حال عدم توفر المستشعر، تفعيل وضع الحساب الجغرافي فوراً
-          if (support != true) {
+          _hasHardwareSensor = hasMagnetometer;
+          // في حال عدم توفر مستشعر مغناطيسي، يتم تفعيل بوصلة GPS العائمة فوراً
+          if (!hasMagnetometer) {
             _isSensorlessMode = true;
           }
         });
@@ -151,6 +201,7 @@ class _QiblaWidgetState extends State<QiblaWidget> {
               qibla_math.kaabaLng,
             );
           });
+          _startPositionStream();
         }
       } else {
         if (mounted && _currentLat == null) {
@@ -166,6 +217,40 @@ class _QiblaWidgetState extends State<QiblaWidget> {
         });
       }
     }
+  }
+
+  /// الاستماع لتيار موقع الـ GPS المباشر للحصول على الإحداثيات وزاوية التحرك الفعلي
+  void _startPositionStream() {
+    _positionStreamSubscription?.cancel();
+    try {
+      const locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 2,
+      );
+      _positionStreamSubscription = Geolocator.getPositionStream(
+        locationSettings: locationSettings,
+      ).listen(
+        (position) {
+          if (!mounted) return;
+          setState(() {
+            _currentLat = position.latitude;
+            _currentLng = position.longitude;
+            _locationTitle = 'موقعك الحالي (GPS)';
+            _distanceToKaabaKm = qibla_math.distanceKm(
+              position.latitude,
+              position.longitude,
+              qibla_math.kaabaLat,
+              qibla_math.kaabaLng,
+            );
+            // إذا كان المستخدم يتحرك، فإن الـ GPS يزودنا باتجاه السير الفعلي (heading)
+            if (position.heading > 0 && position.speed > 0.4) {
+              _manualHeading = position.heading;
+            }
+          });
+        },
+        onError: (_) {},
+      );
+    } catch (_) {}
   }
 
   Future<void> _checkLocationStatus() async {
@@ -309,9 +394,7 @@ class _QiblaWidgetState extends State<QiblaWidget> {
                   child: Text(
                     isFacing
                         ? 'أنت باتجاه القبلة الآن 🕋'
-                        : (_manualHeading == 0.0
-                            ? 'وجه أعلى الهاتف للشمال أو دوّر البوصلة'
-                            : 'زاوية القبلة: ${qiblaAngle.toInt()}° ($arabicDirection)'),
+                        : 'اتجاه القبلة: ${qiblaAngle.toInt()}° ($arabicDirection) • الإبرة العائمة تشير للكعبة',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14.sp,
@@ -327,7 +410,7 @@ class _QiblaWidgetState extends State<QiblaWidget> {
           ),
           SizedBox(height: 16.h),
 
-          // منطقة البوصلة التفاعلية مع دعم التدوير باللمس
+          // منطقة البوصلة العائمة التفاعلية (Floating Compass)
           Center(
             child: SizedBox(
               width: 280.w,
@@ -335,16 +418,14 @@ class _QiblaWidgetState extends State<QiblaWidget> {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onPanStart: (details) {
-                  final centerOffset =
-                      Offset(140.w, 140.w);
+                  final centerOffset = Offset(140.w, 140.w);
                   final touchOffset = details.localPosition - centerOffset;
                   _panStartTouchAngle =
                       math.atan2(touchOffset.dy, touchOffset.dx) * 180 / math.pi;
                   _panStartHeading = _manualHeading;
                 },
                 onPanUpdate: (details) {
-                  final centerOffset =
-                      Offset(140.w, 140.w);
+                  final centerOffset = Offset(140.w, 140.w);
                   final touchOffset = details.localPosition - centerOffset;
                   final currentTouchAngle =
                       math.atan2(touchOffset.dy, touchOffset.dx) * 180 / math.pi;
@@ -367,89 +448,110 @@ class _QiblaWidgetState extends State<QiblaWidget> {
                     _manualHeading = newHeading;
                   });
                 },
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Outer glow
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: 270.w,
-                      height: 270.w,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: isFacing
-                                ? const Color(0xFF2E7D32).withAlpha(70)
-                                : AppColors.primary.withAlpha(25),
-                            blurRadius: isFacing ? 25 : 12,
-                            spreadRadius: isFacing ? 6 : 1,
+                child: AnimatedBuilder(
+                  animation: _floatingAnimation,
+                  builder: (context, child) {
+                    // حركة طفو انسيابية هادئة لمحاكاة استقرار إبرة البوصلة في سائل (Floating Liquid Effect)
+                    final floatSway = _floatingAnimation.value * 1.5;
+                    final floatDy =
+                        math.sin(_floatingAnimation.value * math.pi) * 3.0;
+
+                    return Transform.translate(
+                      offset: Offset(0, floatDy),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Outer glow with breathing float effect
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: 270.w,
+                            height: 270.w,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isFacing
+                                      ? const Color(0xFF2E7D32).withAlpha(
+                                          70 +
+                                              (_floatingAnimation.value.abs() *
+                                                      25)
+                                                  .toInt())
+                                      : AppColors.primary.withAlpha(25 +
+                                          (_floatingAnimation.value.abs() * 15)
+                                              .toInt()),
+                                  blurRadius: isFacing ? 26 : 14,
+                                  spreadRadius: isFacing ? 6 : 2,
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Rotating Compass Dial with float sway
+                          Transform.rotate(
+                            angle:
+                                ((_manualHeading + floatSway) * (math.pi / 180) * -1),
+                            child: CustomPaint(
+                              size: Size(260.w, 260.w),
+                              painter: CompassDialPainter(
+                                primaryColor: AppColors.primary,
+                                isFacingQibla: isFacing,
+                              ),
+                            ),
+                          ),
+
+                          // Floating Qibla Needle pointing towards Mecca
+                          Transform.rotate(
+                            angle: (((qiblaAngle - _manualHeading) + floatSway) *
+                                (math.pi / 180)),
+                            child: CustomPaint(
+                              size: Size(260.w, 260.w),
+                              painter: QiblaNeedlePainter(
+                                needleColor: isFacing
+                                    ? const Color(0xFF2E7D32)
+                                    : const Color(0xFFC59B27),
+                                isFacingQibla: isFacing,
+                              ),
+                            ),
+                          ),
+
+                          // Center Pivot Point with Kaaba icon
+                          Container(
+                            width: 50.w,
+                            height: 50.w,
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isFacing
+                                    ? const Color(0xFF2E7D32)
+                                    : AppColors.primary,
+                                width: 2.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(30),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                '🕋',
+                                style: TextStyle(fontSize: 20.sp),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-
-                    // Rotating Compass Dial
-                    Transform.rotate(
-                      angle: (_manualHeading * (math.pi / 180) * -1),
-                      child: CustomPaint(
-                        size: Size(260.w, 260.w),
-                        painter: CompassDialPainter(
-                          primaryColor: AppColors.primary,
-                          isFacingQibla: isFacing,
-                        ),
-                      ),
-                    ),
-
-                    // Rotating Qibla Needle
-                    Transform.rotate(
-                      angle: ((qiblaAngle - _manualHeading) * (math.pi / 180)),
-                      child: CustomPaint(
-                        size: Size(260.w, 260.w),
-                        painter: QiblaNeedlePainter(
-                          needleColor: isFacing
-                              ? const Color(0xFF2E7D32)
-                              : const Color(0xFFC59B27),
-                          isFacingQibla: isFacing,
-                        ),
-                      ),
-                    ),
-
-                    // Center Pivot Point
-                    Container(
-                      width: 50.w,
-                      height: 50.w,
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isFacing
-                              ? const Color(0xFF2E7D32)
-                              : AppColors.primary,
-                          width: 2.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(25),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          '🕋',
-                          style: TextStyle(fontSize: 20.sp),
-                        ),
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
             ),
           ),
           SizedBox(height: 12.h),
 
-          // تلميح تفاعلي للتدوير باللمس
+          // تلميح تفاعلي
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -457,7 +559,7 @@ class _QiblaWidgetState extends State<QiblaWidget> {
                   size: 16.sp, color: AppColors.primary.withAlpha(180)),
               SizedBox(width: 6.w),
               Text(
-                'المس واسحب قرص البوصلة بإصبعك لتدويره يدوياً',
+                'البوصلة عائمة وتتحرك بالـ GPS، ويمكنك تدوير القرص يدوياً باللمس',
                 style: TextStyle(
                   fontSize: 12.sp,
                   color: AppColors.primary.withAlpha(200),
@@ -566,7 +668,7 @@ class _QiblaWidgetState extends State<QiblaWidget> {
                     });
                   },
                   icon: const Icon(Icons.swap_horiz_rounded),
-                  label: const Text('التبديل إلى الحساب الجغرافي بدون مستشعر'),
+                  label: const Text('التبديل إلى بوصلة GPS العائمة'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primary,
                   ),
@@ -581,8 +683,8 @@ class _QiblaWidgetState extends State<QiblaWidget> {
             icon: Icons.sensors_off_rounded,
             title: 'تعذر قراءة المستشعر',
             message:
-                'حدث خطأ في قراءة مستشعر البوصلة (${snapshot.error}). يمكنك المتابعة عبر وضع الحساب الجغرافي الدقيق بدون مستشعر.',
-            actionText: 'استخدام الحساب الجغرافي',
+                'حدث خطأ في قراءة مستشعر البوصلة (${snapshot.error}). يمكنك المتابعة عبر وضع بوصلة GPS العائمة الدقيقة.',
+            actionText: 'استخدام بوصلة GPS العائمة',
             onAction: () {
               setState(() {
                 _isSensorlessMode = true;
@@ -663,78 +765,93 @@ class _QiblaWidgetState extends State<QiblaWidget> {
               SizedBox(
                 width: 280.w,
                 height: 280.w,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: 270.w,
-                      height: 270.w,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: isFacingQibla
-                                ? const Color(0xFF2E7D32).withAlpha(70)
-                                : AppColors.primary.withAlpha(25),
-                            blurRadius: isFacingQibla ? 25 : 12,
-                            spreadRadius: isFacingQibla ? 6 : 1,
+                child: AnimatedBuilder(
+                  animation: _floatingAnimation,
+                  builder: (context, child) {
+                    final floatDy =
+                        math.sin(_floatingAnimation.value * math.pi) * 2.0;
+
+                    return Transform.translate(
+                      offset: Offset(0, floatDy),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: 270.w,
+                            height: 270.w,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isFacingQibla
+                                      ? const Color(0xFF2E7D32).withAlpha(70 +
+                                          (_floatingAnimation.value.abs() * 20)
+                                              .toInt())
+                                      : AppColors.primary.withAlpha(25 +
+                                          (_floatingAnimation.value.abs() * 10)
+                                              .toInt()),
+                                  blurRadius: isFacingQibla ? 25 : 12,
+                                  spreadRadius: isFacingQibla ? 6 : 1,
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          Transform.rotate(
+                            angle: (direction * (math.pi / 180) * -1),
+                            child: CustomPaint(
+                              size: Size(260.w, 260.w),
+                              painter: CompassDialPainter(
+                                primaryColor: AppColors.primary,
+                                isFacingQibla: isFacingQibla,
+                              ),
+                            ),
+                          ),
+
+                          Transform.rotate(
+                            angle: (qiblah * (math.pi / 180) * -1),
+                            child: CustomPaint(
+                              size: Size(260.w, 260.w),
+                              painter: QiblaNeedlePainter(
+                                needleColor: isFacingQibla
+                                    ? const Color(0xFF2E7D32)
+                                    : const Color(0xFFC59B27),
+                                isFacingQibla: isFacingQibla,
+                              ),
+                            ),
+                          ),
+
+                          Container(
+                            width: 50.w,
+                            height: 50.w,
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isFacingQibla
+                                    ? const Color(0xFF2E7D32)
+                                    : AppColors.primary,
+                                width: 2.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(25),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                '🕋',
+                                style: TextStyle(fontSize: 20.sp),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-
-                    Transform.rotate(
-                      angle: (direction * (math.pi / 180) * -1),
-                      child: CustomPaint(
-                        size: Size(260.w, 260.w),
-                        painter: CompassDialPainter(
-                          primaryColor: AppColors.primary,
-                          isFacingQibla: isFacingQibla,
-                        ),
-                      ),
-                    ),
-
-                    Transform.rotate(
-                      angle: (qiblah * (math.pi / 180) * -1),
-                      child: CustomPaint(
-                        size: Size(260.w, 260.w),
-                        painter: QiblaNeedlePainter(
-                          needleColor: isFacingQibla
-                              ? const Color(0xFF2E7D32)
-                              : const Color(0xFFC59B27),
-                          isFacingQibla: isFacingQibla,
-                        ),
-                      ),
-                    ),
-
-                    Container(
-                      width: 50.w,
-                      height: 50.w,
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isFacingQibla
-                              ? const Color(0xFF2E7D32)
-                              : AppColors.primary,
-                          width: 2.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(25),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          '🕋',
-                          style: TextStyle(fontSize: 20.sp),
-                        ),
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
               SizedBox(height: 20.h),
@@ -926,7 +1043,7 @@ class _QiblaWidgetState extends State<QiblaWidget> {
                       ),
                       SizedBox(width: 4.w),
                       Text(
-                        isSensorless ? 'حساب جغرافي' : 'مستشعر تلقائي',
+                        isSensorless ? 'بوصلة GPS العائمة' : 'مستشعر تلقائي',
                         style: TextStyle(
                           fontSize: 11.sp,
                           fontWeight: FontWeight.bold,
@@ -960,7 +1077,7 @@ class _QiblaWidgetState extends State<QiblaWidget> {
                     ),
                     SizedBox(width: 4.w),
                     Text(
-                      'حساب جغرافي',
+                      'بوصلة GPS العائمة',
                       style: TextStyle(
                         fontSize: 11.sp,
                         fontWeight: FontWeight.bold,
@@ -983,18 +1100,6 @@ class _QiblaWidgetState extends State<QiblaWidget> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _buildPresetChip(
-            title: 'الشمال (0°)',
-            icon: Icons.arrow_upward_rounded,
-            isSelected: _manualHeading == 0.0,
-            onTap: () {
-              HapticFeedback.selectionClick();
-              setState(() {
-                _manualHeading = 0.0;
-              });
-            },
-          ),
-          SizedBox(width: 8.w),
-          _buildPresetChip(
             title: 'محاذاة للقبلة 🕋',
             icon: Icons.my_location_rounded,
             isSelected: QiblaHelper.isFacingQibla(_manualHeading, qiblaAngle),
@@ -1003,6 +1108,18 @@ class _QiblaWidgetState extends State<QiblaWidget> {
               HapticFeedback.mediumImpact();
               setState(() {
                 _manualHeading = qiblaAngle;
+              });
+            },
+          ),
+          SizedBox(width: 8.w),
+          _buildPresetChip(
+            title: 'الشمال (0°)',
+            icon: Icons.arrow_upward_rounded,
+            isSelected: _manualHeading == 0.0,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _manualHeading = 0.0;
               });
             },
           ),
@@ -1089,7 +1206,7 @@ class _QiblaWidgetState extends State<QiblaWidget> {
                     color: const Color(0xFFC59B27), size: 20.sp),
                 SizedBox(width: 8.w),
                 Text(
-                  'كيف تحدد القبلة بدون مستشعر بوصلة؟',
+                  'كيف تعمل بوصلة GPS العائمة بدون مستشعر؟',
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.bold,
@@ -1101,23 +1218,23 @@ class _QiblaWidgetState extends State<QiblaWidget> {
             SizedBox(height: 10.h),
             _buildGuideStep(
               number: '١',
-              title: 'الاستدلال بالشمال الجغرافي:',
+              title: 'تحديد القبلة عبر GPS:',
               description:
-                  'وجه أعلى الهاتف نحو جهة الشمال (ش)، وسيشير السهم الذهبي 🕋 بدقة إلى اتجاه الكعبة المشرفة ($arabicDirection بزاوبة ${qiblaAngle.toInt()}°).',
+                  'يحسب التطبيق إحداثيات موقعك بالأقمار الصناعية وزاوية الكعبة المشرفة بدقة ($arabicDirection بزاوية ${qiblaAngle.toInt()}°)، وتتحدث البوصلة تلقائياً عند مسيرك.',
             ),
             SizedBox(height: 8.h),
             _buildGuideStep(
               number: '٢',
-              title: 'الاستدلال بالشمس:',
+              title: 'الإبرة العائمة الذكية:',
               description:
-                  'تشرق الشمس من الشرق وتغرب في الغرب؛ إذا جعلت شروق الشمس على يمينك فإن وجهك نحو الشمال وظَهرك نحو الجنوب.',
+                  'تتحرك الإبرة الذهبية 🕋 بحركة عائمة انسيابية لتشاور على اتجاه القبلة، مع إمكانية تدوير القرص يدوياً باللمس.',
             ),
             SizedBox(height: 8.h),
             _buildGuideStep(
               number: '٣',
-              title: 'التدوير اليدوي:',
+              title: 'المحاذاة المباشرة:',
               description:
-                  'اسحب القرص بإصبعك لتدويره حتى يطابق اتجاهك الفعلي، وسيضيء باللون الأخضر فور وصولك لاتجاه القبلة.',
+                  'اضغط زر (محاذاة للقبلة 🕋) لتطابق واجهة الهاتف مباشرة مع اتجاه القبلة، وعند التطابق يضيء القرص باللون الأخضر.',
             ),
           ],
         ),
