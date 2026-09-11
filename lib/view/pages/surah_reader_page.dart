@@ -156,12 +156,12 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                         style: TextStyle(
                           fontFamily: 'Almarai',
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? AppColors.primary : Colors.black87,
+                          color: isSelected ? AppColors.primary : AppColors.textPrimary,
                         ),
                       ),
                       subtitle: Text(
                         reciter.nameEn,
-                        style: TextStyle(fontSize: 12.sp, color: Colors.grey),
+                        style: TextStyle(fontSize: 12.sp, color: AppColors.textSecondary),
                       ),
                       trailing: isSelected
                           ? Icon(Icons.check_circle, color: AppColors.primary)

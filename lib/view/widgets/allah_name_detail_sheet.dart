@@ -101,7 +101,8 @@ class _AllahNameDetailSheetState extends State<AllahNameDetailSheet> {
 
   void _copyToClipboard() {
     final name = _currentName;
-    final text = '''
+    final text =
+        '''
 ✨ أسماء الله الحسنى: ${name.name} ✨
 (${name.transliteration} - ${name.englishTranslation})
 
@@ -140,13 +141,6 @@ ${name.quranVerse} [${name.surahRef}]
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -156,7 +150,9 @@ ${name.quranVerse} [${name.surahRef}]
             width: 44.w,
             height: 4.h,
             decoration: BoxDecoration(
-              color: ThemeService.instance.isDarkMode ? Colors.white24 : Colors.grey.shade300,
+              color: ThemeService.instance.isDarkMode
+                  ? Colors.white24
+                  : Colors.grey.shade300,
               borderRadius: BorderRadius.circular(2.r),
             ),
           ),
@@ -169,8 +165,8 @@ ${name.quranVerse} [${name.surahRef}]
               children: [
                 // Navigation Prev Button
                 IconButton(
-                  onPressed: _currentIndex > 0
-                      ? () => _navigateToIndex(_currentIndex - 1)
+                  onPressed: _currentIndex < widget.names.length - 1
+                      ? () => _navigateToIndex(_currentIndex + 1)
                       : null,
                   icon: Icon(
                     Icons.arrow_back_ios_new_rounded,
@@ -179,18 +175,19 @@ ${name.quranVerse} [${name.surahRef}]
                         : Colors.grey.shade400,
                     size: 20.sp,
                   ),
-                  tooltip: 'الاسم السابق',
+                  tooltip: 'الاسم التالي',
                 ),
 
                 // Name counter badge
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 14.w,
+                    vertical: 6.h,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withAlpha(20),
                     borderRadius: BorderRadius.circular(20.r),
-                    border: Border.all(
-                      color: AppColors.primary.withAlpha(60),
-                    ),
+                    border: Border.all(color: AppColors.primary.withAlpha(60)),
                   ),
                   child: Text(
                     'الاسم ${_currentName.id} من ${widget.names.length}',
@@ -222,14 +219,16 @@ ${name.quranVerse} [${name.surahRef}]
                         isFavorite
                             ? Icons.star_rounded
                             : Icons.star_border_rounded,
-                        color: isFavorite ? Colors.amber.shade700 : Colors.grey.shade500,
+                        color: isFavorite
+                            ? Colors.amber.shade700
+                            : Colors.grey.shade500,
                         size: 24.sp,
                       ),
                       tooltip: 'إضافة للمفضلة',
                     ),
                     IconButton(
-                      onPressed: _currentIndex < widget.names.length - 1
-                          ? () => _navigateToIndex(_currentIndex + 1)
+                      onPressed: _currentIndex > 0
+                          ? () => _navigateToIndex(_currentIndex - 1)
                           : null,
                       icon: Icon(
                         Icons.arrow_forward_ios_rounded,
@@ -238,7 +237,7 @@ ${name.quranVerse} [${name.surahRef}]
                             : Colors.grey.shade300,
                         size: 20.sp,
                       ),
-                      tooltip: 'الاسم التالي',
+                      tooltip: 'الاسم السابق',
                     ),
                   ],
                 ),
@@ -286,13 +285,6 @@ ${name.quranVerse} [${name.surahRef}]
                 end: Alignment.bottomLeft,
               ),
               borderRadius: BorderRadius.circular(24.r),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withAlpha(60),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
             ),
             child: Column(
               children: [
@@ -458,7 +450,11 @@ ${name.quranVerse} [${name.surahRef}]
       decoration: BoxDecoration(
         color: isDark ? AppColors.surface : const Color(0xFFF3F7F5),
         borderRadius: BorderRadius.circular(18.r),
-        border: Border.all(color: isDark ? Colors.teal.shade700.withAlpha(120) : Colors.teal.shade200.withAlpha(120)),
+        border: Border.all(
+          color: isDark
+              ? Colors.teal.shade700.withAlpha(120)
+              : Colors.teal.shade200.withAlpha(120),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -476,7 +472,9 @@ ${name.quranVerse} [${name.surahRef}]
                     ),
                     child: Icon(
                       Icons.format_quote_rounded,
-                      color: isDark ? Colors.teal.shade200 : Colors.teal.shade800,
+                      color: isDark
+                          ? Colors.teal.shade200
+                          : Colors.teal.shade800,
                       size: 18.sp,
                     ),
                   ),
@@ -487,18 +485,29 @@ ${name.quranVerse} [${name.surahRef}]
                       fontFamily: 'Almarai',
                       fontSize: 14.sp,
                       fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.teal.shade200 : Colors.teal.shade900,
+                      color: isDark
+                          ? Colors.teal.shade200
+                          : Colors.teal.shade900,
                     ),
                   ),
                 ],
               ),
               if (item.surahRef.isNotEmpty)
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 4.h,
+                  ),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.teal.shade900.withAlpha(100) : Colors.teal.shade50,
+                    color: isDark
+                        ? Colors.teal.shade900.withAlpha(100)
+                        : Colors.teal.shade50,
                     borderRadius: BorderRadius.circular(12.r),
-                    border: Border.all(color: isDark ? Colors.teal.shade700 : Colors.teal.shade300),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.teal.shade700
+                          : Colors.teal.shade300,
+                    ),
                   ),
                   child: Text(
                     item.surahRef,
@@ -506,7 +515,9 @@ ${name.quranVerse} [${name.surahRef}]
                       fontFamily: 'Almarai',
                       fontSize: 11.sp,
                       fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.teal.shade200 : Colors.teal.shade800,
+                      color: isDark
+                          ? Colors.teal.shade200
+                          : Colors.teal.shade800,
                     ),
                   ),
                 ),
@@ -519,10 +530,12 @@ ${name.quranVerse} [${name.surahRef}]
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: isDark ? Colors.teal.shade800 : Colors.teal.shade100),
+              border: Border.all(
+                color: isDark ? Colors.teal.shade800 : Colors.teal.shade100,
+              ),
             ),
             child: Text(
-              '﴿ ${item.quranVerse} ﴾',
+              '﴾ ${item.quranVerse} ﴿',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'NotoNaskhArabic',
@@ -548,13 +561,6 @@ ${name.quranVerse} [${name.surahRef}]
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20.r),
         border: Border.all(color: AppColors.primary.withAlpha(50)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -583,7 +589,11 @@ ${name.quranVerse} [${name.surahRef}]
               if (_tasbeehCount > 0)
                 TextButton.icon(
                   onPressed: _resetTasbeeh,
-                  icon: Icon(Icons.refresh_rounded, size: 16.sp, color: Colors.grey),
+                  icon: Icon(
+                    Icons.refresh_rounded,
+                    size: 16.sp,
+                    color: Colors.grey,
+                  ),
                   label: Text(
                     'إعادة ضبط',
                     style: TextStyle(
@@ -643,8 +653,12 @@ ${name.quranVerse} [${name.surahRef}]
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 6.h,
-                      backgroundColor: ThemeService.instance.isDarkMode ? Colors.white12 : Colors.grey.shade200,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      backgroundColor: ThemeService.instance.isDarkMode
+                          ? Colors.white12
+                          : Colors.grey.shade200,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
+                      ),
                     ),
                   ),
                   SizedBox(height: 8.h),

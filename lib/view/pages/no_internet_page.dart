@@ -121,7 +121,7 @@ class _NoInternetPageState extends State<NoInternetPage> {
                       style: TextStyle(
                         fontFamily: 'Almarai',
                         fontSize: 14.sp,
-                        color: Colors.grey.shade700,
+                        color: isDark ? Colors.white70 : Colors.grey.shade700,
                         height: 1.6,
                       ),
                       textAlign: TextAlign.center,
@@ -180,7 +180,7 @@ class _NoInternetPageState extends State<NoInternetPage> {
                       Icon(
                         Icons.info_outline_rounded,
                         size: 16.sp,
-                        color: Colors.grey.shade500,
+                        color: isDark ? Colors.white60 : Colors.grey.shade500,
                       ),
                       SizedBox(width: 6.w),
                       Text(
@@ -188,7 +188,7 @@ class _NoInternetPageState extends State<NoInternetPage> {
                         style: TextStyle(
                           fontFamily: 'Almarai',
                           fontSize: 12.sp,
-                          color: Colors.grey.shade600,
+                          color: isDark ? Colors.white70 : Colors.grey.shade600,
                         ),
                       ),
                     ],

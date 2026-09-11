@@ -4,6 +4,7 @@ import 'package:alhuda/services/tajweed_span_builder.dart';
 import 'package:alhuda/view/pages/surah_reader_page.dart';
 import 'package:alhuda/view/widgets/app_colors.dart';
 import 'package:alhuda/services/tafsir_service.dart';
+import 'package:alhuda/services/theme_service.dart';
 import 'package:alhuda/view/widgets/mushaf_page_widget.dart' show MushafThemeMode;
 import 'package:alhuda/view/widgets/page_tafsir_bottom_sheet.dart';
 import 'package:alhuda/view/widgets/tajweed_page_widget.dart';
@@ -49,6 +50,9 @@ class _MushafPageState extends State<MushafPageView> {
   @override
   void initState() {
     super.initState();
+    if (ThemeService.instance.isDarkMode) {
+      _themeMode = MushafThemeMode.dark;
+    }
     _currentPage = widget.initialPage.clamp(1, 604);
     _selectedSurah = widget.highlightedSurah;
     _selectedAyah = widget.highlightedAyah;
@@ -247,9 +251,7 @@ class _MushafPageState extends State<MushafPageView> {
                                 : FontWeight.normal,
                             color: isSelected
                                 ? AppColors.primary
-                                : _themeMode == MushafThemeMode.parchment
-                                ? Colors.white
-                                : Colors.black87,
+                                : AppColors.textPrimary,
                             fontSize: 14.sp,
                           ),
                         ),
@@ -257,7 +259,7 @@ class _MushafPageState extends State<MushafPageView> {
                           reciter.nameEn,
                           style: TextStyle(
                             fontSize: 11.sp,
-                            color: Colors.grey.shade600,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         trailing: isSelected
@@ -889,6 +891,7 @@ class _MushafPageState extends State<MushafPageView> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             final reciters = QuranService.instance.reciters;
             final reciterIndex =
                 QuranService.instance.audioService.reciterIndex;
@@ -983,10 +986,10 @@ class _MushafPageState extends State<MushafPageView> {
                                   vertical: 8.h,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: AppColors.surface,
                                   borderRadius: BorderRadius.circular(8.r),
                                   border: Border.all(
-                                    color: Colors.grey.shade300,
+                                    color: AppColors.border,
                                   ),
                                 ),
                                 child: Row(
@@ -1012,7 +1015,7 @@ class _MushafPageState extends State<MushafPageView> {
                                             style: TextStyle(
                                               fontFamily: 'Almarai',
                                               fontSize: 10.sp,
-                                              color: Colors.grey.shade600,
+                                              color: AppColors.textSecondary,
                                             ),
                                           ),
                                           Text(
@@ -1021,7 +1024,7 @@ class _MushafPageState extends State<MushafPageView> {
                                               fontFamily: 'Almarai',
                                               fontWeight: FontWeight.bold,
                                               fontSize: 12.5.sp,
-                                              color: Colors.black87,
+                                              color: AppColors.textPrimary,
                                             ),
                                           ),
                                         ],
@@ -1145,9 +1148,15 @@ class _MushafPageState extends State<MushafPageView> {
                       Container(
                         padding: EdgeInsets.all(12.r),
                         decoration: BoxDecoration(
-                          color: Colors.amber.shade50.withAlpha(120),
+                          color: isDark
+                              ? Colors.amber.withAlpha(20)
+                              : Colors.amber.shade50.withAlpha(120),
                           borderRadius: BorderRadius.circular(12.r),
-                          border: Border.all(color: Colors.amber.shade300),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.amber.withAlpha(70)
+                                : Colors.amber.shade300,
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1159,7 +1168,9 @@ class _MushafPageState extends State<MushafPageView> {
                                   children: [
                                     Icon(
                                       Icons.palette_outlined,
-                                      color: Colors.amber.shade900,
+                                      color: isDark
+                                          ? Colors.amber.shade300
+                                          : Colors.amber.shade900,
                                       size: 20.r,
                                     ),
                                     SizedBox(width: 8.w),
@@ -1169,7 +1180,9 @@ class _MushafPageState extends State<MushafPageView> {
                                         fontFamily: 'Almarai',
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13.sp,
-                                        color: Colors.brown.shade800,
+                                        color: isDark
+                                            ? Colors.amber.shade200
+                                            : Colors.brown.shade800,
                                       ),
                                     ),
                                   ],
@@ -1185,7 +1198,9 @@ class _MushafPageState extends State<MushafPageView> {
                                       fontFamily: 'Almarai',
                                       fontWeight: FontWeight.bold,
                                       fontSize: 11.sp,
-                                      color: AppColors.primary,
+                                      color: isDark
+                                          ? Colors.amber.shade300
+                                          : AppColors.primary,
                                     ),
                                   ),
                                 ),
@@ -1197,7 +1212,7 @@ class _MushafPageState extends State<MushafPageView> {
                               style: TextStyle(
                                 fontFamily: 'Almarai',
                                 fontSize: 10.5.sp,
-                                color: Colors.black87,
+                                color: AppColors.textSecondary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1356,7 +1371,7 @@ class _MushafPageState extends State<MushafPageView> {
             fontFamily: 'Almarai',
             fontSize: 9.sp,
             fontWeight: FontWeight.bold,
-            color: Colors.grey.shade800,
+            color: AppColors.textPrimary,
           ),
         ),
       ],
@@ -1409,6 +1424,7 @@ class _MushafPageState extends State<MushafPageView> {
       valueListenable:
           TajweedPageCacheService.instance.downloadProgressNotifier,
       builder: (context, progress, _) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         final isComplete = progress.isComplete || progress.downloaded >= 604;
         final isDownloading = progress.isDownloading;
 
@@ -1416,17 +1432,17 @@ class _MushafPageState extends State<MushafPageView> {
           padding: EdgeInsets.all(12.r),
           decoration: BoxDecoration(
             color: isComplete
-                ? const Color(0xFFE8F5E9)
+                ? (isDark ? Colors.green.withAlpha(25) : const Color(0xFFE8F5E9))
                 : (isDownloading
-                      ? const Color(0xFFE3F2FD)
-                      : Colors.grey.shade50),
+                      ? (isDark ? Colors.blue.withAlpha(25) : const Color(0xFFE3F2FD))
+                      : (isDark ? AppColors.surface : Colors.grey.shade50)),
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
               color: isComplete
-                  ? const Color(0xFF81C784)
+                  ? (isDark ? Colors.green.withAlpha(70) : const Color(0xFF81C784))
                   : (isDownloading
-                        ? const Color(0xFF64B5F6)
-                        : Colors.grey.shade300),
+                        ? (isDark ? Colors.blue.withAlpha(70) : const Color(0xFF64B5F6))
+                        : (isDark ? AppColors.border : Colors.grey.shade300)),
             ),
           ),
           child: Column(
@@ -1441,9 +1457,9 @@ class _MushafPageState extends State<MushafPageView> {
                               ? Icons.downloading_rounded
                               : Icons.cloud_download_rounded),
                     color: isComplete
-                        ? const Color(0xFF2E7D32)
+                        ? (isDark ? Colors.green.shade300 : const Color(0xFF2E7D32))
                         : (isDownloading
-                              ? const Color(0xFF1976D2)
+                              ? (isDark ? Colors.blue.shade300 : const Color(0xFF1976D2))
                               : AppColors.primary),
                     size: 24.r,
                   ),
@@ -1459,10 +1475,10 @@ class _MushafPageState extends State<MushafPageView> {
                             fontWeight: FontWeight.bold,
                             fontSize: 13.sp,
                             color: isComplete
-                                ? const Color(0xFF1B5E20)
+                                ? (isDark ? Colors.green.shade300 : const Color(0xFF1B5E20))
                                 : (isDownloading
-                                      ? const Color(0xFF0D47A1)
-                                      : Colors.black87),
+                                      ? (isDark ? Colors.blue.shade300 : const Color(0xFF0D47A1))
+                                      : AppColors.textPrimary),
                           ),
                         ),
                         SizedBox(height: 2.h),
@@ -1475,7 +1491,7 @@ class _MushafPageState extends State<MushafPageView> {
                           style: TextStyle(
                             fontFamily: 'Almarai',
                             fontSize: 11.sp,
-                            color: Colors.grey.shade700,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -1490,7 +1506,7 @@ class _MushafPageState extends State<MushafPageView> {
                   child: LinearProgressIndicator(
                     value: progress.percentage,
                     minHeight: 6.h,
-                    backgroundColor: Colors.white,
+                    backgroundColor: isDark ? AppColors.surface : Colors.white,
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       Color(0xFF1976D2),
                     ),
@@ -1555,11 +1571,17 @@ class _MushafPageState extends State<MushafPageView> {
   }
 
   Widget _buildOfflineTafsirSettingsCard(StateSetter setSheetState) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.all(14.r),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9).withAlpha(140),
+        color: isDark
+            ? Colors.green.withAlpha(20)
+            : const Color(0xFFE8F5E9).withAlpha(140),
         borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(
+          color: isDark ? Colors.green.withAlpha(60) : Colors.green.shade200,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1568,7 +1590,7 @@ class _MushafPageState extends State<MushafPageView> {
             children: [
               Icon(
                 Icons.menu_book_rounded,
-                color: Colors.green.shade800,
+                color: isDark ? Colors.green.shade300 : Colors.green.shade800,
                 size: 22.r,
               ),
               SizedBox(width: 8.w),
@@ -1582,7 +1604,9 @@ class _MushafPageState extends State<MushafPageView> {
                         fontFamily: 'Almarai',
                         fontSize: 13.sp,
                         fontWeight: FontWeight.bold,
-                        color: Colors.green.shade900,
+                        color: isDark
+                            ? Colors.green.shade300
+                            : Colors.green.shade900,
                       ),
                     ),
                     Text(
@@ -1590,7 +1614,7 @@ class _MushafPageState extends State<MushafPageView> {
                       style: TextStyle(
                         fontFamily: 'Almarai',
                         fontSize: 10.5.sp,
-                        color: Colors.black87,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -1618,8 +1642,11 @@ class _MushafPageState extends State<MushafPageView> {
                     vertical: 8.h,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? AppColors.surface : Colors.white,
                     borderRadius: BorderRadius.circular(10.r),
+                    border: Border.all(
+                      color: isDark ? AppColors.border : Colors.transparent,
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -1630,7 +1657,9 @@ class _MushafPageState extends State<MushafPageView> {
                                 ? Icons.check_circle_rounded
                                 : Icons.cloud_download_outlined,
                             color: isDownloaded
-                                ? Colors.green.shade700
+                                ? (isDark
+                                      ? Colors.green.shade300
+                                      : Colors.green.shade700)
                                 : AppColors.primary,
                             size: 20.r,
                           ),
@@ -1654,8 +1683,10 @@ class _MushafPageState extends State<MushafPageView> {
                                     fontFamily: 'Almarai',
                                     fontSize: 10.sp,
                                     color: isDownloaded
-                                        ? Colors.green.shade800
-                                        : Colors.grey.shade600,
+                                        ? (isDark
+                                              ? Colors.green.shade300
+                                              : Colors.green.shade800)
+                                        : AppColors.textSecondary,
                                   ),
                                 ),
                               ],
@@ -2027,15 +2058,20 @@ class _MushafPageState extends State<MushafPageView> {
         _selectedAyahText ??
         QuranService.instance.getVerseUthmani(surahNum, ayahNum);
     final isBookmarked = QuranService.instance.isBookmarked(surahNum, ayahNum);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? AppColors.surface : Colors.white,
         borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: isDark ? AppColors.border : Colors.black.withAlpha(15),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(30),
+            color: Colors.black.withAlpha(isDark ? 80 : 30),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -2451,6 +2487,7 @@ class _MushafPageState extends State<MushafPageView> {
 
   /// Floating Audio Player Bar when audio is active
   Widget _buildAudioPlayerBar(QuranAudioState state) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final reciters = QuranService.instance.reciters;
     final reciter =
         (state.reciterIndex >= 0 && state.reciterIndex < reciters.length)
@@ -2468,16 +2505,19 @@ class _MushafPageState extends State<MushafPageView> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? AppColors.surface : Colors.white,
         borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(30),
+            color: Colors.black.withAlpha(isDark ? 80 : 30),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: AppColors.primary.withAlpha(35), width: 1),
+        border: Border.all(
+          color: isDark ? AppColors.border : AppColors.primary.withAlpha(35),
+          width: 1,
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2527,13 +2567,17 @@ class _MushafPageState extends State<MushafPageView> {
                                 fontFamily: 'Almarai',
                                 fontSize: 11.sp,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.teal.shade800,
+                                color: isDark
+                                    ? Colors.teal.shade300
+                                    : Colors.teal.shade800,
                               ),
                             ),
                             Icon(
                               Icons.arrow_drop_down_rounded,
                               size: 14.r,
-                              color: Colors.teal.shade800,
+                              color: isDark
+                                  ? Colors.teal.shade300
+                                  : Colors.teal.shade800,
                             ),
                           ],
                         ),

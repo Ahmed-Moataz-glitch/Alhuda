@@ -121,13 +121,6 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                       border: Border.all(
                         color: AppColors.primary.withAlpha(40),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.black.withAlpha(8),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
                     ),
                     child: TextField(
                       controller: _searchController,
@@ -156,7 +149,7 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                         suffixIcon: _searchQuery.isNotEmpty
                             ? IconButton(
                                 icon: const Icon(Icons.clear_rounded),
-                                color: Colors.black45,
+                                color: AppColors.textSecondary,
                                 onPressed: () {
                                   _searchController.clear();
                                   setState(() {
@@ -505,13 +498,6 @@ class _AzkarWidgetState extends State<AzkarWidget> {
             end: Alignment.bottomLeft,
           ),
           borderRadius: BorderRadius.circular(16.r),
-          boxShadow: [
-            BoxShadow(
-              color: gradientColors.first.withAlpha(90),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -604,14 +590,6 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                 ? AppColors.primary
                 : AppColors.primary.withAlpha(40),
           ),
-          boxShadow: [
-            if (isSelected)
-              BoxShadow(
-                color: AppColors.primary.withAlpha(60),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-          ],
         ),
         child: Center(
           child: Text(

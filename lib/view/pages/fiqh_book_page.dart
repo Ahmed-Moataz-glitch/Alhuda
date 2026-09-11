@@ -97,13 +97,6 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                       end: Alignment.bottomLeft,
                     ),
                     borderRadius: BorderRadius.circular(18.r),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withAlpha(70),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,7 +230,7 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear_rounded),
-                              color: Colors.black45,
+                              color: AppColors.textSecondary,
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() {
@@ -328,13 +321,6 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                               border: Border.all(
                                 color: AppColors.primary.withAlpha(30),
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.black.withAlpha(6),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
                             ),
                             child: Material(
                               color: Colors.transparent,
@@ -388,7 +374,7 @@ class _FiqhBookPageState extends State<FiqhBookPage> {
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 fontSize: 11.5.sp,
-                                                color: Colors.black54,
+                                                color: AppColors.textSecondary,
                                                 fontFamily: 'Almarai',
                                                 height: 1.3,
                                               ),

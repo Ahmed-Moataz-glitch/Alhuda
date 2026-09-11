@@ -90,19 +90,13 @@ class _FiqhWidgetState extends State<FiqhWidget> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 8.h),
               child: Container(
+                margin: EdgeInsets.only(bottom: 8.h),
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   borderRadius: BorderRadius.circular(16.r),
                   border: Border.all(
                     color: AppColors.primary.withAlpha(40),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.shadow,
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
                 child: TextField(
                   controller: _searchController,
@@ -121,7 +115,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                     hintStyle: TextStyle(
                       fontSize: 12.5.sp,
                       fontFamily: 'Almarai',
-                      color: Colors.black38,
+                      color: AppColors.textSecondary.withAlpha(180),
                     ),
                     prefixIcon: Icon(
                       Icons.search_rounded,
@@ -131,7 +125,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear_rounded),
-                            color: Colors.black45,
+                            color: AppColors.textSecondary,
                             onPressed: () {
                               _searchController.clear();
                               setState(() {
@@ -150,7 +144,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
               ),
             ),
           ),
-
+          
           // 2. Filter Category Chips (when not searching)
           if (!isSearching)
             SliverToBoxAdapter(
@@ -315,7 +309,7 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                             'اضغط على أيقونة الإشارة المرجعية داخل أي مسألة لحفظها هنا',
                             style: TextStyle(
                               fontSize: 12.sp,
-                              color: Colors.black45,
+                              color: AppColors.textSecondary,
                               fontFamily: 'Almarai',
                             ),
                           ),
@@ -407,14 +401,6 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                 ? AppColors.primary
                 : AppColors.primary.withAlpha(40),
           ),
-          boxShadow: [
-            if (isSelected)
-              BoxShadow(
-                color: AppColors.primary.withAlpha(60),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -607,13 +593,6 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                 end: Alignment.bottomLeft,
               ),
               borderRadius: BorderRadius.circular(16.r),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withAlpha(70),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

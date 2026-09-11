@@ -296,6 +296,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             final isSummer = EgyptDstHelper.isEgyptDst(_now);
             final isEgypt = _currentLocation != null &&
                 EgyptDstHelper.isEgyptLocation(_currentLocation!);
@@ -317,7 +318,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                           width: 40.w,
                           height: 4.h,
                           decoration: BoxDecoration(
-                            color: AppColors.black.withAlpha(40),
+                            color: AppColors.textSecondary.withAlpha(80),
                             borderRadius: BorderRadius.circular(2.r),
                           ),
                         ),
@@ -397,8 +398,12 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                                       fontSize: 11.sp,
                                       fontWeight: FontWeight.bold,
                                       color: isSummer
-                                          ? Colors.orange.shade900
-                                          : Colors.blue.shade900,
+                                          ? (isDark
+                                                ? Colors.orange.shade300
+                                                : Colors.orange.shade900)
+                                          : (isDark
+                                                ? Colors.blue.shade300
+                                                : Colors.blue.shade900),
                                     ),
                                   ),
                                 ),
@@ -409,7 +414,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                               'وفقاً للقانون المصري رقم 24 لسنة 2023: يبدأ التوقيت الصيفي الجمعة الأخيرة من أبريل وينتهي الخميس الأخير من أكتوبر (تقديم الساعة 60 دقيقة).',
                               style: TextStyle(
                                 fontSize: 11.5.sp,
-                                color: AppColors.black.withAlpha(160),
+                                color: AppColors.textSecondary,
                                 height: 1.4,
                               ),
                             ),
@@ -456,7 +461,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                                             : Icons.radio_button_off,
                                         color: isSelected
                                             ? AppColors.primary
-                                            : AppColors.black.withAlpha(80),
+                                            : AppColors.textSecondary.withAlpha(120),
                                         size: 18.sp,
                                       ),
                                       SizedBox(width: 10.w),
@@ -474,16 +479,14 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                                                     : FontWeight.w500,
                                                 color: isSelected
                                                     ? AppColors.primary
-                                                    : AppColors.black
-                                                        .withAlpha(200),
+                                                    : AppColors.textPrimary,
                                               ),
                                             ),
                                             Text(
                                               mode.description,
                                               style: TextStyle(
                                                 fontSize: 11.sp,
-                                                color: AppColors.black
-                                                    .withAlpha(130),
+                                                color: AppColors.textSecondary,
                                               ),
                                             ),
                                           ],
@@ -501,7 +504,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                                 '* الموقع المحدد حالياً خارج مصر، لذا لن يتم تطبيق تعديل التوقيت الصيفي المصري تلقائياً.',
                                 style: TextStyle(
                                   fontSize: 11.sp,
-                                  color: Colors.red.shade700,
+                                  color: isDark ? Colors.red.shade300 : Colors.red.shade700,
                                 ),
                               ),
                             ],
@@ -534,7 +537,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                                   : FontWeight.normal,
                               color: isSelected
                                   ? AppColors.primary
-                                  : AppColors.black.withAlpha(200),
+                                  : AppColors.textPrimary,
                             ),
                           ),
                           trailing: isSelected
@@ -717,13 +720,6 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                   end: Alignment.bottomLeft,
                 ),
                 borderRadius: BorderRadius.circular(20.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withAlpha(80),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
               child: Column(
                 children: [
@@ -732,7 +728,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.background,
+                      color: Colors.white,
                     ),
                   ),
                   SizedBox(height: 2.h),
@@ -740,7 +736,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                     _formatCurrentDate(),
                     style: TextStyle(
                       fontSize: 12.sp,
-                      color: AppColors.background.withAlpha(200),
+                      color: Colors.white.withAlpha(200),
                     ),
                   ),
                   SizedBox(height: 6.h),
@@ -766,8 +762,8 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                             EgyptDstHelper.isEgyptDst(_now)
                                 ? Icons.wb_sunny_rounded
                                 : Icons.ac_unit_rounded,
-                            size: 13.sp,
-                            color: AppColors.background,
+                            size: 14.sp,
+                            color: Colors.white,
                           ),
                           SizedBox(width: 5.w),
                           Text(
@@ -778,14 +774,14 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                             style: TextStyle(
                               fontSize: 11.sp,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.background,
+                              color: Colors.white,
                             ),
                           ),
                           SizedBox(width: 4.w),
                           Icon(
                             Icons.tune_rounded,
-                            size: 11.sp,
-                            color: AppColors.background.withAlpha(200),
+                            size: 14.sp,
+                            color: Colors.white.withAlpha(200),
                           ),
                         ],
                       ),
@@ -799,7 +795,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                         'الصلاة القادمة: ',
                         style: TextStyle(
                           fontSize: 16.sp,
-                          color: AppColors.background.withAlpha(230),
+                          color: Colors.white.withAlpha(230),
                         ),
                       ),
                       Text(
@@ -807,7 +803,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                         style: TextStyle(
                           fontSize: 20.sp,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.background,
+                          color: Colors.white,
                         ),
                       ),
                     ],
@@ -827,7 +823,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                         children: [
                           Icon(
                             Icons.hourglass_top_rounded,
-                            color: AppColors.background,
+                            color: Colors.amber.shade200,
                             size: 20.sp,
                           ),
                           SizedBox(width: 8.w),
@@ -839,7 +835,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                               fontFamily: 'Rubik',
                               fontWeight: FontWeight.w600,
                               letterSpacing: 1.2,
-                              color: AppColors.background,
+                              color: Colors.white,
                             ),
                           ),
                         ],
@@ -862,7 +858,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
                 decoration: BoxDecoration(
                   color: isNext
-                      ? AppColors.primary.withAlpha(25)
+                      ? AppColors.primary.withAlpha(35)
                       : AppColors.card,
                   borderRadius: BorderRadius.circular(14.r),
                   border: Border.all(
@@ -871,14 +867,6 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                         : AppColors.primary.withAlpha(35),
                     width: isNext ? 1.8 : 1.0,
                   ),
-                  boxShadow: isNext
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primary.withAlpha(30),
-                            blurRadius: 8,
-                          ),
-                        ]
-                      : null,
                 ),
                 child: Row(
                   children: [
@@ -909,7 +897,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                               fontWeight:
                                   isNext ? FontWeight.bold : FontWeight.w600,
                               color: isPassed && !isNext
-                                  ? AppColors.black.withAlpha(140)
+                                  ? AppColors.textSecondary
                                   : AppColors.primary,
                             ),
                           ),
@@ -936,7 +924,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                             fontWeight:
                                 isNext ? FontWeight.bold : FontWeight.w600,
                             color: isPassed && !isNext
-                                ? AppColors.black.withAlpha(140)
+                                ? AppColors.textSecondary
                                 : AppColors.primary,
                           ),
                         ),
@@ -949,7 +937,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                                   : Icons.volume_off_rounded,
                               color: _audioService.isPrayerAlertEnabled(item.name)
                                   ? AppColors.primary
-                                  : AppColors.black.withAlpha(70),
+                                  : AppColors.textSecondary.withAlpha(100),
                               size: 24.sp,
                             ),
                             padding: EdgeInsets.zero,
@@ -1106,7 +1094,7 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
                 height: 4.h,
                 margin: EdgeInsets.only(bottom: 12.h),
                 decoration: BoxDecoration(
-                  color: AppColors.black.withAlpha(40),
+                  color: AppColors.textSecondary.withAlpha(80),
                   borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
@@ -1148,7 +1136,7 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
                 hintText: 'ابحث عن اسم المدينة أو المحافظة...',
                 hintStyle: TextStyle(
                   fontSize: 13.sp,
-                  color: AppColors.black.withAlpha(120),
+                  color: AppColors.textSecondary,
                 ),
                 prefixIcon:
                     Icon(Icons.search, color: AppColors.primary),
@@ -1216,7 +1204,7 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
                                 ? FontWeight.bold
                                 : FontWeight.w500,
                             color: isSelected
-                                ? AppColors.background
+                                ? AppColors.onPrimary
                                 : AppColors.primary,
                           ),
                         ),
@@ -1251,7 +1239,7 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
                               style: TextStyle(
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.black.withAlpha(180),
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             SizedBox(height: 4.h),
@@ -1259,7 +1247,7 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
                               'جرّب البحث باسم آخر أو اختيار تصنيف مختلف',
                               style: TextStyle(
                                 fontSize: 12.sp,
-                                color: AppColors.black.withAlpha(120),
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -1301,7 +1289,7 @@ class _CitySearchBottomSheetState extends State<_CitySearchBottomSheet> {
                               loc.countryName,
                               style: TextStyle(
                                 fontSize: 12.sp,
-                                color: AppColors.black.withAlpha(160),
+                                color: AppColors.textSecondary,
                               ),
                             ),
                             trailing: Icon(

@@ -1,3 +1,4 @@
+import 'package:alhuda/core/theme/theme_service.dart';
 import 'package:flutter/material.dart';
 
 /// تصنيفات كتب الفقه الإسلامي
@@ -14,23 +15,33 @@ enum FiqhCategory {
 
 /// أنواع الأحكام الشرعية التكليفية والوضعية
 enum FiqhRulingType {
-  fard('فرض / ركن', Color(0xFF1B5E20), Color(0xFFE8F5E9)),
-  wajib('واجب', Color(0xFF2E7D32), Color(0xFFE8F5E9)),
-  sunnah('سنة / مستحب', Color(0xFF0277BD), Color(0xFFE1F5FE)),
-  mubah('مباح', Color(0xFF546E7A), Color(0xFFECEFF1)),
-  makruh('مكروه', Color(0xFFE65100), Color(0xFFFFF3E0)),
-  haram('حرام / محظور', Color(0xFFC62828), Color(0xFFFFEBEE)),
-  bayan('حكم شرعي', Color(0xFF6D4C41), Color(0xFFEFEBE9));
+  fard('فرض / ركن', Color(0xFF1B5E20), Color(0xFFE8F5E9), Color(0xFF81C784), Color(0x334CAF50)),
+  wajib('واجب', Color(0xFF2E7D32), Color(0xFFE8F5E9), Color(0xFFA5D6A7), Color(0x334CAF50)),
+  sunnah('سنة / مستحب', Color(0xFF0277BD), Color(0xFFE1F5FE), Color(0xFF81D4FA), Color(0x3303A9F4)),
+  mubah('مباح', Color(0xFF546E7A), Color(0xFFECEFF1), Color(0xFFB0BEC5), Color(0x3378909C)),
+  makruh('مكروه', Color(0xFFE65100), Color(0xFFFFF3E0), Color(0xFFFFB74D), Color(0x33FF9800)),
+  haram('حرام / محظور', Color(0xFFC62828), Color(0xFFFFEBEE), Color(0xFFEF9A9A), Color(0x33F44336)),
+  bayan('حكم شرعي', Color(0xFF6D4C41), Color(0xFFEFEBE9), Color(0xFFD7CCC8), Color(0x338D6E63));
 
   final String label;
-  final Color foregroundColor;
-  final Color backgroundColor;
+  final Color _fgLight;
+  final Color _bgLight;
+  final Color _fgDark;
+  final Color _bgDark;
 
   const FiqhRulingType(
     this.label,
-    this.foregroundColor,
-    this.backgroundColor,
+    this._fgLight,
+    this._bgLight,
+    this._fgDark,
+    this._bgDark,
   );
+
+  Color get foregroundColor =>
+      ThemeService.instance.isDarkMode ? _fgDark : _fgLight;
+
+  Color get backgroundColor =>
+      ThemeService.instance.isDarkMode ? _bgDark : _bgLight;
 }
 
 /// الدليل الشرعي من الكتاب أو السنة

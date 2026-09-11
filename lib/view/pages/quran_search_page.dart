@@ -72,13 +72,13 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                   hintText: 'ابحث عن كلمة، آية، أو جملة...',
                   hintStyle: TextStyle(
                     fontFamily: 'Almarai',
-                    color: Colors.grey.shade500,
+                    color: AppColors.textSecondary,
                     fontSize: 14.sp,
                   ),
                   prefixIcon: Icon(Icons.search, color: AppColors.primary),
                   suffixIcon: _controller.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.grey),
+                          icon: Icon(Icons.clear, color: AppColors.textSecondary),
                           onPressed: () {
                             _controller.clear();
                             _onSearch('');
@@ -90,7 +90,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                   contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14.r),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(color: AppColors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14.r),
@@ -152,7 +152,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                             style: TextStyle(
                               fontFamily: 'Almarai',
                               fontSize: 14.sp,
-                              color: Colors.grey.shade600,
+                              color: AppColors.textSecondary,
                               height: 1.6,
                             ),
                           ),
@@ -175,7 +175,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                                   fontFamily: 'Almarai',
                                   fontSize: 15.sp,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.grey.shade700,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                               SizedBox(height: 6.h),
@@ -185,7 +185,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                                 style: TextStyle(
                                   fontFamily: 'Almarai',
                                   fontSize: 12.sp,
-                                  color: Colors.grey.shade500,
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],

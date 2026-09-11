@@ -137,7 +137,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                 sliver: SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.88,
+                    childAspectRatio: 1.15,
                     crossAxisSpacing: 12.w,
                     mainAxisSpacing: 12.h,
                   ),
@@ -189,13 +189,6 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
           end: Alignment.bottomLeft,
         ),
         borderRadius: BorderRadius.circular(22.r),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withAlpha(50),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -262,20 +255,14 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
 
   // --- Name of the Day Card ---
   Widget _buildNameOfTheDayCard(AllahNameModel item) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF9),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: Colors.amber.shade300.withAlpha(120), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.amber.withAlpha(20),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Row(
         children: [
@@ -335,7 +322,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
                       decoration: BoxDecoration(
-                        color: Colors.amber.shade100,
+                        color: isDark ? Colors.amber.withAlpha(30) : Colors.amber.shade100,
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Row(
@@ -344,7 +331,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                           Icon(
                             Icons.star_rounded,
                             size: 13.sp,
-                            color: Colors.amber.shade900,
+                            color: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
                           ),
                           SizedBox(width: 4.w),
                           Text(
@@ -353,7 +340,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                               fontFamily: 'Almarai',
                               fontSize: 10.5.sp,
                               fontWeight: FontWeight.bold,
-                              color: Colors.amber.shade900,
+                              color: isDark ? Colors.amber.shade300 : Colors.amber.shade900,
                             ),
                           ),
                         ],
@@ -379,7 +366,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                   style: TextStyle(
                     fontFamily: 'Almarai',
                     fontSize: 12.sp,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                     height: 1.4,
                   ),
                 ),
@@ -448,7 +435,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear_rounded),
-                        color: Colors.black45,
+                        color: AppColors.textSecondary,
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
@@ -593,13 +580,6 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
               ? Colors.amber.shade300
               : AppColors.primary.withAlpha(25),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(8),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -643,7 +623,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                         color: item.isFavorite
                             ? Colors.amber.shade700
                             : Colors.grey.shade400,
-                        size: 20.sp,
+                        size: 24.sp,
                       ),
                     ),
                   ],
@@ -683,12 +663,12 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                     Text(
                       item.meaning,
                       textAlign: TextAlign.center,
-                      maxLines: 2,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontFamily: 'Almarai',
+                        fontFamily: 'NotoNaskhArabic',
                         fontSize: 10.sp,
-                        color: Colors.black54,
+                        color: Colors.white,
                         height: 1.3,
                       ),
                     ),

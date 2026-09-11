@@ -119,6 +119,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
   @override
   Widget build(BuildContext context) {
     final issues = widget.chapter.issues;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -184,13 +185,6 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                 color: AppColors.card,
                 borderRadius: BorderRadius.circular(16.r),
                 border: Border.all(color: AppColors.primary.withAlpha(30)),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.black.withAlpha(6),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
               ),
               child: Row(
                 children: [
@@ -217,7 +211,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                           style: TextStyle(
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: AppColors.textPrimary.withAlpha(220),
                             fontFamily: 'Almarai',
                             height: 1.4,
                           ),
@@ -324,7 +318,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                                     : Icons.bookmark_border_rounded,
                                 color: isSaved
                                     ? AppColors.primary
-                                    : Colors.black45,
+                                    : AppColors.textSecondary.withAlpha(140),
                                 size: 22.sp,
                               ),
                               tooltip: isSaved ? 'إزالة من المحفوظات' : 'حفظ في المفضلة',
@@ -377,10 +371,10 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                       Container(
                         padding: EdgeInsets.all(12.r),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF9F9F9),
+                          color: isDark ? AppColors.surface : const Color(0xFFF9F9F9),
                           borderRadius: BorderRadius.circular(12.r),
                           border: Border.all(
-                            color: Colors.black12,
+                            color: isDark ? AppColors.border : Colors.black12,
                           ),
                         ),
                         child: Column(
@@ -430,7 +424,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                                           fontSize: (_fontSize - 2.sp).clamp(11.sp, 24.sp),
                                           fontFamily: 'Rubik',
                                           height: 1.6,
-                                          color: Colors.black87,
+                                          color: AppColors.textPrimary,
                                         ),
                                       ),
                                     ),
@@ -452,13 +446,21 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                           padding: EdgeInsets.all(12.r),
                           decoration: BoxDecoration(
                             color: ev.isQuran
-                                ? const Color(0xFFF1F8E9)
-                                : AppColors.primary.withAlpha(12),
+                                ? (isDark
+                                    ? const Color(0xFF1B382B).withAlpha(150)
+                                    : const Color(0xFFF1F8E9))
+                                : (isDark
+                                    ? AppColors.primary.withAlpha(25)
+                                    : AppColors.primary.withAlpha(12)),
                             borderRadius: BorderRadius.circular(12.r),
                             border: Border.all(
                               color: ev.isQuran
-                                  ? const Color(0xFF81C784)
-                                  : AppColors.primary.withAlpha(40),
+                                  ? (isDark
+                                      ? Colors.green.shade700.withAlpha(140)
+                                      : const Color(0xFF81C784))
+                                  : (isDark
+                                      ? AppColors.primary.withAlpha(60)
+                                      : AppColors.primary.withAlpha(40)),
                             ),
                           ),
                           child: Column(
@@ -472,7 +474,9 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                                         : Icons.format_quote_rounded,
                                     size: 16.sp,
                                     color: ev.isQuran
-                                        ? Colors.green.shade800
+                                        ? (isDark
+                                            ? Colors.green.shade300
+                                            : Colors.green.shade800)
                                         : AppColors.primary,
                                   ),
                                   SizedBox(width: 6.w),
@@ -485,7 +489,9 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                                       fontWeight: FontWeight.bold,
                                       fontFamily: 'Almarai',
                                       color: ev.isQuran
-                                          ? Colors.green.shade900
+                                          ? (isDark
+                                              ? Colors.green.shade300
+                                              : Colors.green.shade900)
                                           : AppColors.primary,
                                     ),
                                   ),
@@ -498,7 +504,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                                   fontSize: (_fontSize - 1.sp).clamp(12.sp, 26.sp),
                                   fontFamily: 'Rubik',
                                   fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
+                                  color: AppColors.textPrimary,
                                   height: 1.7,
                                 ),
                               ),
@@ -510,7 +516,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                                   style: TextStyle(
                                     fontSize: 10.5.sp,
                                     fontFamily: 'Almarai',
-                                    color: Colors.black54,
+                                    color: AppColors.textSecondary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -529,10 +535,14 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                           margin: EdgeInsets.only(bottom: 6.h),
                           padding: EdgeInsets.all(10.r),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFF8E1),
+                            color: isDark
+                                ? const Color(0xFF332B1A).withAlpha(140)
+                                : const Color(0xFFFFF8E1),
                             borderRadius: BorderRadius.circular(10.r),
                             border: Border.all(
-                              color: const Color(0xFFFFE082),
+                              color: isDark
+                                  ? Colors.amber.shade700.withAlpha(100)
+                                  : const Color(0xFFFFE082),
                             ),
                           ),
                           child: Row(
@@ -541,7 +551,9 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                               Icon(
                                 Icons.lightbulb_outline_rounded,
                                 size: 16.sp,
-                                color: const Color(0xFFF57F17),
+                                color: isDark
+                                    ? Colors.amber.shade300
+                                    : const Color(0xFFF57F17),
                               ),
                               SizedBox(width: 6.w),
                               Expanded(
@@ -550,7 +562,9 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
                                   style: TextStyle(
                                     fontSize: 11.5.sp,
                                     fontFamily: 'Almarai',
-                                    color: const Color(0xFF5D4037),
+                                    color: isDark
+                                        ? Colors.amber.shade100
+                                        : const Color(0xFF5D4037),
                                     height: 1.5,
                                   ),
                                 ),

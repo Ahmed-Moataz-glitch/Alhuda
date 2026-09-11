@@ -168,6 +168,7 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final total = _items.length;
     final completed = _completedItemsCount;
     final progress = total > 0 ? (completed / total) : 0.0;
@@ -245,12 +246,12 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
                         ),
                         decoration: BoxDecoration(
                           color: _isAllCompleted
-                              ? Colors.green.shade50
+                              ? (isDark ? Colors.green.withAlpha(30) : Colors.green.shade50)
                               : AppColors.primary.withAlpha(15),
                           borderRadius: BorderRadius.circular(16.r),
                           border: Border.all(
                             color: _isAllCompleted
-                                ? Colors.green.shade300
+                                ? (isDark ? Colors.green.withAlpha(70) : Colors.green.shade300)
                                 : AppColors.primary.withAlpha(35),
                           ),
                         ),
@@ -267,7 +268,7 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
                                           : Icons.auto_stories_rounded,
                                       size: 18.sp,
                                       color: _isAllCompleted
-                                          ? Colors.green.shade700
+                                          ? (isDark ? Colors.green.shade300 : Colors.green.shade700)
                                           : AppColors.primary,
                                     ),
                                     SizedBox(width: 8.w),
@@ -280,7 +281,7 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
                                         fontWeight: FontWeight.bold,
                                         fontFamily: 'Almarai',
                                         color: _isAllCompleted
-                                            ? Colors.green.shade800
+                                            ? (isDark ? Colors.green.shade300 : Colors.green.shade800)
                                             : AppColors.primary,
                                       ),
                                     ),
@@ -292,7 +293,7 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
                                     fontSize: 13.sp,
                                     fontWeight: FontWeight.bold,
                                     color: _isAllCompleted
-                                        ? Colors.green.shade800
+                                        ? (isDark ? Colors.green.shade300 : Colors.green.shade800)
                                         : AppColors.primary,
                                   ),
                                 ),
@@ -307,7 +308,7 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
                                 backgroundColor: AppColors.primary.withAlpha(30),
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   _isAllCompleted
-                                      ? Colors.green.shade600
+                                      ? (isDark ? Colors.green.shade400 : Colors.green.shade600)
                                       : AppColors.primary,
                                 ),
                               ),
@@ -347,13 +348,6 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
                                       : AppColors.primary.withAlpha(30),
                                   width: isDone ? 1.5 : 1,
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.black.withAlpha(8),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
                               ),
                               padding: EdgeInsets.all(16.r),
                               child: Column(
@@ -525,18 +519,7 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
                                             ? Colors.green.shade700
                                             : AppColors.primary,
                                         borderRadius:
-                                            BorderRadius.circular(14.r),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: (isDone
-                                                    ? Colors.green
-                                                    : AppColors.primary)
-                                                .withAlpha(60),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ],
-                                      ),
+                                            BorderRadius.circular(14.r),                                      ),
                                       child: Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,

@@ -400,12 +400,17 @@ class _PageTafsirBottomSheetState extends State<PageTafsirBottomSheet> {
         margin: EdgeInsets.fromLTRB(14.w, 6.h, 14.w, 2.h),
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
         decoration: BoxDecoration(
-          color: Colors.green.shade50,
+          color: isDark ? Colors.green.withAlpha(30) : Colors.green.shade50,
           borderRadius: BorderRadius.circular(10.r),
+          border: isDark ? Border.all(color: Colors.green.withAlpha(70)) : null,
         ),
         child: Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: Colors.green.shade700, size: 18.r),
+            Icon(
+              Icons.check_circle_rounded,
+              color: isDark ? Colors.green.shade300 : Colors.green.shade700,
+              size: 18.r,
+            ),
             SizedBox(width: 8.w),
             Expanded(
               child: Text(
@@ -414,7 +419,7 @@ class _PageTafsirBottomSheetState extends State<PageTafsirBottomSheet> {
                   fontFamily: 'Almarai',
                   fontSize: 11.5.sp,
                   fontWeight: FontWeight.w600,
-                  color: Colors.green.shade900,
+                  color: isDark ? Colors.green.shade300 : Colors.green.shade900,
                 ),
               ),
             ),

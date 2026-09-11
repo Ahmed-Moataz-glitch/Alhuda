@@ -34,6 +34,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
     final allJuzs = QuranService.instance.getAllJuzs();
     final bookmarks = QuranService.instance.getBookmarks();
     final lastRead = QuranService.instance.lastRead;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -102,15 +103,17 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
         Container(
           margin: EdgeInsets.symmetric(horizontal: 16.w),
           decoration: BoxDecoration(
-            color: Colors.grey.shade200,
+            color: isDark ? AppColors.surface : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(10.r),
           ),
           child: TabBar(
             controller: _innerTabController,
             indicator: BoxDecoration(
               color: AppColors.primary,
+              borderRadius: BorderRadius.circular(10.r),
             ),
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.grey.shade700,
+            labelColor: AppColors.onPrimary,
+            unselectedLabelColor: isDark ? AppColors.textSecondary : Colors.grey.shade700,
             labelStyle: TextStyle(
               fontFamily: 'Almarai',
               fontSize: 13.sp,
@@ -259,6 +262,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
       itemBuilder: (context, index) {
         final s = surahs[index];
         final isMeccan = s.revelationType == 'مكية';
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Card(
           margin: EdgeInsets.only(bottom: 8.h),
           elevation: 0.5,
@@ -307,13 +311,13 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
                   padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 2.h),
                   decoration: BoxDecoration(
                     color: isMeccan
-                        ? const Color(0xFFFFF8E1)
-                        : const Color(0xFFE0F2F1),
+                        ? (isDark ? const Color(0x33FFA000) : const Color(0xFFFFF8E1))
+                        : (isDark ? const Color(0x3300897B) : const Color(0xFFE0F2F1)),
                     borderRadius: BorderRadius.circular(6.r),
                     border: Border.all(
                       color: isMeccan
-                          ? const Color(0xFFFFB300)
-                          : const Color(0xFF26A69A),
+                          ? (isDark ? Colors.amber.shade700.withAlpha(120) : const Color(0xFFFFB300))
+                          : (isDark ? Colors.teal.shade700.withAlpha(120) : const Color(0xFF26A69A)),
                       width: 0.9,
                     ),
                   ),
@@ -324,8 +328,8 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
                       fontSize: 10.sp,
                       fontWeight: FontWeight.bold,
                       color: isMeccan
-                          ? const Color(0xFF8D6E63)
-                          : const Color(0xFF00695C),
+                          ? (isDark ? Colors.amber.shade200 : const Color(0xFF8D6E63))
+                          : (isDark ? Colors.teal.shade200 : const Color(0xFF00695C)),
                     ),
                   ),
                 ),
@@ -337,7 +341,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
                 'آياتها ${QuranService.toArabicDigits(s.totalAyahs)} • ${s.englishName}',
                 style: TextStyle(
                   fontSize: 11.sp,
-                  color: Colors.grey.shade600,
+                  color: AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
                   fontFamily: 'Almarai',
                 ),
@@ -346,9 +350,12 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
             trailing: Container(
               padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: isDark ? AppColors.surface : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(8.r),
-                border: Border.all(color: Colors.grey.shade300, width: 0.8),
+                border: Border.all(
+                  color: isDark ? AppColors.border : Colors.grey.shade300,
+                  width: 0.8,
+                ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -359,7 +366,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
                       fontFamily: 'Almarai',
                       fontSize: 9.sp,
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade600,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                   Text(
@@ -432,7 +439,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
             ),
             subtitle: Text(
               'يبدأ من سورة ${juz.startSurahName} (الآية ${juz.startAyahNumber})',
-              style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade700, fontFamily: 'Almarai'),
+              style: TextStyle(fontSize: 12.sp, color: AppColors.textSecondary, fontFamily: 'Almarai'),
             ),
             trailing: Container(
               padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
@@ -481,7 +488,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
               style: TextStyle(
                 fontFamily: 'Almarai',
                 fontSize: 14.sp,
-                color: Colors.grey.shade600,
+                color: AppColors.textSecondary,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -492,7 +499,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
               style: TextStyle(
                 fontFamily: 'Almarai',
                 fontSize: 12.sp,
-                color: Colors.grey.shade500,
+                color: AppColors.textSecondary.withAlpha(180),
               ),
             ),
           ],
@@ -544,7 +551,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
                 style: TextStyle(
                   fontFamily: 'NotoNaskhArabic',
                   fontSize: 14.sp,
-                  color: const Color(0xFF2C2523),
+                  color: AppColors.textPrimary,
                   height: 1.6,
                 ),
               ),
