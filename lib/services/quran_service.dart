@@ -9,11 +9,9 @@ import 'package:quran_kit/core.dart';
 import 'package:quran_kit/kit.dart';
 import 'package:quran_kit/text.dart';
 import 'package:quran/quran.dart' as quran;
-
 export 'package:alhuda/features/quran/domain/entities/quran_entities.dart';
 export 'package:alhuda/features/quran/domain/repositories/quran_repository.dart';
 export 'package:alhuda/features/quran/data/repositories/quran_repository_impl.dart';
-export 'package:alhuda/features/quran/presentation/view_models/quran_view_model.dart';
 
 /// Central service for Quran features in Alhuda app
 class QuranService {

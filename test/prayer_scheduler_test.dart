@@ -1,4 +1,4 @@
-import 'package:alhuda/view/widgets/prayer_scheduler_service.dart';
+import 'package:alhuda/core/services/prayer_scheduler_service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:muslim_data_flutter/muslim_data_flutter.dart';

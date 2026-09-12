@@ -1,6 +1,5 @@
 import 'package:alhuda/features/quran/domain/entities/quran_entities.dart';
 import 'package:alhuda/features/quran/domain/repositories/quran_repository.dart';
-import 'package:alhuda/features/quran/presentation/view_models/quran_view_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class MockQuranRepository implements QuranRepository {
@@ -145,32 +144,4 @@ class MockQuranRepository implements QuranRepository {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  group('Quran Clean Architecture Tests', () {
-    late QuranViewModel viewModel;
-
-    setUp(() {
-      viewModel = QuranViewModel(repository: MockQuranRepository());
-    });
-
-    test('QuranViewModel loads surahs and juzs', () async {
-      expect(viewModel.surahs, isEmpty);
-      await viewModel.loadInitialData();
-
-      expect(viewModel.surahs.length, equals(1));
-      expect(viewModel.surahs.first.arabicName, equals('الفاتحة'));
-      expect(viewModel.juzs.length, equals(1));
-    });
-
-    test('QuranViewModel search performs correctly', () async {
-      await viewModel.loadInitialData();
-      viewModel.search('الرحمن');
-
-      expect(viewModel.searchResults.length, equals(1));
-      expect(viewModel.searchResults.first.surahName, equals('الفاتحة'));
-
-      viewModel.clearSearch();
-      expect(viewModel.searchResults, isEmpty);
-    });
-  });
 }

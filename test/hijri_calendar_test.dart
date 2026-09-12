@@ -1,4 +1,4 @@
-import 'package:alhuda/view/widgets/hijri_calendar_widget.dart';
+import 'package:alhuda/features/takweem/presentation/view/widgets/hijri_calendar_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -2,11 +2,9 @@ import 'package:alhuda/features/azkar/data/repositories/azkar_repository_impl.da
 import 'package:alhuda/features/azkar/domain/entities/azkar_quick_item.dart';
 import 'package:alhuda/features/azkar/domain/repositories/azkar_repository.dart';
 import 'package:muslim_data_flutter/muslim_data_flutter.dart';
-
 export 'package:alhuda/features/azkar/domain/entities/azkar_quick_item.dart';
 export 'package:alhuda/features/azkar/domain/repositories/azkar_repository.dart';
 export 'package:alhuda/features/azkar/data/repositories/azkar_repository_impl.dart';
-export 'package:alhuda/features/azkar/presentation/view_models/azkar_view_model.dart';
 
 class AzkarService {
   AzkarService._internal();

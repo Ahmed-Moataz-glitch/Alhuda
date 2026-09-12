@@ -1,4 +1,4 @@
-import 'package:alhuda/view/widgets/egypt_dst_helper.dart';
+import 'package:alhuda/core/utils/egypt_dst_helper.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:muslim_data_flutter/muslim_data_flutter.dart';
 

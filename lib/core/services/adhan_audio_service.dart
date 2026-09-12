@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:alhuda/model/adhan_model.dart';
+import 'package:alhuda/features/prayer_times/data/models/adhan_model.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';

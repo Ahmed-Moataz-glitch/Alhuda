@@ -1,5 +1,5 @@
 import 'package:alhuda/services/quran_service.dart';
-import 'package:alhuda/view/widgets/mushaf_page_widget.dart';
+import 'package:alhuda/features/quran/presentation/view/widgets/mushaf_page_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';

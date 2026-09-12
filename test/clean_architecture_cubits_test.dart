@@ -1,17 +1,17 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:alhuda/features/allah_names/presentation/cubit/allah_names_cubit.dart';
-import 'package:alhuda/features/azkar/presentation/cubit/azkar_cubit.dart';
+import 'package:alhuda/features/allah_names/presentation/view_models/cubit/allah_names_cubit.dart';
+import 'package:alhuda/features/azkar/presentation/view_models/cubit/azkar_cubit.dart';
 import 'package:alhuda/features/fiqh/domain/entities/fiqh_entities.dart';
-import 'package:alhuda/features/fiqh/presentation/cubit/fiqh_cubit.dart';
-import 'package:alhuda/features/hadith/presentation/cubit/hadith_cubit.dart';
-import 'package:alhuda/features/prayer_times/presentation/cubit/prayer_times_cubit.dart';
+import 'package:alhuda/features/fiqh/presentation/view_models/cubit/fiqh_cubit.dart';
+import 'package:alhuda/features/hadith/presentation/view_models/cubit/hadith_cubit.dart';
+import 'package:alhuda/features/prayer_times/presentation/view_models/cubit/prayer_times_cubit.dart';
 import 'package:alhuda/features/quran/domain/entities/quran_entities.dart';
-import 'package:alhuda/features/quran/presentation/cubit/quran_cubit.dart';
-import 'package:alhuda/features/quran/presentation/cubit/tafsir_cubit.dart';
+import 'package:alhuda/features/quran/presentation/view_models/cubit/quran_cubit.dart';
+import 'package:alhuda/features/quran/presentation/view_models/cubit/tafsir_cubit.dart';
 import 'package:alhuda/features/tasbeeh/domain/entities/tasbeeh_item.dart';
 import 'package:alhuda/features/tasbeeh/domain/repositories/tasbeeh_repository.dart';
-import 'package:alhuda/features/tasbeeh/presentation/cubit/tasbeeh_cubit.dart';
+import 'package:alhuda/features/tasbeeh/presentation/view_models/cubit/tasbeeh_cubit.dart';
 
 class MockTasbeehRepository implements TasbeehRepository {
   @override

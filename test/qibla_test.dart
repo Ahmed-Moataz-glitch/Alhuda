@@ -1,4 +1,4 @@
-import 'package:alhuda/view/widgets/qibla_widget.dart';
+import 'package:alhuda/features/qibla/presentation/view/widgets/qibla_widget.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qibla/qibla.dart';
 

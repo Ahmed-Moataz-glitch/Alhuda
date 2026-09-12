@@ -1,6 +1,5 @@
 import 'package:alhuda/features/fiqh/domain/entities/fiqh_entities.dart';
 import 'package:alhuda/features/fiqh/domain/repositories/fiqh_repository.dart';
-import 'package:alhuda/features/fiqh/presentation/view_models/fiqh_view_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -91,34 +90,4 @@ class MockFiqhRepository implements FiqhRepository {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  group('Fiqh Clean Architecture Tests', () {
-    late FiqhViewModel viewModel;
-
-    setUp(() {
-      viewModel = FiqhViewModel(repository: MockFiqhRepository());
-    });
-
-    test('FiqhViewModel loads and filters books by category', () {
-      expect(viewModel.allBooks.length, equals(2));
-      expect(viewModel.displayedBooks.length, equals(2));
-
-      viewModel.selectCategory(FiqhCategory.ibadat);
-      expect(viewModel.selectedCategory, equals(FiqhCategory.ibadat));
-      expect(viewModel.displayedBooks.length, equals(1));
-      expect(viewModel.displayedBooks.first.id, equals('book_taharah'));
-
-      viewModel.selectCategory(null);
-      expect(viewModel.displayedBooks.length, equals(2));
-    });
-
-    test('FiqhViewModel search query updates', () {
-      viewModel.setSearchQuery('وضوء');
-      expect(viewModel.searchQuery, equals('وضوء'));
-
-      viewModel.clearSearch();
-      expect(viewModel.searchQuery, isEmpty);
-      expect(viewModel.searchResults, isEmpty);
-    });
-  });
 }

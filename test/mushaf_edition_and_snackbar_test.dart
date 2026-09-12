@@ -1,5 +1,5 @@
-import 'package:alhuda/model/mushaf_edition.dart';
-import 'package:alhuda/view/widgets/app_snackbar.dart';
+import 'package:alhuda/features/quran/data/mushaf_edition.dart';
+import 'package:alhuda/core/utils/app_snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

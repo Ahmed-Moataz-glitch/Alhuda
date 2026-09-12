@@ -1,11 +1,9 @@
 import 'package:alhuda/features/allah_names/data/repositories/allah_names_repository_impl.dart';
 import 'package:alhuda/features/allah_names/domain/entities/allah_name_entity.dart';
 import 'package:alhuda/features/allah_names/domain/repositories/allah_names_repository.dart';
-
 export 'package:alhuda/features/allah_names/domain/entities/allah_name_entity.dart';
 export 'package:alhuda/features/allah_names/domain/repositories/allah_names_repository.dart';
 export 'package:alhuda/features/allah_names/data/repositories/allah_names_repository_impl.dart';
-export 'package:alhuda/features/allah_names/presentation/view_models/allah_names_view_model.dart';
 
 class AllahNamesService {
   AllahNamesService._internal();

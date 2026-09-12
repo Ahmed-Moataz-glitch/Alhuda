@@ -1,5 +1,5 @@
 import 'package:alhuda/features/qibla/data/repositories/qibla_repository_impl.dart';
-import 'package:alhuda/features/qibla/presentation/cubit/qibla_cubit.dart';
+import 'package:alhuda/features/qibla/presentation/view_models/cubit/qibla_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

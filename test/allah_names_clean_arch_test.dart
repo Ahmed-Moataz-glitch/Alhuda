@@ -1,6 +1,5 @@
 import 'package:alhuda/features/allah_names/domain/entities/allah_name_entity.dart';
 import 'package:alhuda/features/allah_names/domain/repositories/allah_names_repository.dart';
-import 'package:alhuda/features/allah_names/presentation/view_models/allah_names_view_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class MockAllahNamesRepository implements AllahNamesRepository {
@@ -71,40 +70,4 @@ class MockAllahNamesRepository implements AllahNamesRepository {
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  group('AllahNames Clean Architecture Tests', () {
-    late AllahNamesViewModel viewModel;
-
-    setUp(() {
-      viewModel = AllahNamesViewModel(repository: MockAllahNamesRepository());
-    });
-
-    test('AllahNamesViewModel loads names and name of the day', () async {
-      expect(viewModel.isLoading, isTrue);
-      await viewModel.loadNames();
-
-      expect(viewModel.isLoading, isFalse);
-      expect(viewModel.allNames.length, equals(2));
-      expect(viewModel.nameOfTheDay?.name, equals('الله'));
-      expect(viewModel.favoritesCount, equals(1));
-    });
-
-    test('AllahNamesViewModel filters favorites', () async {
-      await viewModel.loadNames();
-      viewModel.toggleFavoritesFilter();
-
-      expect(viewModel.favoritesOnly, isTrue);
-      expect(viewModel.filteredNames.length, equals(1));
-      expect(viewModel.filteredNames.first.id, equals(2));
-    });
-
-    test('AllahNamesViewModel toggles favorite state', () async {
-      await viewModel.loadNames();
-      await viewModel.toggleFavorite(1);
-
-      expect(viewModel.favoritesCount, equals(2));
-      expect(viewModel.allNames.first.isFavorite, isTrue);
-    });
-  });
 }

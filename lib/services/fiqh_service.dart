@@ -1,11 +1,9 @@
 import 'package:alhuda/features/fiqh/data/repositories/fiqh_repository_impl.dart';
 import 'package:alhuda/features/fiqh/domain/entities/fiqh_entities.dart';
 import 'package:alhuda/features/fiqh/domain/repositories/fiqh_repository.dart';
-
 export 'package:alhuda/features/fiqh/domain/entities/fiqh_entities.dart';
 export 'package:alhuda/features/fiqh/domain/repositories/fiqh_repository.dart';
 export 'package:alhuda/features/fiqh/data/repositories/fiqh_repository_impl.dart';
-export 'package:alhuda/features/fiqh/presentation/view_models/fiqh_view_model.dart';
 
 class FiqhService {
   FiqhService._();

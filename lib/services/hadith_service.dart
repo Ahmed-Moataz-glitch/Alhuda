@@ -2,11 +2,9 @@ import 'package:alhuda/features/hadith/data/repositories/hadith_repository_impl.
 import 'package:alhuda/features/hadith/domain/entities/hadith_entities.dart';
 import 'package:alhuda/features/hadith/domain/repositories/hadith_repository.dart';
 import 'package:flutter/foundation.dart';
-
 export 'package:alhuda/features/hadith/domain/entities/hadith_entities.dart';
 export 'package:alhuda/features/hadith/domain/repositories/hadith_repository.dart';
 export 'package:alhuda/features/hadith/data/repositories/hadith_repository_impl.dart';
-export 'package:alhuda/features/hadith/presentation/view_models/hadith_view_model.dart';
 
 class HadithService extends ChangeNotifier {
   HadithService._();

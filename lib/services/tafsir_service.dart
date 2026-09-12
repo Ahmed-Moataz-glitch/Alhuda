@@ -5,11 +5,9 @@ import 'package:alhuda/services/quran_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-
 export 'package:alhuda/features/quran/domain/entities/tafsir_entities.dart';
 export 'package:alhuda/features/quran/domain/repositories/tafsir_repository.dart';
 export 'package:alhuda/features/quran/data/repositories/tafsir_repository_impl.dart';
-export 'package:alhuda/features/quran/presentation/view_models/tafsir_view_model.dart';
 
 /// Progress and state of an offline Tafsir package download
 class TafsirDownloadProgress {

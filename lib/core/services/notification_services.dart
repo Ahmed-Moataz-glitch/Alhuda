@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:alhuda/core/constants/app_colors.dart';
 import 'package:alhuda/core/constants/app_constants.dart';
 import 'package:alhuda/core/services/adhan_audio_service.dart';
-import 'package:alhuda/model/adhan_model.dart';
+import 'package:alhuda/features/prayer_times/data/models/adhan_model.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';

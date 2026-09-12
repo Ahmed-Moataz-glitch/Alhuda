@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:alhuda/model/mushaf_edition.dart';
+import 'package:alhuda/features/quran/data/mushaf_edition.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';

@@ -1,4 +1,4 @@
-import 'package:alhuda/model/fiqh_model.dart';
+import 'package:alhuda/features/fiqh/data/models/fiqh_model.dart';
 import 'package:flutter/material.dart';
 
 /// قاعدة البيانات المضمنة للفقه الإسلامي الشامل بجميع أبوابه الـ 14

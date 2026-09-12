@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'package:alhuda/model/adhan_model.dart';
-import 'package:alhuda/view/widgets/adhan_audio_service.dart';
-import 'package:alhuda/view/widgets/notification_services.dart';
+import 'package:alhuda/core/services/adhan_audio_service.dart';
+import 'package:alhuda/core/services/notification_services.dart';
+import 'package:alhuda/features/prayer_times/data/models/adhan_model.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
