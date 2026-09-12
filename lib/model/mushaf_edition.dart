@@ -10,6 +10,7 @@ class MushafEdition {
   final int totalPages;
   final String folderName;
   final String baseUrl;
+  final String? fallbackBaseUrl;
   final bool cropPublisherBorders;
   final bool hasTajweedColors;
 
@@ -24,6 +25,7 @@ class MushafEdition {
     this.totalPages = 604,
     required this.folderName,
     required this.baseUrl,
+    this.fallbackBaseUrl,
     required this.cropPublisherBorders,
     required this.hasTajweedColors,
   });
@@ -41,6 +43,8 @@ class MushafEdition {
     folderName: 'quran_tajweed_pages',
     baseUrl:
         'https://raw.githubusercontent.com/QuranHub/quran-pages-images/main/easyquran.com/hafs-tajweed',
+    fallbackBaseUrl:
+        'https://cdn.jsdelivr.net/gh/QuranHub/quran-pages-images@main/easyquran.com/hafs-tajweed',
     cropPublisherBorders: true,
     hasTajweedColors: true,
   );
@@ -57,6 +61,8 @@ class MushafEdition {
     folderName: 'quran_madinah_hafs_pages',
     baseUrl:
         'https://raw.githubusercontent.com/QuranHub/quran-pages-images/main/kfgqpc/hafs-wasat',
+    fallbackBaseUrl:
+        'https://cdn.jsdelivr.net/gh/QuranHub/quran-pages-images@main/kfgqpc/hafs-wasat',
     cropPublisherBorders: false,
     hasTajweedColors: false,
   );
@@ -73,6 +79,26 @@ class MushafEdition {
     folderName: 'quran_madinah_warsh_pages',
     baseUrl:
         'https://raw.githubusercontent.com/QuranHub/quran-pages-images/main/kfgqpc/warsh',
+    fallbackBaseUrl:
+        'https://cdn.jsdelivr.net/gh/QuranHub/quran-pages-images@main/kfgqpc/warsh',
+    cropPublisherBorders: false,
+    hasTajweedColors: false,
+  );
+
+  static const MushafEdition madinahShubah = MushafEdition(
+    id: 'madinah_shubah',
+    name: 'مصحف المدينة (شعبة)',
+    shortName: 'مصحف شعبة',
+    riwayah: 'شعبة عن عاصم',
+    publisher: 'مجمع الملك فهد',
+    approximateSize: '180 ميجابايت',
+    approximateSizeMB: 180.0,
+    totalPages: 604,
+    folderName: 'quran_madinah_shubah_pages',
+    baseUrl:
+        'https://raw.githubusercontent.com/Zohanur2026/zohanur-mushaf-pages-shubah/main',
+    fallbackBaseUrl:
+        'https://cdn.jsdelivr.net/gh/Zohanur2026/zohanur-mushaf-pages-shubah@main',
     cropPublisherBorders: false,
     hasTajweedColors: false,
   );
@@ -82,6 +108,7 @@ class MushafEdition {
     hafsTajweed,
     madinahHafs,
     madinahWarsh,
+    madinahShubah,
   ];
 
   static MushafEdition fromId(String id) {

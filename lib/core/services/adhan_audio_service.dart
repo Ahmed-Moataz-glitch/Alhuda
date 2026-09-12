@@ -1,12 +1,18 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:alhuda/model/adhan_model.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 class AdhanAudioService extends ChangeNotifier {
   static final AdhanAudioService _instance = AdhanAudioService._internal();
 
   factory AdhanAudioService() => _instance;
+  static AdhanAudioService get instance => _instance;
+
+  static const MethodChannel _channel =
+      MethodChannel('com.example.alhuda/adhan');
 
   final AudioPlayer _player = AudioPlayer();
 
@@ -35,11 +41,14 @@ class AdhanAudioService extends ChangeNotifier {
   }
 
   void _initListeners() {
+    _channel.setMethodCallHandler(_handleMethodCall);
+
     _stateSubscription = _player.onPlayerStateChanged.listen((state) {
       _playerState = state;
       if (state == PlayerState.completed || state == PlayerState.stopped) {
         _currentPlayingSound = null;
         _position = Duration.zero;
+        _stopMonitoring();
       }
       notifyListeners();
     });
@@ -58,8 +67,27 @@ class AdhanAudioService extends ChangeNotifier {
       _currentPlayingSound = null;
       _playerState = PlayerState.completed;
       _position = Duration.zero;
+      _stopMonitoring();
       notifyListeners();
     });
+  }
+
+  Future<dynamic> _handleMethodCall(MethodCall call) async {
+    if (call.method == 'stopAdhan') {
+      await stop();
+    }
+  }
+
+  Future<void> _startMonitoring() async {
+    try {
+      await _channel.invokeMethod('startAdhanMonitoring');
+    } catch (_) {}
+  }
+
+  Future<void> _stopMonitoring() async {
+    try {
+      await _channel.invokeMethod('stopAdhanMonitoring');
+    } catch (_) {}
   }
 
   AdhanSound get selectedSound => _selectedSound;
@@ -116,26 +144,35 @@ class AdhanAudioService extends ChangeNotifier {
       } else {
         await _player.play(UrlSource(sound.source));
       }
+      await _startMonitoring();
     } catch (e) {
       debugPrint('Error playing Adhan sound: $e');
       _currentPlayingSound = null;
       _playerState = PlayerState.stopped;
+      await _stopMonitoring();
       notifyListeners();
     }
   }
 
   Future<void> pause() async {
     await _player.pause();
+    await _stopMonitoring();
   }
 
   Future<void> resume() async {
     await _player.resume();
+    await _startMonitoring();
   }
 
   Future<void> stop() async {
     await _player.stop();
     _currentPlayingSound = null;
     _position = Duration.zero;
+    await _stopMonitoring();
+    try {
+      final sendPort = IsolateNameServer.lookupPortByName('adhan_stop_port');
+      sendPort?.send('stop');
+    } catch (_) {}
     notifyListeners();
   }
 
@@ -153,6 +190,7 @@ class AdhanAudioService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _stopMonitoring();
     _stateSubscription?.cancel();
     _posSubscription?.cancel();
     _durSubscription?.cancel();

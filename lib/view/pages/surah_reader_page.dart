@@ -238,7 +238,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                       title: Text(
                         'سورة ${s.arabicName}',
                         style: TextStyle(
-                          fontFamily: 'NotoNaskhArabic',
+                          fontFamily: 'Amiri',
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                           fontSize: 15.sp,
                         ),
@@ -406,7 +406,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                   color: Colors.white,
                   fontSize: 22.sp,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'NotoNaskhArabic',
+                  fontFamily: 'Amiri',
                 ),
               ),
               Text(
@@ -432,7 +432,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18.sp,
-                  fontFamily: 'NotoNaskhArabic',
+                  fontFamily: 'Amiri',
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -632,7 +632,7 @@ class _SurahReaderPageState extends State<SurahReaderPage> {
                   ayah.uthmaniText,
                   textAlign: TextAlign.right,
                   style: TextStyle(
-                    fontFamily: 'NotoNaskhArabic',
+                    fontFamily: 'Amiri',
                     fontSize: _fontSize,
                     height: 2.0,
                     wordSpacing: -0.5,

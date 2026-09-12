@@ -414,7 +414,7 @@ class _HadithChapterPageState extends State<HadithChapterPage> {
                                             fontSize: _service.fontSize.sp,
                                             height: 2.0,
                                             color: AppColors.textPrimary,
-                                            fontFamily: 'NotoNaskhArabic',
+                                            fontFamily: 'Amiri',
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),

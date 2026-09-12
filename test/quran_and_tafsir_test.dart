@@ -91,6 +91,28 @@ void main() {
       expect(QuranService.instance.isBookmarked(2, 255), isFalse);
     });
 
+    test('Page bookmarks management works correctly', () async {
+      // Toggle bookmark for page 42
+      final added = await QuranService.instance.togglePageBookmark(42);
+      expect(added, isTrue);
+      expect(QuranService.instance.isPageBookmarked(42), isTrue);
+
+      final lastSaved = QuranService.instance.getLastSavedPageBookmark();
+      expect(lastSaved, isNotNull);
+      expect(lastSaved?.pageNumber, 42);
+
+      // Remove page bookmark
+      final removed = await QuranService.instance.togglePageBookmark(42);
+      expect(removed, isFalse);
+      expect(QuranService.instance.isPageBookmarked(42), isFalse);
+
+      // Add again and test removeBookmarkByPage
+      await QuranService.instance.togglePageBookmark(77);
+      expect(QuranService.instance.isPageBookmarked(77), isTrue);
+      await QuranService.instance.removeBookmarkByPage(77);
+      expect(QuranService.instance.isPageBookmarked(77), isFalse);
+    });
+
     test('Last read tracking updates correctly', () async {
       await QuranService.instance.setLastRead(
         surahNumber: 18,

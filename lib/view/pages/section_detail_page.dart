@@ -60,7 +60,7 @@ class _SectionDetailPageState extends State<SectionDetailPage> {
           title: Text(
             widget.title,
             style: TextStyle(
-              fontFamily: 'NotoNaskhArabic',
+              fontFamily: 'Amiri',
               fontSize: 20.sp,
               fontWeight: FontWeight.bold,
               color: AppColors.primary,

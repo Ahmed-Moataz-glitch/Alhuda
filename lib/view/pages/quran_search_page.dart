@@ -68,7 +68,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                 controller: _controller,
                 onTapOutside: (_) => FocusScope.of(context).unfocus(),
                 autofocus: true,
-                style: TextStyle(fontFamily: 'NotoNaskhArabic', color: AppColors.textPrimary),
+                style: TextStyle(fontFamily: 'Amiri', color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'ابحث عن كلمة، آية، أو جملة...',
                   hintStyle: TextStyle(
@@ -284,7 +284,7 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
                                   child: Text(
                                     item.uthmaniText,
                                     style: TextStyle(
-                                      fontFamily: 'NotoNaskhArabic',
+                                      fontFamily: 'Amiri',
                                       fontSize: 16.sp,
                                       height: 1.9,
                                       color: AppColors.textPrimary,

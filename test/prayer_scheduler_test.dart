@@ -27,6 +27,11 @@ void main() {
       const MethodChannel('xyz.luan/audioplayers'),
       (MethodCall methodCall) async => 1,
     );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('com.example.alhuda/adhan'),
+      (MethodCall methodCall) async => true,
+    );
   });
 
   group('PrayerSchedulerService Tests', () {

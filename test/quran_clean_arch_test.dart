@@ -64,6 +64,40 @@ class MockQuranRepository implements QuranRepository {
       _bookmarks.any((b) => b.surahNumber == surahNumber && b.ayahNumber == ayahNumber);
 
   @override
+  bool isPageBookmarked(int pageNumber) =>
+      _bookmarks.any((b) => b.pageNumber == pageNumber);
+
+  @override
+  Future<bool> togglePageBookmark(int pageNumber) async {
+    final index = _bookmarks.indexWhere((b) => b.pageNumber == pageNumber);
+    if (index >= 0) {
+      _bookmarks.removeAt(index);
+      return false;
+    } else {
+      _bookmarks.insert(
+        0,
+        QuranBookmark(
+          surahNumber: 1,
+          surahName: 'الفاتحة',
+          ayahNumber: 1,
+          pageNumber: pageNumber,
+          snippet: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+          timestamp: DateTime.now(),
+        ),
+      );
+      return true;
+    }
+  }
+
+  @override
+  QuranBookmark? getSavedPageBookmark() => _bookmarks.isEmpty ? null : _bookmarks.first;
+
+  @override
+  Future<void> removeBookmarkByPage(int pageNumber) async {
+    _bookmarks.removeWhere((b) => b.pageNumber == pageNumber);
+  }
+
+  @override
   Future<void> toggleBookmark({
     required int surah,
     required String surahName,

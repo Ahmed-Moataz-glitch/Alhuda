@@ -1,10 +1,25 @@
+import 'dart:ui';
 import 'package:alhuda/core/constants/app_colors.dart';
 import 'package:alhuda/core/constants/app_constants.dart';
+import 'package:alhuda/core/services/adhan_audio_service.dart';
 import 'package:alhuda/model/adhan_model.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse response) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (response.actionId == NotificationServices.actionStopAdhan) {
+    NotificationServices.handleStopAdhanAction();
+  }
+}
+
 abstract class NotificationServices {
+  static const String actionStopAdhan = 'stop_adhan';
+  static const MethodChannel _adhanChannel =
+      MethodChannel('com.example.alhuda/adhan');
+
   static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
@@ -47,6 +62,12 @@ abstract class NotificationServices {
 
       await flutterLocalNotificationsPlugin.initialize(
         settings: initializationSettings,
+        onDidReceiveNotificationResponse: (response) {
+          if (response.actionId == actionStopAdhan) {
+            handleStopAdhanAction();
+          }
+        },
+        onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
 
       final androidImpl = flutterLocalNotificationsPlugin
@@ -84,6 +105,25 @@ abstract class NotificationServices {
     } catch (e) {
       debugPrint('Error initializing notifications: $e');
     }
+  }
+
+  static void handleStopAdhanAction() {
+    try {
+      final sendPort = IsolateNameServer.lookupPortByName('adhan_stop_port');
+      sendPort?.send('stop');
+    } catch (_) {}
+
+    try {
+      AdhanAudioService().stop();
+    } catch (_) {}
+
+    try {
+      _adhanChannel.invokeMethod('stopAdhan');
+    } catch (_) {}
+
+    try {
+      cancelNotification();
+    } catch (_) {}
   }
 
   static void sendNotification({
@@ -128,6 +168,14 @@ abstract class NotificationServices {
           fullScreenIntent: true,
           category: AndroidNotificationCategory.alarm,
           visibility: NotificationVisibility.public,
+          actions: const [
+            AndroidNotificationAction(
+              NotificationServices.actionStopAdhan,
+              'إيقاف الأذان',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+          ],
         ),
       );
 
@@ -139,6 +187,18 @@ abstract class NotificationServices {
       );
     } catch (e) {
       debugPrint('Error sending Adhan notification: $e');
+    }
+  }
+
+  static Future<void> cancelAdhanNotification({int? id}) async {
+    try {
+      if (id != null) {
+        await flutterLocalNotificationsPlugin.cancel(id: id);
+      } else {
+        await flutterLocalNotificationsPlugin.cancelAll();
+      }
+    } catch (e) {
+      debugPrint('Error canceling adhan notification: $e');
     }
   }
 
@@ -172,6 +232,8 @@ abstract class NotificationServices {
   }
 
   static void cancelNotification() async {
-    await flutterLocalNotificationsPlugin.cancelAll();
+    try {
+      await flutterLocalNotificationsPlugin.cancelAll();
+    } catch (_) {}
   }
 }

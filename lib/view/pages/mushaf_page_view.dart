@@ -387,6 +387,97 @@ class _MushafPageState extends State<MushafPageView> {
     });
   }
 
+  Future<void> _toggleCurrentPageBookmark() async {
+    HapticFeedback.mediumImpact();
+    final isNowBookmarked =
+        await QuranService.instance.togglePageBookmark(_currentPage);
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Row(
+            children: [
+              Icon(
+                isNowBookmarked
+                    ? Icons.bookmark_added_rounded
+                    : Icons.bookmark_remove_rounded,
+                color: Colors.white,
+                size: 20.r,
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Text(
+                  isNowBookmarked
+                      ? 'تم حفظ صفحة $_currentPage في العلامات المرجعية'
+                      : 'تمت إزالة علامة صفحة $_currentPage',
+                  style: const TextStyle(
+                    fontFamily: 'Almarai',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        backgroundColor:
+            isNowBookmarked ? AppColors.primary : Colors.grey.shade800,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10.r),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Widget _buildBookmarkRibbon() {
+    return Tooltip(
+      message: 'فاصل الصفحة المحفوظة (اضغط للإزالة)',
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        width: 28.w,
+        height: 52.h,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFFD4AF37), // Rich gold
+              Color(0xFF8B6B18),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(50),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(4.r),
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              bottom: 6.h,
+              child: Icon(
+                Icons.bookmark_rounded,
+                color: Colors.white.withAlpha(240),
+                size: 16.r,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showJumpDialog() {
     final pageInputController = TextEditingController();
     final surahs = QuranService.instance.getAllSurahs();
@@ -400,7 +491,7 @@ class _MushafPageState extends State<MushafPageView> {
       ),
       builder: (context) {
         return DefaultTabController(
-          length: 3,
+          length: 4,
           child: Directionality(
             textDirection: TextDirection.rtl,
             child: SizedBox(
@@ -441,6 +532,7 @@ class _MushafPageState extends State<MushafPageView> {
                       Tab(text: 'رقم الصفحة'),
                       Tab(text: 'فهرس السور'),
                       Tab(text: 'فهرس الأجزاء'),
+                      Tab(text: 'العلامات'),
                     ],
                   ),
                   Expanded(
@@ -509,6 +601,48 @@ class _MushafPageState extends State<MushafPageView> {
                                     fontSize: 14.sp,
                                   ),
                                 ),
+                              ),
+                              Builder(
+                                builder: (context) {
+                                  final saved = QuranService.instance.getLastSavedPageBookmark();
+                                  if (saved == null) return const SizedBox.shrink();
+                                  return Padding(
+                                    padding: EdgeInsets.only(top: 16.h),
+                                    child: OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.amber.shade900,
+                                        side: BorderSide(
+                                          color: Colors.amber.shade700.withAlpha(120),
+                                        ),
+                                        backgroundColor: Colors.amber.withAlpha(20),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 16.w,
+                                          vertical: 10.h,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10.r),
+                                        ),
+                                      ),
+                                      icon: Icon(
+                                        Icons.bookmark_rounded,
+                                        color: Colors.amber.shade800,
+                                        size: 18.r,
+                                      ),
+                                      label: Text(
+                                        'الصفحة المحفوظة: ص ${saved.pageNumber} (سورة ${saved.surahName})',
+                                        style: TextStyle(
+                                          fontFamily: 'Almarai',
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12.sp,
+                                        ),
+                                      ),
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                        _jumpToPage(saved.pageNumber);
+                                      },
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -642,6 +776,130 @@ class _MushafPageState extends State<MushafPageView> {
                               onTap: () {
                                 Navigator.pop(context);
                                 _jumpToPage(j.startPage);
+                              },
+                            );
+                          },
+                        ),
+
+                        // 4. Bookmarks Index
+                        StatefulBuilder(
+                          builder: (context, setModalState) {
+                            final bookmarks = QuranService.instance.getBookmarks();
+                            if (bookmarks.isEmpty) {
+                              return Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24.r),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.bookmark_border_rounded,
+                                        size: 48.r,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                      SizedBox(height: 12.h),
+                                      Text(
+                                        'لا توجد علامات مرجعية محفوظة بعد',
+                                        style: TextStyle(
+                                          fontFamily: 'Almarai',
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14.sp,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                      SizedBox(height: 6.h),
+                                      Text(
+                                        'يمكنك حفظ الصفحة الحالية في أي وقت بالضغط على أيقونة الفاصل في الشريط العلوي.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily: 'Almarai',
+                                          fontSize: 12.sp,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+                            return ListView.builder(
+                              itemCount: bookmarks.length,
+                              itemBuilder: (context, i) {
+                                final b = bookmarks[i];
+                                return ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: Colors.amber.shade50,
+                                    child: Icon(
+                                      Icons.bookmark_rounded,
+                                      color: Colors.amber.shade800,
+                                      size: 20.r,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    'سورة ${b.surahName} • آية ${b.ayahNumber}',
+                                    style: TextStyle(
+                                      fontFamily: 'Almarai',
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13.sp,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    b.snippet.isNotEmpty
+                                        ? b.snippet
+                                        : 'صفحة ${b.pageNumber}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: 'Amiri',
+                                      fontSize: 12.sp,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8.w,
+                                          vertical: 3.h,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withAlpha(20),
+                                          borderRadius:
+                                              BorderRadius.circular(6.r),
+                                        ),
+                                        child: Text(
+                                          'ص ${b.pageNumber}',
+                                          style: TextStyle(
+                                            fontFamily: 'Almarai',
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12.sp,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          color: Colors.redAccent,
+                                          size: 18,
+                                        ),
+                                        onPressed: () async {
+                                          await QuranService.instance
+                                              .removeBookmarkByPage(
+                                                  b.pageNumber);
+                                          setModalState(() {});
+                                          setState(() {});
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _jumpToPage(b.pageNumber);
+                                  },
+                                );
                               },
                             );
                           },
@@ -879,7 +1137,7 @@ class _MushafPageState extends State<MushafPageView> {
                                     Text(
                                       'أمثلة: ${rule.example}',
                                       style: TextStyle(
-                                        fontFamily: 'NotoNaskhArabic',
+                                        fontFamily: 'Amiri',
                                         fontSize: 11.5.sp,
                                         fontWeight: FontWeight.w600,
                                         color: AppColors.primary.withAlpha(200),
@@ -2078,6 +2336,19 @@ class _MushafPageState extends State<MushafPageView> {
               ),
             ),
 
+            // Visual Bookmark Ribbon (فاصل المصحف المرجعي)
+            if (QuranService.instance.isPageBookmarked(_currentPage))
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                top: _showOverlay ? 56.h : 0,
+                right: 32.w,
+                child: GestureDetector(
+                  onTap: _toggleCurrentPageBookmark,
+                  child: _buildBookmarkRibbon(),
+                ),
+              ),
+
             // Top Overlay Bar (Animated)
             if (_showOverlay)
               Positioned(
@@ -2123,7 +2394,7 @@ class _MushafPageState extends State<MushafPageView> {
                                     Text(
                                       'سورة $surahName',
                                       style: TextStyle(
-                                        fontFamily: 'NotoNaskhArabic',
+                                        fontFamily: 'Amiri',
                                         fontSize: 16.sp,
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.primary,
@@ -2151,6 +2422,20 @@ class _MushafPageState extends State<MushafPageView> {
                             ),
                           ),
                         ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          QuranService.instance.isPageBookmarked(_currentPage)
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded,
+                          color: QuranService.instance.isPageBookmarked(_currentPage)
+                              ? Colors.amber.shade800
+                              : AppColors.primary,
+                        ),
+                        tooltip: QuranService.instance.isPageBookmarked(_currentPage)
+                            ? 'إزالة حفظ الصفحة'
+                            : 'حفظ الصفحة كعلامة مرجعية',
+                        onPressed: _toggleCurrentPageBookmark,
                       ),
                       IconButton(
                         icon: Icon(

@@ -278,7 +278,7 @@ class _HadithWidgetState extends State<HadithWidget> {
                           style: TextStyle(
                             fontSize: 16.sp,
                             color: Colors.white,
-                            fontFamily: 'NotoNaskhArabic',
+                            fontFamily: 'Amiri',
                             height: 1.8,
                             fontWeight: FontWeight.w500,
                           ),

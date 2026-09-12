@@ -16,6 +16,10 @@ abstract class QuranRepository {
     int? pageNumber,
   });
   bool isBookmarked(int surah, int ayah);
+  bool isPageBookmarked(int pageNumber);
+  Future<bool> togglePageBookmark(int pageNumber);
+  QuranBookmark? getSavedPageBookmark();
+  Future<void> removeBookmarkByPage(int pageNumber);
   LastReadPosition? get lastRead;
   Future<void> setLastRead({
     required int surahNumber,

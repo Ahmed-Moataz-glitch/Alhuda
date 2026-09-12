@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:alhuda/model/adhan_model.dart';
 import 'package:alhuda/view/widgets/adhan_audio_service.dart';
+import 'package:alhuda/view/widgets/notification_services.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,6 +18,21 @@ void main() {
         .setMockMethodCallHandler(
       const MethodChannel('xyz.luan/audioplayers'),
       (MethodCall methodCall) async => 1,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('com.example.alhuda/adhan'),
+      (MethodCall methodCall) async => true,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('dexterous.com/flutter/local_notifications'),
+      (MethodCall methodCall) async => true,
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (MethodCall methodCall) async => '.',
     );
   });
 
@@ -70,6 +86,43 @@ void main() {
         expect(file.lengthSync(), greaterThan(0),
             reason: '${sound.source} must not be empty');
       }
+    });
+
+    test('AdhanAudioService.stop() resets state correctly', () async {
+      final service = AdhanAudioService();
+      await service.stop();
+      expect(service.currentPlayingSound, isNull);
+      expect(service.isPlaying, isFalse);
+      expect(service.position.inSeconds, equals(0));
+    });
+
+    test('MethodChannel stopAdhan call from Kotlin volume key invokes stop handler', () async {
+      final service = AdhanAudioService();
+      bool listenerNotified = false;
+      void listener() {
+        listenerNotified = true;
+      }
+      service.addListener(listener);
+
+      // Simulate native volume button event calling 'stopAdhan' on MethodChannel
+      final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final byteData = const StandardMethodCodec().encodeMethodCall(
+        const MethodCall('stopAdhan'),
+      );
+      await messenger.handlePlatformMessage(
+        'com.example.alhuda/adhan',
+        byteData,
+        (ByteData? reply) {},
+      );
+
+      service.removeListener(listener);
+      expect(service.isPlaying, isFalse);
+      expect(listenerNotified, isTrue);
+    });
+
+    test('NotificationServices.actionStopAdhan is defined as stop_adhan and handleStopAdhanAction runs safely', () {
+      expect(NotificationServices.actionStopAdhan, equals('stop_adhan'));
+      expect(() => NotificationServices.handleStopAdhanAction(), returnsNormally);
     });
   });
 }

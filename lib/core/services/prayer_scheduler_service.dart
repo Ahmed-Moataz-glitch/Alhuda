@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:isolate';
+import 'dart:ui';
 import 'package:alhuda/core/services/adhan_audio_service.dart';
 import 'package:alhuda/core/services/notification_services.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:muslim_data_flutter/muslim_data_flutter.dart';
 
 @pragma('vm:entry-point')
@@ -28,9 +31,40 @@ void prayerAlarmCallback(int id) async {
     sound: selectedSound,
   );
 
-  // 2. Play Adhan audio loudly and keep the background isolate alive until complete
+  // 2. Setup stop port & MethodChannel listeners to support silencing via volume buttons or notification
+  final stopPort = ReceivePort();
+  IsolateNameServer.removePortNameMapping('adhan_stop_port');
+  IsolateNameServer.registerPortWithName(stopPort.sendPort, 'adhan_stop_port');
+
+  const channel = MethodChannel('com.example.alhuda/adhan');
   try {
-    final player = AudioPlayer();
+    await channel.invokeMethod('startAdhanMonitoring');
+  } catch (_) {}
+
+  // 3. Play Adhan audio loudly and keep the background isolate alive until complete or stopped
+  final player = AudioPlayer();
+  StreamSubscription? sub;
+  final completer = Completer<void>();
+
+  try {
+    channel.setMethodCallHandler((call) async {
+      if (call.method == 'stopAdhan') {
+        try {
+          await player.stop();
+        } catch (_) {}
+        if (!completer.isCompleted) completer.complete();
+      }
+    });
+
+    stopPort.listen((message) async {
+      if (message == 'stop') {
+        try {
+          await player.stop();
+        } catch (_) {}
+        if (!completer.isCompleted) completer.complete();
+      }
+    });
+
     await player.setAudioContext(
       AudioContext(
         android: const AudioContextAndroid(
@@ -47,22 +81,32 @@ void prayerAlarmCallback(int id) async {
         ? selectedSound.source.substring(7)
         : selectedSound.source;
 
-    final completer = Completer<void>();
-    final sub = player.onPlayerComplete.listen((_) {
+    sub = player.onPlayerComplete.listen((_) {
       if (!completer.isCompleted) completer.complete();
     });
 
     await player.play(AssetSource(cleanPath));
 
-    // Keep isolate alive until audio completes, up to 4 minutes max
+    // Keep isolate alive until audio completes or stopped, up to 4 minutes max
     await completer.future.timeout(
       const Duration(minutes: 4),
       onTimeout: () => player.stop(),
     );
-    await sub.cancel();
-    await player.dispose();
   } catch (e) {
     debugPrint('Error in prayerAlarmCallback audio player: $e');
+  } finally {
+    try {
+      await sub?.cancel();
+    } catch (_) {}
+    try {
+      await player.dispose();
+    } catch (_) {}
+    stopPort.close();
+    IsolateNameServer.removePortNameMapping('adhan_stop_port');
+    try {
+      await channel.invokeMethod('stopAdhanMonitoring');
+    } catch (_) {}
+    await NotificationServices.cancelAdhanNotification(id: id);
   }
 }
 

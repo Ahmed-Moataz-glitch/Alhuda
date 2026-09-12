@@ -36,6 +36,7 @@ class TajweedDownloadProgress {
 /// - Hafs Tajweed (Dar Al-Ma'rifah)
 /// - Madinah Hafs (King Fahd Complex)
 /// - Madinah Warsh (King Fahd Complex)
+/// - Madinah Shu'bah (King Fahd Complex)
 class TajweedPageCacheService {
   TajweedPageCacheService._();
   static final TajweedPageCacheService instance = TajweedPageCacheService._();
@@ -136,6 +137,13 @@ class TajweedPageCacheService {
     return '${ed.baseUrl}/$page.jpg';
   }
 
+  /// Get fallback remote URL for a page if configured
+  String? getFallbackPageUrl(int page, [MushafEdition? edition]) {
+    final ed = edition ?? _currentEdition;
+    if (ed.fallbackBaseUrl == null) return null;
+    return '${ed.fallbackBaseUrl}/$page.jpg';
+  }
+
   /// Get local file path for a page
   File? getLocalFile(int page, [MushafEdition? edition]) {
     final dir = _getDirForEdition(edition);
@@ -228,10 +236,34 @@ class TajweedPageCacheService {
         try {
           final file = getLocalFile(page, ed);
           if (file != null && (!file.existsSync() || file.lengthSync() <= 1000)) {
-            final response = await http
-                .get(Uri.parse(getPageUrl(page, ed)))
-                .timeout(const Duration(seconds: 25));
-            if (response.statusCode == 200 && response.bodyBytes.length > 1000) {
+            http.Response? response;
+            try {
+              response = await http
+                  .get(Uri.parse(getPageUrl(page, ed)))
+                  .timeout(const Duration(seconds: 25));
+            } catch (_) {
+              // Primary URL failed
+            }
+
+            if ((response == null ||
+                    response.statusCode != 200 ||
+                    response.bodyBytes.length <= 1000) &&
+                ed.fallbackBaseUrl != null) {
+              try {
+                final fallbackUrl = getFallbackPageUrl(page, ed);
+                if (fallbackUrl != null) {
+                  response = await http
+                      .get(Uri.parse(fallbackUrl))
+                      .timeout(const Duration(seconds: 25));
+                }
+              } catch (_) {
+                // Fallback failed
+              }
+            }
+
+            if (response != null &&
+                response.statusCode == 200 &&
+                response.bodyBytes.length > 1000) {
               await file.writeAsBytes(response.bodyBytes, flush: true);
             }
           }
@@ -301,10 +333,34 @@ class TajweedPageCacheService {
 
     _activeDownloads.add(downloadKey);
     try {
-      final response = await http
-          .get(Uri.parse(getPageUrl(page, ed)))
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200 && response.bodyBytes.length > 1000) {
+      http.Response? response;
+      try {
+        response = await http
+            .get(Uri.parse(getPageUrl(page, ed)))
+            .timeout(const Duration(seconds: 15));
+      } catch (_) {
+        // Primary URL failed
+      }
+
+      if ((response == null ||
+              response.statusCode != 200 ||
+              response.bodyBytes.length <= 1000) &&
+          ed.fallbackBaseUrl != null) {
+        try {
+          final fallbackUrl = getFallbackPageUrl(page, ed);
+          if (fallbackUrl != null) {
+            response = await http
+                .get(Uri.parse(fallbackUrl))
+                .timeout(const Duration(seconds: 15));
+          }
+        } catch (_) {
+          // Fallback failed
+        }
+      }
+
+      if (response != null &&
+          response.statusCode == 200 &&
+          response.bodyBytes.length > 1000) {
         if (file != null) {
           await file.writeAsBytes(response.bodyBytes, flush: true);
           return file;

@@ -210,7 +210,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18.sp,
-                  fontFamily: 'NotoNaskhArabic',
+                  fontFamily: 'Amiri',
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                   height: 1.8,
@@ -362,7 +362,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
                                 fontSize: _fontSize,
                                 height: 2.0,
                                 color: AppColors.textPrimary,
-                                fontFamily: isRtl ? 'NotoNaskhArabic' : null,
+                                fontFamily: isRtl ? 'Amiri' : null,
                               ),
                             ),
                           ),

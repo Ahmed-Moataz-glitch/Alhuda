@@ -49,6 +49,22 @@ class QuranRepositoryImpl implements QuranRepository {
       _service.isBookmarked(surah, ayah);
 
   @override
+  bool isPageBookmarked(int pageNumber) =>
+      _service.isPageBookmarked(pageNumber);
+
+  @override
+  Future<bool> togglePageBookmark(int pageNumber) =>
+      _service.togglePageBookmark(pageNumber);
+
+  @override
+  QuranBookmark? getSavedPageBookmark() =>
+      _service.getLastSavedPageBookmark();
+
+  @override
+  Future<void> removeBookmarkByPage(int pageNumber) =>
+      _service.removeBookmarkByPage(pageNumber);
+
+  @override
   LastReadPosition? get lastRead => _service.lastRead;
 
   @override

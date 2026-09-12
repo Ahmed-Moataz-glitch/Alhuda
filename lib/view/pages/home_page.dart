@@ -288,7 +288,7 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   '﴿ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ ﴾',
                   style: TextStyle(
-                    fontFamily: 'NotoNaskhArabic',
+                    fontFamily: 'Amiri',
                     fontSize: 15.5.sp,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -408,7 +408,7 @@ class _HomePageState extends State<HomePage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: 'NotoNaskhArabic',
+                    fontFamily: 'Amiri',
                     fontSize: 15.sp,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -497,7 +497,7 @@ class _HomePageState extends State<HomePage> {
         Text(
           'الهُدى',
           style: TextStyle(
-            fontFamily: 'NotoNaskhArabic',
+            fontFamily: 'Amiri',
             fontSize: 22.sp,
             fontWeight: FontWeight.bold,
             color: AppColors.primary,
@@ -507,7 +507,7 @@ class _HomePageState extends State<HomePage> {
         Text(
           'نُورٌ وَهِدَايَة',
           style: TextStyle(
-            fontFamily: 'NotoNaskhArabic',
+            fontFamily: 'Amiri',
             fontSize: 9.sp,
             color: AppColors.textSecondary,
             fontWeight: FontWeight.w600,

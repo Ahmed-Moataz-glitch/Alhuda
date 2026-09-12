@@ -588,7 +588,7 @@ class _PageTafsirBottomSheetState extends State<PageTafsirBottomSheet> {
               '﴿ ${item.ayahText} ﴾',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'NotoNaskhArabic',
+                fontFamily: 'Amiri',
                 fontSize: 17.sp,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,

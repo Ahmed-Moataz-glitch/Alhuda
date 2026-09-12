@@ -317,16 +317,15 @@ ${name.quranVerse} [${name.surahRef}]
                 ),
                 SizedBox(height: 12.h),
 
-                // Arabic Name in prominent NotoNaskhArabic font
+                // Arabic Name in prominent Amiri font
                 Text(
                   item.name,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontFamily: 'NotoNaskhArabic',
+                    fontFamily: 'Amiri',
                     fontSize: 38.sp,
                     fontWeight: FontWeight.bold,
                     color: Colors.amber.shade100,
-                    letterSpacing: 0.5,
                     shadows: [
                       Shadow(
                         color: Colors.black.withAlpha(120),
@@ -434,7 +433,7 @@ ${name.quranVerse} [${name.surahRef}]
           Text(
             content,
             style: TextStyle(
-              fontFamily: 'NotoNaskhArabic',
+              fontFamily: 'Amiri',
               fontSize: 14.5.sp,
               height: 1.8,
               color: AppColors.textPrimary,
@@ -541,7 +540,7 @@ ${name.quranVerse} [${name.surahRef}]
               '﴾ ${item.quranVerse} ﴿',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'NotoNaskhArabic',
+                fontFamily: 'Amiri',
                 fontSize: 15.sp,
                 fontWeight: FontWeight.bold,
                 height: 1.9,
@@ -634,7 +633,7 @@ ${name.quranVerse} [${name.surahRef}]
                   Text(
                     'يا ${item.name}',
                     style: TextStyle(
-                      fontFamily: 'NotoNaskhArabic',
+                      fontFamily: 'Amiri',
                       fontSize: 22.sp,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,

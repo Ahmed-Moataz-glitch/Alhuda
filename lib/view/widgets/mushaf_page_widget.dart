@@ -447,7 +447,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
     );
   }
 
-  /// Authentic Offline Uthmani Page Renderer using embedded Quran text and NotoNaskhArabic font.
+  /// Authentic Offline Uthmani Page Renderer using embedded Quran text and Amiri font.
   /// Renders immediately without requiring internet or external font downloads.
   Widget _buildOfflinePageContent(
     BoxConstraints constraints,
@@ -538,7 +538,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
 
         // Verse Text with Tajweed Coloring and uniform, equal word spacing
         final verseBaseStyle = TextStyle(
-          fontFamily: 'NotoNaskhArabic',
+          fontFamily: 'Amiri',
           fontSize: effectiveFontSize,
           height: effectiveHeight,
           wordSpacing: -0.5,
@@ -877,7 +877,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
               child: Text(
                 juzName,
                 style: TextStyle(
-                  fontFamily: 'NotoNaskhArabic',
+                  fontFamily: 'Amiri',
                   fontSize: 12.sp,
                   fontWeight: FontWeight.bold,
                   color: config.frameColor,
@@ -901,7 +901,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
               child: Text(
                 'سورة $surahName',
                 style: TextStyle(
-                  fontFamily: 'NotoNaskhArabic',
+                  fontFamily: 'Amiri',
                   fontSize: 12.sp,
                   fontWeight: FontWeight.bold,
                   color: config.frameColor,
@@ -955,7 +955,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
           child: Text(
             '— ${QuranService.toArabicDigits(widget.pageNumber)} —',
             style: TextStyle(
-              fontFamily: 'NotoNaskhArabic',
+              fontFamily: 'Amiri',
               fontSize: 14.sp,
               fontWeight: FontWeight.bold,
               color: config.frameColor,

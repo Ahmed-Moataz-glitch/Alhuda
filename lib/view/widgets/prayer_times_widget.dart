@@ -854,7 +854,6 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                               fontSize: 18.sp,
                               fontFamily: 'Rubik',
                               fontWeight: FontWeight.w600,
-                              letterSpacing: 1.2,
                               color: Colors.white,
                             ),
                           ),

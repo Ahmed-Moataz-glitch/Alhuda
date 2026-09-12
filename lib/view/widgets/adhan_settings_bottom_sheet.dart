@@ -350,6 +350,50 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
       physics: const BouncingScrollPhysics(),
       children: [
         Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withAlpha(20),
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: AppColors.primary.withAlpha(50)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.volume_down_rounded,
+                color: AppColors.primary,
+                size: 22.sp,
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'إيقاف الأذان السريع (في الاجتماعات والأماكن الهادئة)',
+                      style: TextStyle(
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      'يمكنك إيقاف أو كتم صوت الأذان فوراً عند رنينه بالضغط على أزرار خفض أو رفع الصوت في الهاتف، أو عبر زر "إيقاف الأذان" المباشر في الإشعار.',
+                      style: TextStyle(
+                        fontSize: 11.5.sp,
+                        color: AppColors.black.withAlpha(180),
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
           padding: EdgeInsets.all(12.r),
           decoration: BoxDecoration(
             color: AppColors.primary.withAlpha(15),
@@ -470,11 +514,11 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
                   content: Directionality(
                     textDirection: TextDirection.rtl,
                     child: Text(
-                      'جاري تشغيل صوت ${_audioService.selectedSound.title}',
+                      'جاري تشغيل صوت ${_audioService.selectedSound.title} (يمكنك إيقافه بأزرار الصوت أو الإشعار)',
                     ),
                   ),
                   backgroundColor: AppColors.primary,
-                  duration: const Duration(seconds: 3),
+                  duration: const Duration(seconds: 4),
                 ),
               );
             },

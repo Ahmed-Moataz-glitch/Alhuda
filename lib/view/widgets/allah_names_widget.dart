@@ -199,7 +199,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
             '﴿ وَلِلَّهِ الْأَسْمَاءُ الْحُسْنَىٰ فَادْعُوهُ بِهَا ﴾',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontFamily: 'NotoNaskhArabic',
+              fontFamily: 'Amiri',
               fontSize: 18.sp,
               fontWeight: FontWeight.bold,
               color: Colors.amber.shade200,
@@ -212,7 +212,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
             '«إِنَّ لِلَّهِ تِسْعَةً وَتِسْعِينَ اسْمًا، مِائَةً إِلَّا وَاحِدًا، مَنْ أَحْصَاهَا دَخَلَ الْجَنَّةَ»',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontFamily: 'NotoNaskhArabic',
+              fontFamily: 'Amiri',
               fontSize: 13.5.sp,
               color: Colors.white.withAlpha(235),
               height: 1.6,
@@ -300,7 +300,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                       item.name,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontFamily: 'NotoNaskhArabic',
+                        fontFamily: 'Amiri',
                         fontSize: 20.sp,
                         fontWeight: FontWeight.bold,
                         color: Colors.amber.shade100,
@@ -640,7 +640,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontFamily: 'NotoNaskhArabic',
+                      fontFamily: 'Amiri',
                       fontSize: 22.sp,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
@@ -668,7 +668,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontFamily: 'NotoNaskhArabic',
+                        fontFamily: 'Amiri',
                         fontSize: 10.sp,
                         color: isDark ? AppColors.textPrimary : AppColors.textSecondary,
                         height: 1.3,
@@ -745,7 +745,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                           Text(
                             item.name,
                             style: TextStyle(
-                              fontFamily: 'NotoNaskhArabic',
+                              fontFamily: 'Amiri',
                               fontSize: 19.sp,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,

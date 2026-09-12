@@ -38,7 +38,7 @@ void main() {
         // Test that Tajweed spans generate successfully
         final spans = TajweedSpanBuilder.buildVerseSpans(
           verseText: stretched,
-          baseStyle: const TextStyle(fontSize: 24, fontFamily: 'NotoNaskhArabic', fontWeight: FontWeight.w600),
+          baseStyle: const TextStyle(fontSize: 24, fontFamily: 'Amiri', fontWeight: FontWeight.w600),
           isDark: false,
         );
         expect(spans.isNotEmpty, isTrue);

@@ -325,6 +325,16 @@ class QuranService {
     await _saveBookmarksToDisk();
   }
 
+  QuranBookmark? getLastSavedPageBookmark() {
+    if (_bookmarks.isEmpty) return null;
+    return _bookmarks.first;
+  }
+
+  Future<void> removeBookmarkByPage(int pageNumber) async {
+    _bookmarks.removeWhere((b) => b.pageNumber == pageNumber);
+    await _saveBookmarksToDisk();
+  }
+
   Future<void> _loadBookmarksFromDisk() async {
     if (_bookmarksFile == null || !await _bookmarksFile!.exists()) return;
     try {

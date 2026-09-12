@@ -156,6 +156,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
 }
 
   Widget _buildLastReadCard(LastReadPosition? lastRead) {
+    final savedBookmark = QuranService.instance.getLastSavedPageBookmark();
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(14.r),
@@ -177,74 +178,140 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
           ),
         ],
       ),
-      child: Row(
-        textDirection: TextDirection.ltr,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.primary,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
-            ),
-            icon: const Icon(Icons.menu_book_rounded, size: 18),
-            label: Text(
-              lastRead != null ? 'متابعة' : 'ابدأ الآن',
-              style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold, fontSize: 13.sp),
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => MushafPageView(
-                    initialPage: lastRead?.pageNumber ?? 1,
-                    highlightedSurah: lastRead?.surahNumber,
-                    highlightedAyah: lastRead?.ayahNumber,
+          Row(
+            textDirection: TextDirection.ltr,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.primary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.r),
                   ),
+                  padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
                 ),
-              ).then((_) => setState(() {}));
-            },
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
+                icon: const Icon(Icons.menu_book_rounded, size: 18),
+                label: Text(
+                  lastRead != null ? 'متابعة' : 'ابدأ الآن',
+                  style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold, fontSize: 13.sp),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MushafPageView(
+                        initialPage: lastRead?.pageNumber ?? 1,
+                        highlightedSurah: lastRead?.surahNumber,
+                        highlightedAyah: lastRead?.ayahNumber,
+                      ),
+                    ),
+                  ).then((_) => setState(() {}));
+                },
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.bookmark_added_rounded, color: Colors.amberAccent, size: 18),
-                    SizedBox(width: 6.w),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.history_rounded, color: Colors.amberAccent, size: 18),
+                        SizedBox(width: 6.w),
+                        Text(
+                          'آخر تصفح',
+                          style: TextStyle(
+                            color: Colors.white.withAlpha(200),
+                            fontSize: 12.sp,
+                            fontFamily: 'Almarai',
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4.h),
                     Text(
-                      'آخر قراءة',
+                      lastRead != null
+                          ? 'سورة ${lastRead.surahName} (${QuranService.instance.getPlaceOfRevelationArabic(lastRead.surahNumber)}) • آية ${lastRead.ayahNumber} (ص ${lastRead.pageNumber})'
+                          : 'سورة الفاتحة (مكية) • آية 1 (ص 1)',
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withAlpha(200),
-                        fontSize: 12.sp,
-                        fontFamily: 'Almarai',
+                        color: Colors.white,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Amiri',
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 4.h),
-                Text(
-                  lastRead != null
-                      ? 'سورة ${lastRead.surahName} (${QuranService.instance.getPlaceOfRevelationArabic(lastRead.surahNumber)}) • آية ${lastRead.ayahNumber} (ص ${lastRead.pageNumber})'
-                      : 'سورة الفاتحة (مكية) • آية 1 (ص 1)',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'NotoNaskhArabic',
+              ),
+            ],
+          ),
+          if (savedBookmark != null) ...[
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.h),
+              child: Divider(color: Colors.white.withAlpha(40), height: 1),
+            ),
+            Row(
+              textDirection: TextDirection.ltr,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade400,
+                    foregroundColor: Colors.brown.shade900,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                  ),
+                  icon: const Icon(Icons.bookmark_rounded, size: 16),
+                  label: Text(
+                    'الفاصل',
+                    style: TextStyle(fontFamily: 'Almarai', fontWeight: FontWeight.bold, fontSize: 12.sp),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MushafPageView(
+                          initialPage: savedBookmark.pageNumber,
+                          highlightedSurah: savedBookmark.surahNumber,
+                          highlightedAyah: savedBookmark.ayahNumber,
+                        ),
+                      ),
+                    ).then((_) => setState(() {}));
+                  },
+                ),
+                Expanded(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.bookmark_added_rounded, color: Colors.amberAccent, size: 16),
+                      SizedBox(width: 6.w),
+                      Flexible(
+                        child: Text(
+                          'الصفحة المحفوظة: سورة ${savedBookmark.surahName} (ص ${savedBookmark.pageNumber})',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withAlpha(230),
+                            fontSize: 12.5.sp,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Almarai',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -498,7 +565,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
             ),
             SizedBox(height: 6.h),
             Text(
-              'أثناء قراءة السورة، اضغط على أيقونة الإشارة المرجعية لأي آية لحفظها هنا.',
+              'أثناء تصفح المصحف الشريف، اضغط على أيقونة حفظ الصفحة في الشريط العلوي لوضع فاصل مرجعي والعودة إليه هنا.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Almarai',
@@ -532,17 +599,41 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
                   icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
                   onPressed: () async {
                     await QuranService.instance.removeBookmark(b.surahNumber, b.ayahNumber);
+                    await QuranService.instance.removeBookmarkByPage(b.pageNumber);
                     setState(() {});
                   },
                 ),
-                Text(
-                  'سورة ${b.surahName} • آية ${b.ayahNumber}',
-                  style: TextStyle(
-                    fontFamily: 'Almarai',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14.sp,
-                    color: AppColors.primary,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(15),
+                        borderRadius: BorderRadius.circular(6.r),
+                        border: Border.all(color: AppColors.primary.withAlpha(40)),
+                      ),
+                      child: Text(
+                        'ص ${b.pageNumber}',
+                        style: TextStyle(
+                          fontFamily: 'Almarai',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.sp,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                    Text(
+                      'سورة ${b.surahName} • آية ${b.ayahNumber}',
+                      style: TextStyle(
+                        fontFamily: 'Almarai',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14.sp,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -553,7 +644,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontFamily: 'NotoNaskhArabic',
+                  fontFamily: 'Amiri',
                   fontSize: 14.sp,
                   color: AppColors.textPrimary,
                   height: 1.6,

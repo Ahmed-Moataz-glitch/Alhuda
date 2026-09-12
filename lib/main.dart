@@ -1,7 +1,7 @@
+import 'package:alhuda/core/theme/app_theme.dart';
 import 'package:alhuda/services/quran_service.dart';
 import 'package:alhuda/services/theme_service.dart';
 import 'package:alhuda/view/pages/home_page.dart';
-import 'package:alhuda/view/theme/app_theme.dart';
 import 'package:alhuda/view/widgets/app_constants.dart';
 import 'package:alhuda/view/widgets/notification_services.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';

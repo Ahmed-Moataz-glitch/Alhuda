@@ -350,7 +350,7 @@ class _HadithSearchPageState extends State<HadithSearchPage> {
                 style: TextStyle(
                   fontSize: 14.sp,
                   color: AppColors.textPrimary,
-                  fontFamily: 'NotoNaskhArabic',
+                  fontFamily: 'Amiri',
                   height: 1.6,
                 ),
                 maxLines: 3,
