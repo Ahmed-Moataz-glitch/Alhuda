@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/Ahmed-Moataz-glitch/Alhuda/master/assets/images/splash_ios_android_11.png" alt="Logo" width="200" />
+<img src="https://raw.githubusercontent.com/Ahmed-Moataz-glitch/Alhuda/development/assets/images/splash_ios_android_11.png" alt="Logo" width="200" />
 
 <h1>Alhuda</h1>
 
@@ -23,18 +23,51 @@
 
 ## 📸 Screenshots
 
-| Screen 1 | Screen 2 | Screen 3 |
-|:--------:|:--------:|:--------:|
-| <img src="assets/screenshots/screen1.png" width="200"/> | <img src="assets/screenshots/screen2.png" width="200"/> | <img src="assets/screenshots/screen3.png" width="200"/> |
+<div align="center">
+
+### 🏠 الرئيسية والقرآن الكريم (Home & Holy Quran)
+
+| شاشة البداية <br> Splash Screen | الشاشة الرئيسية <br> Home Screen | المصحف الشريف <br> Holy Quran | فهرس السور <br> Surah Index |
+|:---:|:---:|:---:|:---:|
+| <img src="splash.png" width="220" alt="Splash Screen"/> | <img src="home.png" width="220" alt="Home Screen"/> | <img src="mushaf.png" width="220" alt="Holy Quran"/> | <img src="mushaf_index.png" width="220" alt="Surah Index"/> |
+
+### 🕌 الصلاة والقبلة والتقويم (Prayer, Qibla & Calendar)
+
+| مواقيت الصلاة <br> Prayer Times | اتجاه القبلة <br> Qibla Compass | التقويم الهجري <br> Hijri Calendar | التسبيح الحر <br> Electronic Tasbeeh |
+|:---:|:---:|:---:|:---:|
+| <img src="prayer_times.png" width="220" alt="Prayer Times"/> | <img src="qibla.png" width="220" alt="Qibla Compass"/> | <img src="hijri_calendar.png" width="220" alt="Hijri Calendar"/> | <img src="tasbeeh.png" width="220" alt="Electronic Tasbeeh"/> |
+
+### 📚 دواوين الحديث والفقه الإسلامي (Hadith & Islamic Fiqh)
+
+| الأحاديث النبوية <br> Prophetic Hadith | صحيح مسلم <br> Sahih Muslim | موسوعة الفقه <br> Islamic Fiqh | أبواب وفصول الفقه <br> Fiqh Chapters |
+|:---:|:---:|:---:|:---:|
+| <img src="hadith.png" width="220" alt="Prophetic Hadith"/> | <img src="hadith_book.png" width="220" alt="Sahih Muslim"/> | <img src="fiqh.png" width="220" alt="Islamic Fiqh"/> | <img src="fiqh_chapter.png" width="220" alt="Fiqh Chapters"/> |
+
+### 📿 الأذكار وأسماء الله الحسنى (Azkar & Names of Allah)
+
+| حصن المسلم والأذكار <br> Daily Azkar | عداد الأذكار <br> Azkar Counter | أسماء الله الحسنى <br> Names of Allah | تفاصيل وتدبر الاسم <br> Name Details |
+|:---:|:---:|:---:|:---:|
+| <img src="azkar.png" width="220" alt="Daily Azkar"/> | <img src="azkar_details.png" width="220" alt="Azkar Counter"/> | <img src="names_of_allah.png" width="220" alt="Names of Allah"/> | <img src="name_details.png" width="220" alt="Name Details"/> |
+
+</div>
 
 ---
 
 ## ✨ Features
 
-- ✅ Building native splash screen 
-- ✅ 
-- ✅ 
-- 🔜 
+- ✅ Native splash screen with dark/light support
+- ✅ Holy Quran with Tajweed pages, audio recitations (Mishary Alafasy), Ayah tafsir & search (المصحف الشريف وتلاوات وتفسير الآيات)
+- ✅ Authentic Prophetic Hadith collections: Sahih Bukhari, Sahih Muslim, and 40 Nawawi (الأحاديث النبوية ودواوين السنة)
+- ✅ Accurate prayer times with live countdown to next prayer & offline city search (مواقيت الصلاة)
+- ✅ 8 Offline Adhan voices: Sheikh Nasser Al-Qatami (مميز), Makkah (Ali Mullah), Madinah, Mishary Alafasy, Ahmed Basnawi, Essam Khan, Ahmad Khoja, and Dubai Adhan (أصوات الأذان والتنبيهات 100% أوفلاين)
+- ✅ Automatic background Adhan playback & notifications at exact prayer times via `android_alarm_manager_plus` & `flutter_local_notifications` (تشغيل الأذان التلقائي في موعد الصلاة)
+- ✅ Qibla direction compass with real-time magnetometer/sensors, sun alignment mode & Kaaba geodesic distance (اتجاه القبلة)
+- ✅ Hijri calendar with moon phases and Islamic events (التقويم الهجري وأطوار القمر والمناسبات)
+- ✅ Electronic Tasbeeh counter with vibration and reset (التسبيح الحر)
+- ✅ Daily Azkar & supplications (Hisn Al-Muslim) with interactive counters & progress tracking (الأذكار وحصن المسلم)
+- ✅ 99 Names of Allah with meanings, Quranic verses, and Tasbeeh for each name (أسماء الله الحسنى ومعانيها)
+- ✅ Simplified Islamic Fiqh encyclopedia with chapters, issues, and evidence (موسوعة الفقه الإسلامي الميسر)
+- ✅ Hourly local notifications for Dhikr and remembrance
 
 ---
 
@@ -45,8 +78,15 @@
 | Flutter | UI framework |
 | Dart | Programming language |
 | flutter_native_splash | Building native splash screen |
-| buttons_tabbar | custom tab bar |
+| buttons_tabbar | Custom tab bar |
 | flutter_screenutil | Make screens responsive |
+| muslim_data_flutter | Offline prayer times, calculation methods, and geocoding |
+| audioplayers | Cross-platform audio playback and streaming for Adhan |
+| android_alarm_manager_plus | Exact system-level background alarms for prayer times |
+| flutter_local_notifications | Adhan notification sound channel and reminder notifications |
+| flutter_qiblah | Real-time Qibla compass & sensor stream |
+| qibla | Kaaba geodesic distance and bearing calculations |
+| geolocator | Location permissions and coordinates |
 
 ---
 
