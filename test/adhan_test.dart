@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUpAll(() {
+  setUpAll(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       const MethodChannel('xyz.luan/audioplayers.global'),
@@ -34,6 +34,8 @@ void main() {
       const MethodChannel('plugins.flutter.io/path_provider'),
       (MethodCall methodCall) async => '.',
     );
+
+    await NotificationServices.initializeNotifications();
   });
 
   group('Adhan Model & Service Tests', () {
@@ -120,9 +122,37 @@ void main() {
       expect(listenerNotified, isTrue);
     });
 
-    test('NotificationServices.actionStopAdhan is defined as stop_adhan and handleStopAdhanAction runs safely', () {
+    test('NotificationServices notification actions and handlers run safely', () {
       expect(NotificationServices.actionStopAdhan, equals('stop_adhan'));
+      expect(NotificationServices.actionPauseAdhan, equals('pause_adhan'));
+      expect(NotificationServices.actionResumeAdhan, equals('resume_adhan'));
+      expect(NotificationServices.adhanControlPort, equals('adhan_control_port'));
+
       expect(() => NotificationServices.handleStopAdhanAction(), returnsNormally);
+      expect(() => NotificationServices.handlePauseAdhanAction(), returnsNormally);
+      expect(() => NotificationServices.handleResumeAdhanAction(), returnsNormally);
+    });
+
+    test('showAdhanControlNotification runs without error', () async {
+      await expectLater(
+        NotificationServices.showAdhanControlNotification(
+          id: 1001,
+          prayerName: 'الفجر',
+          sound: AdhanData.defaultAdhan,
+          isPlaying: true,
+        ),
+        completes,
+      );
+
+      await expectLater(
+        NotificationServices.showAdhanControlNotification(
+          id: 1001,
+          prayerName: 'الفجر',
+          sound: AdhanData.defaultAdhan,
+          isPlaying: false,
+        ),
+        completes,
+      );
     });
   });
 }

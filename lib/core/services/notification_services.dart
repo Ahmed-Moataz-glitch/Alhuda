@@ -10,13 +10,22 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse response) async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (response.actionId == NotificationServices.actionStopAdhan) {
-    NotificationServices.handleStopAdhanAction();
+  final actionId = response.actionId;
+  if (actionId == NotificationServices.actionStopAdhan) {
+    NotificationServices.handleStopAdhanAction(fromBackgroundIsolate: true);
+  } else if (actionId == NotificationServices.actionPauseAdhan) {
+    NotificationServices.handlePauseAdhanAction(fromBackgroundIsolate: true);
+  } else if (actionId == NotificationServices.actionResumeAdhan) {
+    NotificationServices.handleResumeAdhanAction(fromBackgroundIsolate: true);
   }
 }
 
 abstract class NotificationServices {
   static const String actionStopAdhan = 'stop_adhan';
+  static const String actionPauseAdhan = 'pause_adhan';
+  static const String actionResumeAdhan = 'resume_adhan';
+  static const String adhanControlPort = 'adhan_control_port';
+
   static const MethodChannel _adhanChannel =
       MethodChannel('com.example.alhuda/adhan');
 
@@ -65,6 +74,10 @@ abstract class NotificationServices {
         onDidReceiveNotificationResponse: (response) {
           if (response.actionId == actionStopAdhan) {
             handleStopAdhanAction();
+          } else if (response.actionId == actionPauseAdhan) {
+            handlePauseAdhanAction();
+          } else if (response.actionId == actionResumeAdhan) {
+            handleResumeAdhanAction();
           }
         },
         onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
@@ -86,44 +99,81 @@ abstract class NotificationServices {
           ),
         );
 
-        // Explicitly register notification channels for all 8 Adhan sounds with alarm audio attributes
-        for (final sound in AdhanData.availableSounds) {
-          final rawRes = sound.source.split('/').last.replaceAll('.mp3', '');
-          final channel = AndroidNotificationChannel(
-            'adhan_channel_${sound.id}',
-            'أذان - ${sound.title}',
-            description: 'تنبيه أذان بصوت ${sound.muadhin}',
+        // Register dedicated Adhan control channel
+        await androidImpl.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'adhan_control_channel',
+            'تنبيهات وأدوات الأذان',
+            description: 'إشعارات الأذان مع أدوات التحكم في الصوت والتشغيل',
             importance: Importance.max,
-            playSound: true,
-            sound: RawResourceAndroidNotificationSound(rawRes),
-            audioAttributesUsage: AudioAttributesUsage.alarm,
-            enableVibration: true,
-          );
-          await androidImpl.createNotificationChannel(channel);
-        }
+            playSound: false,
+            enableVibration: false,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error initializing notifications: $e');
     }
   }
 
-  static void handleStopAdhanAction() {
+  static void handleStopAdhanAction({bool fromBackgroundIsolate = false}) {
     try {
-      final sendPort = IsolateNameServer.lookupPortByName('adhan_stop_port');
+      final sendPort = IsolateNameServer.lookupPortByName(adhanControlPort);
       sendPort?.send('stop');
     } catch (_) {}
 
     try {
-      AdhanAudioService().stop();
+      final legacyPort = IsolateNameServer.lookupPortByName('adhan_stop_port');
+      legacyPort?.send('stop');
     } catch (_) {}
 
     try {
       _adhanChannel.invokeMethod('stopAdhan');
     } catch (_) {}
 
+    if (!fromBackgroundIsolate) {
+      try {
+        AdhanAudioService.instance.stop();
+      } catch (_) {}
+    }
+
     try {
-      cancelNotification();
+      cancelAdhanNotification();
     } catch (_) {}
+  }
+
+  static void handlePauseAdhanAction({bool fromBackgroundIsolate = false}) {
+    try {
+      final sendPort = IsolateNameServer.lookupPortByName(adhanControlPort);
+      sendPort?.send('pause');
+    } catch (_) {}
+
+    try {
+      _adhanChannel.invokeMethod('pauseAdhan');
+    } catch (_) {}
+
+    if (!fromBackgroundIsolate) {
+      try {
+        AdhanAudioService.instance.pause();
+      } catch (_) {}
+    }
+  }
+
+  static void handleResumeAdhanAction({bool fromBackgroundIsolate = false}) {
+    try {
+      final sendPort = IsolateNameServer.lookupPortByName(adhanControlPort);
+      sendPort?.send('resume');
+    } catch (_) {}
+
+    try {
+      _adhanChannel.invokeMethod('resumeAdhan');
+    } catch (_) {}
+
+    if (!fromBackgroundIsolate) {
+      try {
+        AdhanAudioService.instance.resume();
+      } catch (_) {}
+    }
   }
 
   static void sendNotification({
@@ -142,52 +192,89 @@ abstract class NotificationServices {
     }
   }
 
+  static Future<void> showAdhanControlNotification({
+    int id = 9999,
+    required String prayerName,
+    required AdhanSound sound,
+    required bool isPlaying,
+    String? body,
+  }) async {
+    try {
+      final actions = <AndroidNotificationAction>[
+        if (isPlaying)
+          const AndroidNotificationAction(
+            actionPauseAdhan,
+            'إيقاف مؤقت',
+            showsUserInterface: true,
+            cancelNotification: false,
+          )
+        else
+          const AndroidNotificationAction(
+            actionResumeAdhan,
+            'استئناف',
+            showsUserInterface: true,
+            cancelNotification: false,
+          ),
+        const AndroidNotificationAction(
+          actionStopAdhan,
+          'إيقاف الأذان',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ];
+
+      final details = NotificationDetails(
+        android: AndroidNotificationDetails(
+          'adhan_control_channel',
+          'تنبيهات وأدوات الأذان',
+          channelDescription: 'إشعارات الأذان مع أدوات التحكم في الصوت والتشغيل',
+          icon: AppConstants.notificationIcon,
+          color: AppColors.primary,
+          importance: Importance.max,
+          priority: Priority.high,
+          ongoing: isPlaying,
+          autoCancel: false,
+          playSound: false,
+          enableVibration: false,
+          category: AndroidNotificationCategory.alarm,
+          visibility: NotificationVisibility.public,
+          actions: actions,
+        ),
+      );
+
+      final title = prayerName.isNotEmpty
+          ? 'حان الآن موعد أذان $prayerName'
+          : 'أذان الصلاة (${sound.title})';
+      final defaultBody = isPlaying
+          ? 'حي على الصلاة .. حي على الفلاح (${sound.title})'
+          : 'متوقف مؤقتاً (${sound.title})';
+
+      await flutterLocalNotificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body ?? defaultBody,
+        notificationDetails: details,
+      );
+    } catch (e) {
+      debugPrint('Error showing Adhan control notification: $e');
+    }
+  }
+
   static Future<void> sendAdhanNotification({
     required int id,
     required String prayerName,
     AdhanSound? sound,
     String? body,
+    bool isPlaying = true,
   }) async {
-    try {
-      final adhanSound = sound ?? AdhanData.defaultAdhan;
-      final rawRes = adhanSound.source.split('/').last.replaceAll('.mp3', '');
-      final channelId = 'adhan_channel_${adhanSound.id}';
-
-      final details = NotificationDetails(
-        android: AndroidNotificationDetails(
-          channelId,
-          'أذان - ${adhanSound.title}',
-          channelDescription: 'تنبيه أذان بصوت ${adhanSound.muadhin}',
-          icon: AppConstants.notificationIcon,
-          color: AppColors.primary,
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
-          sound: RawResourceAndroidNotificationSound(rawRes),
-          audioAttributesUsage: AudioAttributesUsage.alarm,
-          fullScreenIntent: true,
-          category: AndroidNotificationCategory.alarm,
-          visibility: NotificationVisibility.public,
-          actions: const [
-            AndroidNotificationAction(
-              NotificationServices.actionStopAdhan,
-              'إيقاف الأذان',
-              showsUserInterface: false,
-              cancelNotification: true,
-            ),
-          ],
-        ),
-      );
-
-      await flutterLocalNotificationsPlugin.show(
-        id: id,
-        title: 'حان الآن موعد أذان $prayerName',
-        body: body ?? 'حي على الصلاة .. حي على الفلاح (${adhanSound.title})',
-        notificationDetails: details,
-      );
-    } catch (e) {
-      debugPrint('Error sending Adhan notification: $e');
-    }
+    final adhanSound = sound ?? AdhanData.defaultAdhan;
+    await showAdhanControlNotification(
+      id: id,
+      prayerName: prayerName,
+      sound: adhanSound,
+      isPlaying: isPlaying,
+      body: body,
+    );
   }
 
   static Future<void> cancelAdhanNotification({int? id}) async {

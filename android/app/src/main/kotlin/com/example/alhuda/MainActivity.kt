@@ -103,6 +103,46 @@ object AdhanVolumeManager {
         }
     }
 
+    fun pauseAdhan() {
+        val handler = Handler(Looper.getMainLooper())
+        handler.post {
+            synchronized(channels) {
+                val iterator = channels.iterator()
+                while (iterator.hasNext()) {
+                    val ref = iterator.next()
+                    val ch = ref.get()
+                    if (ch != null) {
+                        try {
+                            ch.invokeMethod("pauseAdhan", null)
+                        } catch (_: Exception) {}
+                    } else {
+                        iterator.remove()
+                    }
+                }
+            }
+        }
+    }
+
+    fun resumeAdhan() {
+        val handler = Handler(Looper.getMainLooper())
+        handler.post {
+            synchronized(channels) {
+                val iterator = channels.iterator()
+                while (iterator.hasNext()) {
+                    val ref = iterator.next()
+                    val ch = ref.get()
+                    if (ch != null) {
+                        try {
+                            ch.invokeMethod("resumeAdhan", null)
+                        } catch (_: Exception) {}
+                    } else {
+                        iterator.remove()
+                    }
+                }
+            }
+        }
+    }
+
     private fun registerVolumeReceiver(context: Context) {
         if (volumeReceiver != null) return
         try {
@@ -202,6 +242,14 @@ class MainActivity : FlutterActivity() {
                 }
                 "stopAdhan" -> {
                     AdhanVolumeManager.stopAdhan(applicationContext)
+                    result.success(true)
+                }
+                "pauseAdhan" -> {
+                    AdhanVolumeManager.pauseAdhan()
+                    result.success(true)
+                }
+                "resumeAdhan" -> {
+                    AdhanVolumeManager.resumeAdhan()
                     result.success(true)
                 }
                 "isAdhanPlaying" -> {

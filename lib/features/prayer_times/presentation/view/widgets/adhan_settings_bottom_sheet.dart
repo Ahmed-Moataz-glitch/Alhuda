@@ -1,5 +1,4 @@
 import 'package:alhuda/core/services/adhan_audio_service.dart';
-import 'package:alhuda/core/services/notification_services.dart';
 import 'package:alhuda/core/services/prayer_scheduler_service.dart';
 import 'package:alhuda/features/prayer_times/data/models/adhan_model.dart';
 import 'package:alhuda/core/constants/app_colors.dart';
@@ -499,14 +498,9 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
               style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
             ),
             onPressed: () async {
-              await _audioService.play(_audioService.selectedSound);
-
-              await NotificationServices.sendAdhanNotification(
-                id: 9999,
+              await _audioService.play(
+                _audioService.selectedSound,
                 prayerName: 'تجربة التنبيه',
-                sound: _audioService.selectedSound,
-                body:
-                    'حان الآن موعد الأذان بصوت ${_audioService.selectedSound.title}',
               );
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -514,7 +508,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
                   content: Directionality(
                     textDirection: TextDirection.rtl,
                     child: Text(
-                      'جاري تشغيل صوت ${_audioService.selectedSound.title} (يمكنك إيقافه بأزرار الصوت أو الإشعار)',
+                      'جاري تشغيل صوت ${_audioService.selectedSound.title} (يمكنك التحكم به من الإشعار أو إيقافه بأزرار الصوت)',
                     ),
                   ),
                   backgroundColor: AppColors.primary,

@@ -13,6 +13,7 @@ import 'package:muslim_data_flutter/muslim_data_flutter.dart';
 void prayerAlarmCallback(int id) async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationServices.initializeNotifications();
+  await AdhanAudioService.instance.init();
 
   final prayerName = PrayerSchedulerService.prayerNameFromId(id);
   final isEnabled = AdhanAudioService().isPrayerAlertEnabled(prayerName);
@@ -24,24 +25,31 @@ void prayerAlarmCallback(int id) async {
 
   final selectedSound = AdhanAudioService().selectedSound;
 
-  // 1. Show high-priority notification with custom Adhan sound from raw resources
-  await NotificationServices.sendAdhanNotification(
+  // 1. Show interactive Adhan notification with controls
+  await NotificationServices.showAdhanControlNotification(
     id: id,
     prayerName: prayerName,
     sound: selectedSound,
+    isPlaying: true,
   );
 
-  // 2. Setup stop port & MethodChannel listeners to support silencing via volume buttons or notification
-  final stopPort = ReceivePort();
+  // 2. Setup control port & MethodChannel listeners to support pause, resume, stop
+  final controlPort = ReceivePort();
+  IsolateNameServer.removePortNameMapping(NotificationServices.adhanControlPort);
+  IsolateNameServer.registerPortWithName(
+    controlPort.sendPort,
+    NotificationServices.adhanControlPort,
+  );
+
   IsolateNameServer.removePortNameMapping('adhan_stop_port');
-  IsolateNameServer.registerPortWithName(stopPort.sendPort, 'adhan_stop_port');
+  IsolateNameServer.registerPortWithName(controlPort.sendPort, 'adhan_stop_port');
 
   const channel = MethodChannel('com.example.alhuda/adhan');
   try {
     await channel.invokeMethod('startAdhanMonitoring');
   } catch (_) {}
 
-  // 3. Play Adhan audio loudly and keep the background isolate alive until complete or stopped
+  // 3. Play Adhan audio and handle control events
   final player = AudioPlayer();
   StreamSubscription? sub;
   final completer = Completer<void>();
@@ -53,15 +61,55 @@ void prayerAlarmCallback(int id) async {
           await player.stop();
         } catch (_) {}
         if (!completer.isCompleted) completer.complete();
+      } else if (call.method == 'pauseAdhan') {
+        try {
+          await player.pause();
+          await NotificationServices.showAdhanControlNotification(
+            id: id,
+            prayerName: prayerName,
+            sound: selectedSound,
+            isPlaying: false,
+          );
+        } catch (_) {}
+      } else if (call.method == 'resumeAdhan') {
+        try {
+          await player.resume();
+          await NotificationServices.showAdhanControlNotification(
+            id: id,
+            prayerName: prayerName,
+            sound: selectedSound,
+            isPlaying: true,
+          );
+        } catch (_) {}
       }
     });
 
-    stopPort.listen((message) async {
+    controlPort.listen((message) async {
       if (message == 'stop') {
         try {
           await player.stop();
         } catch (_) {}
         if (!completer.isCompleted) completer.complete();
+      } else if (message == 'pause') {
+        try {
+          await player.pause();
+          await NotificationServices.showAdhanControlNotification(
+            id: id,
+            prayerName: prayerName,
+            sound: selectedSound,
+            isPlaying: false,
+          );
+        } catch (_) {}
+      } else if (message == 'resume') {
+        try {
+          await player.resume();
+          await NotificationServices.showAdhanControlNotification(
+            id: id,
+            prayerName: prayerName,
+            sound: selectedSound,
+            isPlaying: true,
+          );
+        } catch (_) {}
       }
     });
 
@@ -87,9 +135,9 @@ void prayerAlarmCallback(int id) async {
 
     await player.play(AssetSource(cleanPath));
 
-    // Keep isolate alive until audio completes or stopped, up to 4 minutes max
+    // Keep isolate alive until audio completes or stopped, up to 5 minutes max
     await completer.future.timeout(
-      const Duration(minutes: 4),
+      const Duration(minutes: 5),
       onTimeout: () => player.stop(),
     );
   } catch (e) {
@@ -101,7 +149,8 @@ void prayerAlarmCallback(int id) async {
     try {
       await player.dispose();
     } catch (_) {}
-    stopPort.close();
+    controlPort.close();
+    IsolateNameServer.removePortNameMapping(NotificationServices.adhanControlPort);
     IsolateNameServer.removePortNameMapping('adhan_stop_port');
     try {
       await channel.invokeMethod('stopAdhanMonitoring');

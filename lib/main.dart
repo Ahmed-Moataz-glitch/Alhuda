@@ -1,4 +1,5 @@
 import 'package:alhuda/core/constants/app_constants.dart';
+import 'package:alhuda/core/services/adhan_audio_service.dart';
 import 'package:alhuda/core/services/notification_services.dart';
 import 'package:alhuda/core/theme/app_theme.dart';
 import 'package:alhuda/services/quran_service.dart';
@@ -23,6 +24,12 @@ void main() async {
   }
 
   try {
+    await AdhanAudioService.instance.init();
+  } catch (e) {
+    debugPrint('AdhanAudioService initialization error: $e');
+  }
+
+  try {
     await AndroidAlarmManager.initialize();
   } catch (e) {
     debugPrint('AndroidAlarmManager initialization error: $e');
@@ -34,6 +41,20 @@ void main() async {
       title: AppConstants.notificationTitle,
       body: AppConstants.notificationBody,
     );
+
+    final launchDetails = await NotificationServices
+        .flutterLocalNotificationsPlugin
+        .getNotificationAppLaunchDetails();
+    if (launchDetails != null && launchDetails.didNotificationLaunchApp) {
+      final response = launchDetails.notificationResponse;
+      if (response?.actionId == NotificationServices.actionStopAdhan) {
+        NotificationServices.handleStopAdhanAction();
+      } else if (response?.actionId == NotificationServices.actionPauseAdhan) {
+        NotificationServices.handlePauseAdhanAction();
+      } else if (response?.actionId == NotificationServices.actionResumeAdhan) {
+        NotificationServices.handleResumeAdhanAction();
+      }
+    }
   } catch (e) {
     debugPrint('NotificationServices initialization error: $e');
   }
