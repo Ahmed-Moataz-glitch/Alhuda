@@ -21,6 +21,26 @@
 
 ---
 
+## 🎬 Demo / العرض التوضيحي
+
+<div align="center">
+
+<video src="alhuda.mp4" controls="controls" width="300">
+  Your browser does not support the video tag.
+</video>
+
+<br/>
+
+[![Watch Demo Video](https://img.shields.io/badge/▶%20Watch%20Demo%20Video-alhuda.mp4-02569B?style=for-the-badge)](alhuda.mp4)
+
+<br/>
+
+> 📹 **[اضغط هنا لمشاهدة العرض التوضيحي للتطبيق / Click here to watch the demo video](alhuda.mp4)**
+
+</div>
+
+---
+
 ## 📸 Screenshots
 
 <div align="center">
