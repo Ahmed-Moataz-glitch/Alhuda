@@ -15,9 +15,11 @@
 
 ---
 
-## 📖 About
+## 📖 About / عن التطبيق
 
-&lt;Describe your app in 2–3 sentences. What problem does it solve? Who is it for?&gt;
+**Alhuda (الهُدى)** is a comprehensive, all-in-one Islamic companion application built with Flutter to enrich the daily spiritual journey of Muslims worldwide. It brings together essential religious practices into an elegant and intuitive interface—featuring the Holy Quran with audio recitations and Tafsir, accurate prayer times with offline Adhan notifications, real-time Qibla direction, authentic Hadith collections, a simplified Islamic Fiqh encyclopedia, and daily Azkar (Hisn Al-Muslim) with an interactive digital Tasbeeh. Designed with full offline capabilities and scheduled reminders, Alhuda empowers Muslims to stay steadfast in their faith and effortlessly maintain their daily acts of worship anywhere.
+
+**تطبيق الهُدى** هو رفيق إسلامي شامل ومتكامل تم تطويره بتقنية Flutter ليكون دليلك اليومي في العبادات والذكر في قالب عصري وسهل الاستخدام. يجمع التطبيق بين يديك المصحف الشريف بتلاوات وتفاسير متكاملة، مواقيت الصلاة الدقيقة مع ميزة تشغيل الأذان بدون اتصال بالإنترنت، تحديد اتجاه القبلة، دواوين الحديث النبوي الشريف (صحيح البخاري، صحيح مسلم، والأربعون النووية)، موسوعة الفقه الميسر، وأذكار حصن المسلم مع السبحة الإلكترونية؛ ليعينك على ذكر الله والحفاظ على صلاتك ووردك اليومي أينما كنت.
 
 ---
 
