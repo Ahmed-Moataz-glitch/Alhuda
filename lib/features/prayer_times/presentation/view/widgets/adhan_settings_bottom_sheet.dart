@@ -1,4 +1,5 @@
 import 'package:alhuda/core/services/adhan_audio_service.dart';
+import 'package:alhuda/core/services/notification_services.dart';
 import 'package:alhuda/core/services/prayer_scheduler_service.dart';
 import 'package:alhuda/features/prayer_times/data/models/adhan_model.dart';
 import 'package:alhuda/core/constants/app_colors.dart';
@@ -33,6 +34,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
   @override
   void initState() {
     super.initState();
+    NotificationServices.requestNotificationPermission();
     _audioService.addListener(_onAudioStateChange);
   }
 
@@ -146,8 +148,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
             ),
 
             // Mini Player Controls Bar
-            if (_audioService.currentPlayingSound != null)
-              _buildMiniPlayer(),
+            if (_audioService.currentPlayingSound != null) _buildMiniPlayer(),
           ],
         ),
       ),
@@ -202,7 +203,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
         final isSelectedDefault = _audioService.selectedSound.id == sound.id;
         final isCurrentlyPlaying =
             _audioService.currentPlayingSound?.id == sound.id &&
-                _audioService.isPlaying;
+            _audioService.isPlaying;
         final isNasserQatami = sound.id == 'qatami';
 
         return Container(
@@ -337,13 +338,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
   }
 
   Widget _buildAlertsList() {
-    const prayers = [
-      'الفجر',
-      'الظهر',
-      'العصر',
-      'المغرب',
-      'العشاء',
-    ];
+    const prayers = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
 
     return ListView(
       physics: const BouncingScrollPhysics(),
@@ -468,8 +463,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
                   onChanged: (val) {
                     _audioService.togglePrayerAlert(prayer, val);
                     if (!val) {
-                      final id =
-                          PrayerSchedulerService.prayerNameToId[prayer];
+                      final id = PrayerSchedulerService.prayerNameToId[prayer];
                       if (id != null) {
                         PrayerSchedulerService().cancelPrayerAlarm(id);
                       }
@@ -498,6 +492,22 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
               style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
             ),
             onPressed: () async {
+              final isGranted =
+                  await NotificationServices.requestNotificationPermission();
+              if (!isGranted && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: Text(
+                        '⚠️ تنبيه: إذن الإشعارات معطل في الهاتف! يرجى السماح بالإشعارات من إعدادات التطبيق ليظهر الإشعار.',
+                      ),
+                    ),
+                    backgroundColor: Colors.redAccent,
+                    duration: Duration(seconds: 5),
+                  ),
+                );
+              }
               await _audioService.play(
                 _audioService.selectedSound,
                 prayerName: 'تجربة التنبيه',
@@ -536,6 +546,22 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
               style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
             ),
             onPressed: () async {
+              final isGranted =
+                  await NotificationServices.requestNotificationPermission();
+              if (!isGranted && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: Text(
+                        '⚠️ تنبيه: إذن الإشعارات معطل في الهاتف! يرجى السماح بالإشعارات من إعدادات التطبيق ليظهر الإشعار.',
+                      ),
+                    ),
+                    backgroundColor: Colors.redAccent,
+                    duration: Duration(seconds: 5),
+                  ),
+                );
+              }
               await AndroidAlarmManager.oneShot(
                 const Duration(seconds: 10),
                 9998,
@@ -571,7 +597,10 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
     final pos = _audioService.position;
     final dur = _audioService.duration;
     final maxMs = dur.inMilliseconds.toDouble();
-    final curMs = pos.inMilliseconds.toDouble().clamp(0.0, maxMs > 0 ? maxMs : 1.0);
+    final curMs = pos.inMilliseconds.toDouble().clamp(
+      0.0,
+      maxMs > 0 ? maxMs : 1.0,
+    );
 
     return Container(
       margin: EdgeInsets.only(top: 8.h),

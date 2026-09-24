@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:ui';
 import 'package:alhuda/core/constants/app_colors.dart';
 import 'package:alhuda/core/constants/app_constants.dart';
@@ -17,6 +18,8 @@ void notificationTapBackground(NotificationResponse response) async {
     NotificationServices.handlePauseAdhanAction(fromBackgroundIsolate: true);
   } else if (actionId == NotificationServices.actionResumeAdhan) {
     NotificationServices.handleResumeAdhanAction(fromBackgroundIsolate: true);
+  } else {
+    NotificationServices.handleStopAdhanAction(fromBackgroundIsolate: true);
   }
 }
 
@@ -26,8 +29,9 @@ abstract class NotificationServices {
   static const String actionResumeAdhan = 'resume_adhan';
   static const String adhanControlPort = 'adhan_control_port';
 
-  static const MethodChannel _adhanChannel =
-      MethodChannel('com.example.alhuda/adhan');
+  static const MethodChannel _adhanChannel = MethodChannel(
+    'com.example.alhuda/adhan',
+  );
 
   static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -44,13 +48,16 @@ abstract class NotificationServices {
         color: AppColors.primary,
         importance: Importance.max,
         priority: Priority.high,
+        playSound: true,
+        vibrationPattern: Int64List.fromList([0, 1000, 500, 2000]),
+        audioAttributesUsage: AudioAttributesUsage.alarm,
       );
 
   static final NotificationDetails notificationDetails = NotificationDetails(
     android: androidNotificationDetails,
   );
 
-  static Future<void> requestNotificationPermission() async {
+  static Future<bool> requestNotificationPermission() async {
     try {
       final androidImpl = flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
@@ -59,8 +66,22 @@ abstract class NotificationServices {
 
       await androidImpl?.requestNotificationsPermission();
       await androidImpl?.requestExactAlarmsPermission();
+      return await androidImpl?.areNotificationsEnabled() ?? false;
     } catch (e) {
       debugPrint('Error requesting notification permissions: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> areNotificationsEnabled() async {
+    try {
+      final androidImpl = flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      return await androidImpl?.areNotificationsEnabled() ?? false;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -99,10 +120,10 @@ abstract class NotificationServices {
           ),
         );
 
-        // Register dedicated Adhan control channel
+        // Register dedicated Adhan control channel with silent chime so only Adhan audio plays
         await androidImpl.createNotificationChannel(
           const AndroidNotificationChannel(
-            'adhan_control_channel',
+            'adhan_control_channel_v5',
             'تنبيهات وأدوات الأذان',
             description: 'إشعارات الأذان مع أدوات التحكم في الصوت والتشغيل',
             importance: Importance.max,
@@ -128,7 +149,7 @@ abstract class NotificationServices {
     } catch (_) {}
 
     try {
-      _adhanChannel.invokeMethod('stopAdhan');
+      _adhanChannel.invokeMethod('stopAdhan').catchError((_) => null);
     } catch (_) {}
 
     if (!fromBackgroundIsolate) {
@@ -149,7 +170,7 @@ abstract class NotificationServices {
     } catch (_) {}
 
     try {
-      _adhanChannel.invokeMethod('pauseAdhan');
+      _adhanChannel.invokeMethod('pauseAdhan').catchError((_) => null);
     } catch (_) {}
 
     if (!fromBackgroundIsolate) {
@@ -166,7 +187,7 @@ abstract class NotificationServices {
     } catch (_) {}
 
     try {
-      _adhanChannel.invokeMethod('resumeAdhan');
+      _adhanChannel.invokeMethod('resumeAdhan').catchError((_) => null);
     } catch (_) {}
 
     if (!fromBackgroundIsolate) {
@@ -205,34 +226,36 @@ abstract class NotificationServices {
           const AndroidNotificationAction(
             actionPauseAdhan,
             'إيقاف مؤقت',
-            showsUserInterface: true,
+            showsUserInterface: false,
             cancelNotification: false,
           )
         else
           const AndroidNotificationAction(
             actionResumeAdhan,
             'استئناف',
-            showsUserInterface: true,
+            showsUserInterface: false,
             cancelNotification: false,
           ),
         const AndroidNotificationAction(
           actionStopAdhan,
           'إيقاف الأذان',
-          showsUserInterface: true,
+          showsUserInterface: false,
           cancelNotification: true,
         ),
       ];
 
       final details = NotificationDetails(
         android: AndroidNotificationDetails(
-          'adhan_control_channel',
+          'adhan_control_channel_v5',
           'تنبيهات وأدوات الأذان',
-          channelDescription: 'إشعارات الأذان مع أدوات التحكم في الصوت والتشغيل',
+          channelDescription:
+              'إشعارات الأذان مع أدوات التحكم في الصوت والتشغيل',
           icon: AppConstants.notificationIcon,
           color: AppColors.primary,
           importance: Importance.max,
-          priority: Priority.high,
-          ongoing: isPlaying,
+          priority: Priority.max,
+          fullScreenIntent: false,
+          ongoing: false,
           autoCancel: false,
           playSound: false,
           enableVibration: false,
@@ -300,7 +323,7 @@ abstract class NotificationServices {
         body: body,
         repeatInterval: RepeatInterval.hourly,
         notificationDetails: notificationDetails,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
     } catch (_) {
       try {
@@ -310,7 +333,7 @@ abstract class NotificationServices {
           body: body,
           repeatInterval: RepeatInterval.hourly,
           notificationDetails: notificationDetails,
-          androidScheduleMode: AndroidScheduleMode.inexact,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
       } catch (e) {
         debugPrint('Error scheduling periodic notification: $e');
