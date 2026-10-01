@@ -1,4 +1,4 @@
-package com.example.alhuda
+package dev.glitch.alhuda
 
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
@@ -105,7 +105,7 @@ class AlhudaApplication : FlutterApplication() {
                                         .setUsage(AudioAttributes.USAGE_ALARM)
                                         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                                         .build()
-                                )
+                                    )
                                 .build()
                             audioManager.requestAudioFocus(request)
                         } else {

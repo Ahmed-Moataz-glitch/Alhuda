@@ -1,4 +1,4 @@
-package com.example.alhuda
+package dev.glitch.alhuda
 
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
