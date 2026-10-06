@@ -89,8 +89,10 @@ class TafsirService {
       author: 'مجمع الملك فهد لطباعة المصحف الشريف',
       approximateSize: '2.9 ميجابايت',
       approximateSizeBytes: 3072000,
-      cdnUrl: 'https://cdn.jsdelivr.net/gh/abdalrhmanreda/islamic-data-assets@main/tafser/muyassar.json',
-      fallbackUrl: 'https://raw.githubusercontent.com/abdalrhmanreda/islamic-data-assets/main/tafser/muyassar.json',
+      cdnUrl:
+          'https://cdn.jsdelivr.net/gh/abdalrhmanreda/islamic-data-assets@main/tafser/muyassar.json',
+      fallbackUrl:
+          'https://raw.githubusercontent.com/abdalrhmanreda/islamic-data-assets/main/tafser/muyassar.json',
     ),
     OfflineTafsirPackage(
       id: 'ibn_kathir',
@@ -98,8 +100,10 @@ class TafsirService {
       author: 'الحافظ إسماعيل بن كثير الدمشقي',
       approximateSize: '15.9 ميجابايت',
       approximateSizeBytes: 16662000,
-      cdnUrl: 'https://cdn.jsdelivr.net/gh/abdalrhmanreda/islamic-data-assets@main/tafser/katheer.json',
-      fallbackUrl: 'https://raw.githubusercontent.com/abdalrhmanreda/islamic-data-assets/main/tafser/katheer.json',
+      cdnUrl:
+          'https://cdn.jsdelivr.net/gh/abdalrhmanreda/islamic-data-assets@main/tafser/katheer.json',
+      fallbackUrl:
+          'https://raw.githubusercontent.com/abdalrhmanreda/islamic-data-assets/main/tafser/katheer.json',
     ),
   ];
 
@@ -122,13 +126,7 @@ class TafsirService {
       author: 'مجمع الملك فهد لطباعة المصحف',
       apiType: 'qurancdn',
     ),
-    TafsirSource(
-      id: 'saadi',
-      key: '91',
-      name: 'تفسير السعدي',
-      author: 'الشيخ عبد الرحمن بن ناصر السعدي',
-      apiType: 'qurancdn',
-    ),
+
     TafsirSource(
       id: 'ibn_kathir',
       key: '14',
@@ -136,67 +134,20 @@ class TafsirService {
       author: 'الحافظ إسماعيل بن كثير الدمشقي',
       apiType: 'qurancdn',
     ),
-    TafsirSource(
-      id: 'qurtubi',
-      key: '90',
-      name: 'تفسير القرطبي',
-      author: 'الإمام محمد بن أحمد القرطبي',
-      apiType: 'qurancdn',
-    ),
-    TafsirSource(
-      id: 'tabari',
-      key: '15',
-      name: 'تفسير الطبري',
-      author: 'الإمام محمد بن جرير الطبري',
-      apiType: 'qurancdn',
-    ),
-    TafsirSource(
-      id: 'baghawi',
-      key: '94',
-      name: 'تفسير البغوي',
-      author: 'الإمام الحسين بن مسعود البغوي',
-      apiType: 'qurancdn',
-    ),
-    TafsirSource(
-      id: 'wasit',
-      key: '93',
-      name: 'التفسير الوسيط',
-      author: 'د. محمد سيد طنطاوي',
-      apiType: 'qurancdn',
-    ),
-    TafsirSource(
-      id: 'jalalayn',
-      key: 'ar.jalalayn',
-      name: 'تفسير الجلالين',
-      author: 'جلال الدين المحلي والسيوطي',
-      apiType: 'alquran_cloud',
-    ),
-    TafsirSource(
-      id: 'miqbas',
-      key: 'ar.miqbas',
-      name: 'تنوير المقباس',
-      author: 'ابن عباس رضي الله عنهما',
-      apiType: 'alquran_cloud',
-    ),
-    TafsirSource(
-      id: 'en_sahih',
-      key: 'en.sahih',
-      name: 'Sahih International',
-      author: 'Sahih International (English)',
-      language: 'en',
-      apiType: 'alquran_cloud',
-    ),
   ];
 
   final Map<String, String> _memoryCache = {};
   final Map<String, Map<String, String>> _offlineTafsirStore = {};
   final Set<String> _activeDownloads = {};
+  final Set<String> _downloadedTafsirIds = {};
   Directory? _cacheDir;
   Directory? _offlineDir;
   bool _isInit = false;
 
-  final ValueNotifier<Map<String, TafsirDownloadProgress>> downloadProgressNotifier =
-      ValueNotifier<Map<String, TafsirDownloadProgress>>({});
+  final ValueNotifier<Map<String, TafsirDownloadProgress>>
+  downloadProgressNotifier = ValueNotifier<Map<String, TafsirDownloadProgress>>(
+    {},
+  );
 
   Future<void> init() async {
     if (_isInit) return;
@@ -211,6 +162,23 @@ class TafsirService {
         await _offlineDir!.create(recursive: true);
       }
       _isInit = true;
+
+      // Scan existing offline files and mark them as downloaded immediately
+      for (final pkg in offlinePackages) {
+        final file = File('${_offlineDir!.path}/${pkg.id}.json');
+        if (file.existsSync() && file.lengthSync() > 1000) {
+          _downloadedTafsirIds.add(pkg.id);
+          _updateProgress(
+            TafsirDownloadProgress(
+              tafsirId: pkg.id,
+              isDownloading: false,
+              progress: 1.0,
+              receivedBytes: file.lengthSync(),
+              totalBytes: file.lengthSync(),
+            ),
+          );
+        }
+      }
     } catch (e) {
       debugPrint('TafsirService initialization warning: $e');
     }
@@ -218,13 +186,18 @@ class TafsirService {
 
   /// Check if an offline Tafsir package is downloaded and ready for use
   bool isOfflineDownloaded(String tafsirId) {
+    if (_downloadedTafsirIds.contains(tafsirId)) {
+      return true;
+    }
     if (_offlineTafsirStore.containsKey(tafsirId) &&
         _offlineTafsirStore[tafsirId]!.isNotEmpty) {
+      _downloadedTafsirIds.add(tafsirId);
       return true;
     }
     if (_offlineDir != null) {
       final file = File('${_offlineDir!.path}/$tafsirId.json');
       if (file.existsSync() && file.lengthSync() > 1000) {
+        _downloadedTafsirIds.add(tafsirId);
         return true;
       }
     }
@@ -267,8 +240,16 @@ class TafsirService {
       final map = <String, String>{};
       for (final raw in list) {
         if (raw is Map) {
-          final sura = raw['sura'] ?? raw['surah'] ?? raw['sura_number'] ?? raw['surah_number'];
-          final aya = raw['aya'] ?? raw['ayah'] ?? raw['aya_number'] ?? raw['ayah_number'];
+          final sura =
+              raw['sura'] ??
+              raw['surah'] ??
+              raw['sura_number'] ??
+              raw['surah_number'];
+          final aya =
+              raw['aya'] ??
+              raw['ayah'] ??
+              raw['aya_number'] ??
+              raw['ayah_number'];
           final text = raw['text'] ?? raw['tafseer'] ?? raw['tafsir'];
           if (sura != null && aya != null && text != null) {
             map['$sura:$aya'] = text.toString().trim();
@@ -290,10 +271,33 @@ class TafsirService {
     final pkg = getOfflinePackage(tafsirId);
     if (pkg == null) return false;
 
+    await init();
+
+    // 1. If already downloaded, NEVER re-download!
+    if (isOfflineDownloaded(tafsirId)) {
+      await ensureOfflineLoaded(tafsirId);
+      final file = _offlineDir != null
+          ? File('${_offlineDir!.path}/$tafsirId.json')
+          : null;
+      final size = (file != null && file.existsSync())
+          ? file.lengthSync()
+          : pkg.approximateSizeBytes;
+      _updateProgress(
+        TafsirDownloadProgress(
+          tafsirId: tafsirId,
+          isDownloading: false,
+          progress: 1.0,
+          receivedBytes: size,
+          totalBytes: size,
+        ),
+      );
+      onProgress?.call(1.0);
+      return true;
+    }
+
     if (_activeDownloads.contains(tafsirId)) return false;
     _activeDownloads.add(tafsirId);
 
-    await init();
     final targetDir = _offlineDir;
     if (targetDir == null) {
       _activeDownloads.remove(tafsirId);
@@ -303,12 +307,14 @@ class TafsirService {
     final tempFile = File('${targetDir.path}/$tafsirId.json.tmp');
     final finalFile = File('${targetDir.path}/$tafsirId.json');
 
-    _updateProgress(TafsirDownloadProgress(
-      tafsirId: tafsirId,
-      isDownloading: true,
-      progress: 0.0,
-      totalBytes: pkg.approximateSizeBytes,
-    ));
+    _updateProgress(
+      TafsirDownloadProgress(
+        tafsirId: tafsirId,
+        isDownloading: true,
+        progress: 0.0,
+        totalBytes: pkg.approximateSizeBytes,
+      ),
+    );
 
     http.Client? client;
     try {
@@ -319,7 +325,9 @@ class TafsirService {
       for (final url in urls) {
         try {
           final request = http.Request('GET', Uri.parse(url));
-          final res = await client.send(request).timeout(const Duration(seconds: 25));
+          final res = await client
+              .send(request)
+              .timeout(const Duration(seconds: 25));
           if (res.statusCode == 200) {
             response = res;
             break;
@@ -333,7 +341,8 @@ class TafsirService {
         throw Exception('تعذر الاتصال بخوادم تحميل التفسير');
       }
 
-      final totalBytes = (response.contentLength != null && response.contentLength! > 0)
+      final totalBytes =
+          (response.contentLength != null && response.contentLength! > 0)
           ? response.contentLength!
           : pkg.approximateSizeBytes;
       int receivedBytes = 0;
@@ -342,15 +351,19 @@ class TafsirService {
       await for (final chunk in response.stream) {
         sink.add(chunk);
         receivedBytes += chunk.length;
-        final progress = totalBytes > 0 ? (receivedBytes / totalBytes).clamp(0.0, 1.0) : 0.0;
+        final progress = totalBytes > 0
+            ? (receivedBytes / totalBytes).clamp(0.0, 1.0)
+            : 0.0;
 
-        _updateProgress(TafsirDownloadProgress(
-          tafsirId: tafsirId,
-          isDownloading: true,
-          progress: progress,
-          receivedBytes: receivedBytes,
-          totalBytes: totalBytes,
-        ));
+        _updateProgress(
+          TafsirDownloadProgress(
+            tafsirId: tafsirId,
+            isDownloading: true,
+            progress: progress,
+            receivedBytes: receivedBytes,
+            totalBytes: totalBytes,
+          ),
+        );
         onProgress?.call(progress);
       }
 
@@ -362,16 +375,20 @@ class TafsirService {
       }
       await tempFile.rename(finalFile.path);
 
+      _downloadedTafsirIds.add(tafsirId);
+
       // Parse and load into offline store
       await ensureOfflineLoaded(tafsirId);
 
-      _updateProgress(TafsirDownloadProgress(
-        tafsirId: tafsirId,
-        isDownloading: false,
-        progress: 1.0,
-        receivedBytes: totalBytes,
-        totalBytes: totalBytes,
-      ));
+      _updateProgress(
+        TafsirDownloadProgress(
+          tafsirId: tafsirId,
+          isDownloading: false,
+          progress: 1.0,
+          receivedBytes: totalBytes,
+          totalBytes: totalBytes,
+        ),
+      );
       return true;
     } catch (e) {
       debugPrint('Tafsir download error ($tafsirId): $e');
@@ -380,12 +397,14 @@ class TafsirService {
           await tempFile.delete();
         } catch (_) {}
       }
-      _updateProgress(TafsirDownloadProgress(
-        tafsirId: tafsirId,
-        isDownloading: false,
-        progress: 0.0,
-        error: e.toString(),
-      ));
+      _updateProgress(
+        TafsirDownloadProgress(
+          tafsirId: tafsirId,
+          isDownloading: false,
+          progress: 0.0,
+          error: e.toString(),
+        ),
+      );
       return false;
     } finally {
       client?.close();
@@ -402,14 +421,19 @@ class TafsirService {
         await file.delete();
       }
     }
+    _downloadedTafsirIds.remove(tafsirId);
     _offlineTafsirStore.remove(tafsirId);
-    final updated = Map<String, TafsirDownloadProgress>.from(downloadProgressNotifier.value);
+    final updated = Map<String, TafsirDownloadProgress>.from(
+      downloadProgressNotifier.value,
+    );
     updated.remove(tafsirId);
     downloadProgressNotifier.value = updated;
   }
 
   void _updateProgress(TafsirDownloadProgress progress) {
-    final updated = Map<String, TafsirDownloadProgress>.from(downloadProgressNotifier.value);
+    final updated = Map<String, TafsirDownloadProgress>.from(
+      downloadProgressNotifier.value,
+    );
     updated[progress.tafsirId] = progress;
     downloadProgressNotifier.value = updated;
   }
@@ -435,7 +459,8 @@ class TafsirService {
       }
     } else if (isOfflineDownloaded(source.id)) {
       final loaded = await ensureOfflineLoaded(source.id);
-      if (loaded && _offlineTafsirStore[source.id]?.containsKey(offlineKey) == true) {
+      if (loaded &&
+          _offlineTafsirStore[source.id]?.containsKey(offlineKey) == true) {
         return _offlineTafsirStore[source.id]![offlineKey]!;
       }
     }
@@ -496,7 +521,8 @@ class TafsirService {
     required int pageNumber,
   }) async {
     await init();
-    if (isOfflineDownloaded(source.id) && !_offlineTafsirStore.containsKey(source.id)) {
+    if (isOfflineDownloaded(source.id) &&
+        !_offlineTafsirStore.containsKey(source.id)) {
       await ensureOfflineLoaded(source.id);
     }
 
@@ -509,56 +535,86 @@ class TafsirService {
       final startAyah = segment['start'] ?? 1;
       final endAyah = segment['end'] ?? 1;
       final surahData = QuranService.instance.getSurah(surahNum);
-      final surahName = surahData?.arabicName ?? QuranService.instance.getSurahNameArabic(surahNum);
+      final surahName =
+          surahData?.arabicName ??
+          QuranService.instance.getSurahNameArabic(surahNum);
 
       for (int ayahNum = startAyah; ayahNum <= endAyah; ayahNum++) {
-        final ayahText = QuranService.instance.getVerseUthmani(surahNum, ayahNum);
-        final tafsirText = await getTafsir(source: source, surah: surahNum, ayah: ayahNum);
+        final ayahText = QuranService.instance.getVerseUthmani(
+          surahNum,
+          ayahNum,
+        );
+        final tafsirText = await getTafsir(
+          source: source,
+          surah: surahNum,
+          ayah: ayahNum,
+        );
 
-        results.add(AyahPageTafsir(
-          surahNumber: surahNum,
-          surahName: surahName,
-          ayahNumber: ayahNum,
-          ayahText: ayahText,
-          tafsirText: tafsirText,
-          isOffline: isOffline,
-        ));
+        results.add(
+          AyahPageTafsir(
+            surahNumber: surahNum,
+            surahName: surahName,
+            ayahNumber: ayahNum,
+            ayahText: ayahText,
+            tafsirText: tafsirText,
+            isOffline: isOffline,
+          ),
+        );
       }
     }
 
     return results;
   }
 
-  Future<String> _fetchFromQuranCdn(String resourceId, int surah, int ayah) async {
+  Future<String> _fetchFromQuranCdn(
+    String resourceId,
+    int surah,
+    int ayah,
+  ) async {
     try {
-      final url = 'https://api.qurancdn.com/api/v4/tafsirs/$resourceId/by_ayah/$surah:$ayah';
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      final url =
+          'https://api.qurancdn.com/api/v4/tafsirs/$resourceId/by_ayah/$surah:$ayah';
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final data =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
         final tafsir = data['tafsir'] as Map<String, dynamic>?;
         if (tafsir != null && tafsir['text'] != null) {
           return tafsir['text'].toString();
         }
       }
     } catch (e) {
-      debugPrint('QuranCdn tafsir fetch error for $resourceId ($surah:$ayah): $e');
+      debugPrint(
+        'QuranCdn tafsir fetch error for $resourceId ($surah:$ayah): $e',
+      );
     }
     return '';
   }
 
-  Future<String> _fetchFromAlquranCloud(String identifier, int surah, int ayah) async {
+  Future<String> _fetchFromAlquranCloud(
+    String identifier,
+    int surah,
+    int ayah,
+  ) async {
     try {
       final url = 'https://api.alquran.cloud/v1/ayah/$surah:$ayah/$identifier';
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final data =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
         final ayahData = data['data'] as Map<String, dynamic>?;
         if (ayahData != null && ayahData['text'] != null) {
           return ayahData['text'].toString();
         }
       }
     } catch (e) {
-      debugPrint('AlquranCloud tafsir fetch error for $identifier ($surah:$ayah): $e');
+      debugPrint(
+        'AlquranCloud tafsir fetch error for $identifier ($surah:$ayah): $e',
+      );
     }
     return '';
   }

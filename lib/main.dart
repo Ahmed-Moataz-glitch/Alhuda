@@ -3,6 +3,8 @@ import 'package:alhuda/core/services/adhan_audio_service.dart';
 import 'package:alhuda/core/services/notification_services.dart';
 import 'package:alhuda/core/theme/app_theme.dart';
 import 'package:alhuda/services/quran_service.dart';
+import 'package:alhuda/services/tajweed_page_cache_service.dart';
+import 'package:alhuda/services/tafsir_service.dart';
 import 'package:alhuda/services/theme_service.dart';
 import 'package:alhuda/core/view/pages/home_page.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
@@ -63,6 +65,18 @@ void main() async {
     await QuranService.instance.init();
   } catch (e) {
     debugPrint('QuranService initialization error: $e');
+  }
+
+  try {
+    await TajweedPageCacheService.instance.init();
+  } catch (e) {
+    debugPrint('TajweedPageCacheService initialization error: $e');
+  }
+
+  try {
+    await TafsirService.instance.init();
+  } catch (e) {
+    debugPrint('TafsirService initialization error: $e');
   }
 
   FlutterNativeSplash.remove();

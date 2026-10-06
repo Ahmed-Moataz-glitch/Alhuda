@@ -1,4 +1,5 @@
 import 'package:alhuda/features/quran/data/mushaf_edition.dart';
+import 'package:alhuda/services/tajweed_page_cache_service.dart';
 import 'package:alhuda/core/utils/app_snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -72,6 +73,48 @@ void main() {
 
       // Verify the text is inside
       expect(find.byKey(testKey), findsOneWidget);
+    });
+  });
+
+  group('Hizb & Juz Detection Tests', () {
+    test('Hizb start pages list has exactly 60 entries', () {
+      expect(TajweedPageCacheService.kHizbStartPages.length, 60);
+      expect(TajweedPageCacheService.kHizbStartPages[0], 1); // Hizb 1
+      expect(TajweedPageCacheService.kHizbStartPages[1], 11); // Hizb 2 (page 11 in user screenshot)
+      expect(TajweedPageCacheService.kHizbStartPages[2], 22); // Hizb 3
+      expect(TajweedPageCacheService.kHizbStartPages[3], 32); // Hizb 4
+    });
+
+    test('getHizbStartingOnPage identifies Hizb start pages and rejects non-start pages', () {
+      // Page 11 starts Hizb 2 (Al-Baqarah 75)
+      expect(TajweedPageCacheService.getHizbStartingOnPage(11), 2);
+      expect(TajweedPageCacheService.getHizbStartingOnPage(1), 1);
+      expect(TajweedPageCacheService.getHizbStartingOnPage(22), 3);
+      expect(TajweedPageCacheService.getHizbStartingOnPage(32), 4);
+
+      // Pages 10 and 12 do not start any Hizb
+      expect(TajweedPageCacheService.getHizbStartingOnPage(10), isNull);
+      expect(TajweedPageCacheService.getHizbStartingOnPage(12), isNull);
+      expect(TajweedPageCacheService.getHizbStartingOnPage(21), isNull);
+    });
+
+    test('getJuzForHizb calculates accurate Juz for any Hizb', () {
+      // Hizb 1 and 2 are in Juz 1
+      expect(TajweedPageCacheService.getJuzForHizb(1), 1);
+      expect(TajweedPageCacheService.getJuzForHizb(2), 1);
+
+      // Hizb 3 and 4 are in Juz 2
+      expect(TajweedPageCacheService.getJuzForHizb(3), 2);
+      expect(TajweedPageCacheService.getJuzForHizb(4), 2);
+
+      // Hizb 59 and 60 are in Juz 30
+      expect(TajweedPageCacheService.getJuzForHizb(59), 30);
+      expect(TajweedPageCacheService.getJuzForHizb(60), 30);
+    });
+
+    test('getHizbForPage correctly resolves current Hizb on page 11', () {
+      expect(TajweedPageCacheService.getHizbForPage(11), 2);
+      expect(TajweedPageCacheService.getHizbText(11), 'الحزب 2');
     });
   });
 }

@@ -151,7 +151,7 @@ class _TafsirBottomSheetState extends State<TafsirBottomSheet> {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.copy_rounded, size: 22),
+                      icon: Icon(Icons.copy_rounded, size: 24.sp),
                       color: AppColors.primary,
                       tooltip: 'نسخ',
                       onPressed: _tafsirContent.isNotEmpty ? _copyToClipboard : null,

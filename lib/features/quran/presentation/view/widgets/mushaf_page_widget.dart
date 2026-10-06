@@ -437,7 +437,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
 
                 SizedBox(height: 2.h),
 
-                // Bottom Footer Line (رقم الصفحة)
+                // // Bottom Footer Line (رقم الصفحة)
                 _buildPageFooter(),
               ],
             ),

@@ -43,11 +43,13 @@ class _MushafPageState extends State<MushafPageView> {
   String? _selectedAyahText;
   bool _showOverlay = true;
   bool _autoAdvancePages = true;
+  bool _landscapeFitWidth = true;
   MushafThemeMode _themeMode = MushafThemeMode.parchment;
 
   int? _lastPlayingSurah;
   int? _lastPlayingAyah;
   bool _lastIsActive = false;
+  int? _lastShownHizbPage;
 
   @override
   void initState() {
@@ -87,6 +89,12 @@ class _MushafPageState extends State<MushafPageView> {
         TajweedPageCacheService.instance.refreshDownloadStatus();
       }
     });
+
+    if (_currentPage > 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _checkAndShowHizbSnackBar(_currentPage);
+      });
+    }
   }
 
   void _onEditionChanged() {
@@ -371,6 +379,63 @@ class _MushafPageState extends State<MushafPageView> {
     });
     _updateLastRead(clamped);
     _safePrefetch(clamped);
+    _checkAndShowHizbSnackBar(clamped);
+  }
+
+  void _checkAndShowHizbSnackBar(int page) {
+    final hizb = TajweedPageCacheService.getHizbStartingOnPage(page);
+    if (hizb == null) {
+      _lastShownHizbPage = null;
+      return;
+    }
+    if (_lastShownHizbPage == page) return;
+    _lastShownHizbPage = page;
+
+    final juz = TajweedPageCacheService.getJuzForHizb(hizb);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(6.r),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(40),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.auto_stories_rounded,
+                  color: Colors.white,
+                  size: 18.r,
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Text(
+                  'الجزء $juz - الحزب $hizb',
+                  style: TextStyle(
+                    fontFamily: 'Almarai',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.r),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _onPageBackgroundTapped() {
@@ -389,8 +454,9 @@ class _MushafPageState extends State<MushafPageView> {
 
   Future<void> _toggleCurrentPageBookmark() async {
     HapticFeedback.mediumImpact();
-    final isNowBookmarked =
-        await QuranService.instance.togglePageBookmark(_currentPage);
+    final isNowBookmarked = await QuranService.instance.togglePageBookmark(
+      _currentPage,
+    );
     if (!mounted) return;
     setState(() {});
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -422,8 +488,9 @@ class _MushafPageState extends State<MushafPageView> {
             ],
           ),
         ),
-        backgroundColor:
-            isNowBookmarked ? AppColors.primary : Colors.grey.shade800,
+        backgroundColor: isNowBookmarked
+            ? AppColors.primary
+            : Colors.grey.shade800,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10.r),
@@ -457,9 +524,7 @@ class _MushafPageState extends State<MushafPageView> {
               offset: const Offset(0, 3),
             ),
           ],
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(4.r),
-          ),
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(4.r)),
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -530,8 +595,15 @@ class _MushafPageState extends State<MushafPageView> {
                     indicatorColor: AppColors.primary,
                     tabs: const [
                       Tab(text: 'رقم الصفحة'),
-                      Tab(text: 'فهرس السور'),
-                      Tab(text: 'فهرس الأجزاء'),
+                      Tab(
+                        child: Text('فهرس السور', textAlign: TextAlign.center),
+                      ),
+                      Tab(
+                        child: Text(
+                          'فهرس الأجزاء',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                       Tab(text: 'العلامات'),
                     ],
                   ),
@@ -545,9 +617,10 @@ class _MushafPageState extends State<MushafPageView> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'أدخل رقم الصفحة (1 - 604):',
+                                'أدخل رقم الصفحة (1 - 604)',
                                 style: TextStyle(
                                   fontFamily: 'Almarai',
+                                  fontWeight: FontWeight.bold,
                                   fontSize: 15.sp,
                                 ),
                               ),
@@ -604,23 +677,31 @@ class _MushafPageState extends State<MushafPageView> {
                               ),
                               Builder(
                                 builder: (context) {
-                                  final saved = QuranService.instance.getLastSavedPageBookmark();
-                                  if (saved == null) return const SizedBox.shrink();
+                                  final saved = QuranService.instance
+                                      .getLastSavedPageBookmark();
+                                  if (saved == null) {
+                                    return const SizedBox.shrink();
+                                  }
                                   return Padding(
                                     padding: EdgeInsets.only(top: 16.h),
                                     child: OutlinedButton.icon(
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: Colors.amber.shade900,
                                         side: BorderSide(
-                                          color: Colors.amber.shade700.withAlpha(120),
+                                          color: Colors.amber.shade700
+                                              .withAlpha(120),
                                         ),
-                                        backgroundColor: Colors.amber.withAlpha(20),
+                                        backgroundColor: Colors.amber.withAlpha(
+                                          20,
+                                        ),
                                         padding: EdgeInsets.symmetric(
                                           horizontal: 16.w,
                                           vertical: 10.h,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10.r),
+                                          borderRadius: BorderRadius.circular(
+                                            10.r,
+                                          ),
                                         ),
                                       ),
                                       icon: Icon(
@@ -728,7 +809,7 @@ class _MushafPageState extends State<MushafPageView> {
                               trailing: Text(
                                 'صفحة ${s.startPage}',
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Rubik',
                                   color: AppColors.primary,
                                   fontSize: 12.sp,
                                 ),
@@ -768,7 +849,7 @@ class _MushafPageState extends State<MushafPageView> {
                               trailing: Text(
                                 'صفحة ${j.startPage}',
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Rubik',
                                   color: AppColors.primary,
                                   fontSize: 12.sp,
                                 ),
@@ -784,7 +865,8 @@ class _MushafPageState extends State<MushafPageView> {
                         // 4. Bookmarks Index
                         StatefulBuilder(
                           builder: (context, setModalState) {
-                            final bookmarks = QuranService.instance.getBookmarks();
+                            final bookmarks = QuranService.instance
+                                .getBookmarks();
                             if (bookmarks.isEmpty) {
                               return Center(
                                 child: Padding(
@@ -813,6 +895,7 @@ class _MushafPageState extends State<MushafPageView> {
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           fontFamily: 'Almarai',
+                                          fontWeight: FontWeight.bold,
                                           fontSize: 12.sp,
                                           color: Colors.grey.shade600,
                                         ),
@@ -865,9 +948,12 @@ class _MushafPageState extends State<MushafPageView> {
                                           vertical: 3.h,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppColors.primary.withAlpha(20),
-                                          borderRadius:
-                                              BorderRadius.circular(6.r),
+                                          color: AppColors.primary.withAlpha(
+                                            20,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            6.r,
+                                          ),
                                         ),
                                         child: Text(
                                           'ص ${b.pageNumber}',
@@ -888,7 +974,8 @@ class _MushafPageState extends State<MushafPageView> {
                                         onPressed: () async {
                                           await QuranService.instance
                                               .removeBookmarkByPage(
-                                                  b.pageNumber);
+                                                b.pageNumber,
+                                              );
                                           setModalState(() {});
                                           setState(() {});
                                         },
@@ -1162,6 +1249,9 @@ class _MushafPageState extends State<MushafPageView> {
   }
 
   void _showSettingsSheet() {
+    TajweedPageCacheService.instance.refreshDownloadStatus();
+    TafsirService.instance.init();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1571,6 +1661,11 @@ class _MushafPageState extends State<MushafPageView> {
 
                       SizedBox(height: 14.h),
 
+                      // Landscape Mode Selection
+                      _buildLandscapeModeOption(setSheetState),
+
+                      SizedBox(height: 14.h),
+
                       // Mushaf Editions Selection
                       _buildEditionSelector(setSheetState),
 
@@ -1703,6 +1798,105 @@ class _MushafPageState extends State<MushafPageView> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLandscapeModeOption(StateSetter setSheetState) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'وضع القراءة بالعرض (Landscape):',
+          style: TextStyle(
+            fontFamily: 'Almarai',
+            fontWeight: FontWeight.bold,
+            fontSize: 13.sp,
+          ),
+        ),
+        SizedBox(height: 8.h),
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: () {
+                  setSheetState(() => _landscapeFitWidth = false);
+                  setState(() => _landscapeFitWidth = false);
+                },
+                borderRadius: BorderRadius.circular(8.r),
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 9.h, horizontal: 6.w),
+                  decoration: BoxDecoration(
+                    color: !_landscapeFitWidth
+                        ? AppColors.primary.withAlpha(isDark ? 40 : 20)
+                        : (isDark ? AppColors.surface : Colors.grey.shade100),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: !_landscapeFitWidth
+                          ? AppColors.primary
+                          : (isDark ? AppColors.border : Colors.grey.shade300),
+                      width: !_landscapeFitWidth ? 2.0 : 1.0,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'عرض الصفحة كاملة',
+                    style: TextStyle(
+                      fontFamily: 'Almarai',
+                      fontSize: 11.sp,
+                      fontWeight: !_landscapeFitWidth
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: !_landscapeFitWidth
+                          ? AppColors.primary
+                          : (isDark ? Colors.white70 : Colors.black87),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: 8.w),
+            Expanded(
+              child: InkWell(
+                onTap: () {
+                  setSheetState(() => _landscapeFitWidth = true);
+                  setState(() => _landscapeFitWidth = true);
+                },
+                borderRadius: BorderRadius.circular(8.r),
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 9.h, horizontal: 6.w),
+                  decoration: BoxDecoration(
+                    color: _landscapeFitWidth
+                        ? AppColors.primary.withAlpha(isDark ? 40 : 20)
+                        : (isDark ? AppColors.surface : Colors.grey.shade100),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: _landscapeFitWidth
+                          ? AppColors.primary
+                          : (isDark ? AppColors.border : Colors.grey.shade300),
+                      width: _landscapeFitWidth ? 2.0 : 1.0,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'ملء العرض والتمرير',
+                    style: TextStyle(
+                      fontFamily: 'Almarai',
+                      fontSize: 11.sp,
+                      fontWeight: _landscapeFitWidth
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: _landscapeFitWidth
+                          ? AppColors.primary
+                          : (isDark ? Colors.white70 : Colors.black87),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1877,10 +2071,13 @@ class _MushafPageState extends State<MushafPageView> {
       builder: (context, progress, _) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final currentEdition = TajweedPageCacheService.instance.currentEdition;
-        final isComplete =
-            progress.isComplete ||
-            progress.downloaded >= currentEdition.totalPages;
-        final isDownloading = progress.isDownloading;
+        final cachedCount = TajweedPageCacheService.instance
+            .getCachedPagesCount(currentEdition);
+        final isComplete = cachedCount >= currentEdition.totalPages ||
+            (progress.editionId == currentEdition.id && progress.isComplete);
+        final isDownloading =
+            progress.isDownloading && progress.editionId == currentEdition.id;
+        final remainingPages = currentEdition.totalPages - cachedCount;
 
         return Container(
           padding: EdgeInsets.all(12.r),
@@ -1961,15 +2158,16 @@ class _MushafPageState extends State<MushafPageView> {
                                 vertical: 2.h,
                               ),
                               decoration: BoxDecoration(
-                                color:
-                                    (isComplete
-                                            ? Colors.green
-                                            : AppColors.primary)
-                                        .withAlpha(25),
+                                color: (isComplete
+                                        ? Colors.green
+                                        : AppColors.primary)
+                                    .withAlpha(25),
                                 borderRadius: BorderRadius.circular(6.r),
                               ),
                               child: Text(
-                                currentEdition.approximateSize,
+                                isComplete
+                                    ? 'محمل بالكامل'
+                                    : currentEdition.approximateSize,
                                 style: TextStyle(
                                   fontFamily: 'Almarai',
                                   fontSize: 10.5.sp,
@@ -1988,7 +2186,9 @@ class _MushafPageState extends State<MushafPageView> {
                               ? 'تم تحميل جميع الصفحات (604 صفحة • ${currentEdition.approximateSize}) • جاهز للقراءة أوفلاين'
                               : (isDownloading
                                     ? 'جارٍ التحميل في الخلفية: ${progress.downloaded} من 604 صفحة (${progress.percentInt}%)'
-                                    : 'تم حفظ ${progress.downloaded} من 604 صفحة أوفلاين (${currentEdition.approximateSize})'),
+                                    : (cachedCount > 0
+                                        ? 'تم حفظ $cachedCount من 604 صفحة أوفلاين (متبقي $remainingPages صفحة)'
+                                        : 'تم حفظ 0 من 604 صفحة أوفلاين (${currentEdition.approximateSize})')),
                           style: TextStyle(
                             fontFamily: 'Almarai',
                             fontSize: 11.sp,
@@ -2044,11 +2244,16 @@ class _MushafPageState extends State<MushafPageView> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.r),
                     ),
-                    padding: EdgeInsets.symmetric(vertical: 9.h, horizontal: 10.w),
+                    padding: EdgeInsets.symmetric(
+                      vertical: 9.h,
+                      horizontal: 10.w,
+                    ),
                   ),
                   icon: const Icon(Icons.download_rounded, size: 18),
                   label: Text(
-                    'تحميل ${currentEdition.shortName} للقراءة بدون إنترنت (${currentEdition.approximateSize})',
+                    cachedCount > 0
+                        ? 'استكمال تحميل ${currentEdition.shortName} بدون إنترنت ($remainingPages صفحة)'
+                        : 'تحميل ${currentEdition.shortName} للقراءة بدون إنترنت (${currentEdition.approximateSize})',
                     style: const TextStyle(
                       fontFamily: 'Almarai',
                       fontWeight: FontWeight.bold,
@@ -2127,14 +2332,15 @@ class _MushafPageState extends State<MushafPageView> {
 
           // Offline packages: Al-Muyassar and Ibn Kathir
           ...TafsirService.offlinePackages.map((pkg) {
-            final isDownloaded = TafsirService.instance.isOfflineDownloaded(
-              pkg.id,
-            );
             return ValueListenableBuilder<Map<String, TafsirDownloadProgress>>(
               valueListenable: TafsirService.instance.downloadProgressNotifier,
               builder: (context, progressMap, _) {
                 final progress = progressMap[pkg.id];
                 final isDownloading = progress?.isDownloading ?? false;
+                final isDownloaded = (progress != null &&
+                        !isDownloading &&
+                        progress.progress >= 1.0) ||
+                    TafsirService.instance.isOfflineDownloaded(pkg.id);
 
                 return Container(
                   margin: EdgeInsets.only(bottom: 8.h),
@@ -2179,7 +2385,7 @@ class _MushafPageState extends State<MushafPageView> {
                                   ),
                                 ),
                                 Text(
-                                  '${pkg.approximateSize} • ${isDownloaded ? "جاهز للاستخدام بدون نت" : pkg.author}',
+                                  '${pkg.approximateSize} • ${isDownloaded ? "جاهز للاستخدام بدون إنترنت" : pkg.author}',
                                   style: TextStyle(
                                     fontFamily: 'Almarai',
                                     fontSize: 10.sp,
@@ -2204,19 +2410,55 @@ class _MushafPageState extends State<MushafPageView> {
                               ),
                             )
                           else if (isDownloaded)
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline_rounded,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                              tooltip: 'حذف التفسير لتوفير المساحة',
-                              onPressed: () async {
-                                await TafsirService.instance
-                                    .deleteOfflineTafsir(pkg.id);
-                                setSheetState(() {});
-                                if (mounted) setState(() {});
-                              },
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 8.w,
+                                    vertical: 3.h,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withAlpha(25),
+                                    borderRadius: BorderRadius.circular(6.r),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check_rounded,
+                                        color: Colors.green.shade700,
+                                        size: 13.r,
+                                      ),
+                                      SizedBox(width: 3.w),
+                                      Text(
+                                        'محمل',
+                                        style: TextStyle(
+                                          fontFamily: 'Almarai',
+                                          fontSize: 10.sp,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green.shade800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(width: 4.w),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                  tooltip: 'حذف التفسير لتوفير المساحة',
+                                  onPressed: () async {
+                                    await TafsirService.instance
+                                        .deleteOfflineTafsir(pkg.id);
+                                    setSheetState(() {});
+                                    if (mounted) setState(() {});
+                                  },
+                                ),
+                              ],
                             )
                           else
                             ElevatedButton(
@@ -2233,7 +2475,6 @@ class _MushafPageState extends State<MushafPageView> {
                                 ),
                               ),
                               onPressed: () async {
-                                setSheetState(() {});
                                 await TafsirService.instance
                                     .downloadOfflineTafsir(pkg.id);
                                 setSheetState(() {});
@@ -2296,10 +2537,19 @@ class _MushafPageState extends State<MushafPageView> {
           QuranService.instance.getVerseCount(surahNumForInfo),
     );
 
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    final edition = TajweedPageCacheService.instance.currentEdition;
+    final isWhiteEdition = !edition.cropPublisherBorders;
+    final scaffoldBgColor = _themeMode == MushafThemeMode.dark
+        ? const Color(0xFF121212)
+        : (_themeMode == MushafThemeMode.white || isWhiteEdition
+              ? Colors.white
+              : const Color(0xFFFAF7EE));
+
     return Scaffold(
-      backgroundColor: _themeMode == MushafThemeMode.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFFFAF7EE),
+      backgroundColor: scaffoldBgColor,
       body: SafeArea(
         child: Stack(
           children: [
@@ -2320,12 +2570,16 @@ class _MushafPageState extends State<MushafPageView> {
                   });
                   _updateLastRead(_currentPage);
                   _safePrefetch(_currentPage);
+                  _checkAndShowHizbSnackBar(_currentPage);
                 },
                 itemBuilder: (context, index) {
                   final pageNum = index + 1;
                   return TajweedPageWidget(
                     key: ValueKey('tajweed_p$pageNum'),
                     pageNumber: pageNum,
+                    fitWidthInLandscape: _landscapeFitWidth,
+                    themeMode: _themeMode,
+                    showOverlay: _showOverlay,
                     onPageTapped: _onPageBackgroundTapped,
                     onBookmarkToggled: () => setState(() {}),
                     onSurahTap: _showJumpDialog,
@@ -2341,8 +2595,8 @@ class _MushafPageState extends State<MushafPageView> {
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 250),
                 curve: Curves.easeInOut,
-                top: _showOverlay ? 56.h : 0,
-                right: 32.w,
+                top: _showOverlay ? (isLandscape ? 44.0 : 56.h) : 0,
+                right: isLandscape ? 24.0 : 32.w,
                 child: GestureDetector(
                   onTap: _toggleCurrentPageBookmark,
                   child: _buildBookmarkRibbon(),
@@ -2356,7 +2610,10 @@ class _MushafPageState extends State<MushafPageView> {
                 left: 0,
                 right: 0,
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isLandscape ? 12.0 : 8.w,
+                    vertical: isLandscape ? 2.0 : 6.h,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.card.withAlpha(240),
                     boxShadow: [
@@ -2383,7 +2640,7 @@ class _MushafPageState extends State<MushafPageView> {
                           child: Padding(
                             padding: EdgeInsets.symmetric(
                               horizontal: 8.w,
-                              vertical: 4.h,
+                              vertical: isLandscape ? 2.0 : 4.h,
                             ),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -2395,7 +2652,7 @@ class _MushafPageState extends State<MushafPageView> {
                                       'سورة $surahName',
                                       style: TextStyle(
                                         fontFamily: 'Amiri',
-                                        fontSize: 16.sp,
+                                        fontSize: isLandscape ? 14.0 : 16.sp,
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.primary,
                                       ),
@@ -2404,35 +2661,68 @@ class _MushafPageState extends State<MushafPageView> {
                                     Icon(
                                       Icons.keyboard_arrow_down_rounded,
                                       color: AppColors.primary,
-                                      size: 20,
+                                      size: isLandscape ? 18 : 20,
                                     ),
                                   ],
                                 ),
-                                Text(
-                                  textAlign: TextAlign.center,
-                                  '$juzName • ${TajweedPageCacheService.getHizbText(_currentPage)} • صفحة $_currentPage من 604 • $sPlace • آياتها $sCountAr',
-                                  style: TextStyle(
-                                    fontFamily: 'Almarai',
-                                    fontSize: 10.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey.shade600,
+                                if (!isLandscape)
+                                  Text(
+                                    textAlign: TextAlign.center,
+                                    '$juzName • ${TajweedPageCacheService.getHizbText(_currentPage)} • صفحة $_currentPage من 604 • $sPlace • آياتها $sCountAr',
+                                    style: TextStyle(
+                                      fontFamily: 'Almarai',
+                                      fontSize: 10.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    textAlign: TextAlign.center,
+                                    '$juzName • صفحة $_currentPage من 604',
+                                    style: const TextStyle(
+                                      fontFamily: 'Almarai',
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey,
+                                    ),
                                   ),
-                                ),
                               ],
                             ),
                           ),
                         ),
                       ),
+                      if (isLandscape)
+                        IconButton(
+                          icon: Icon(
+                            _landscapeFitWidth
+                                ? Icons.fit_screen_rounded
+                                : Icons.unfold_more_rounded,
+                            color: AppColors.primary,
+                          ),
+                          tooltip: _landscapeFitWidth
+                              ? 'عرض الصفحة كاملة (احتواء)'
+                              : 'ملء العرض مع التمرير (خط كبير)',
+                          onPressed: () {
+                            setState(() {
+                              _landscapeFitWidth = !_landscapeFitWidth;
+                            });
+                          },
+                        ),
                       IconButton(
                         icon: Icon(
                           QuranService.instance.isPageBookmarked(_currentPage)
                               ? Icons.bookmark_rounded
                               : Icons.bookmark_border_rounded,
-                          color: QuranService.instance.isPageBookmarked(_currentPage)
+                          color:
+                              QuranService.instance.isPageBookmarked(
+                                _currentPage,
+                              )
                               ? Colors.amber.shade800
                               : AppColors.primary,
                         ),
-                        tooltip: QuranService.instance.isPageBookmarked(_currentPage)
+                        tooltip:
+                            QuranService.instance.isPageBookmarked(_currentPage)
                             ? 'إزالة حفظ الصفحة'
                             : 'حفظ الصفحة كعلامة مرجعية',
                         onPressed: _toggleCurrentPageBookmark,
@@ -2465,64 +2755,92 @@ class _MushafPageState extends State<MushafPageView> {
               builder: (context, progress, _) {
                 if (!progress.isDownloading) return const SizedBox.shrink();
                 return Positioned(
-                  top: _showOverlay ? 60.h : 10.h,
-                  left: 16.w,
-                  right: 16.w,
+                  top: _showOverlay
+                      ? (isLandscape ? 48.0 : 60.h)
+                      : (isLandscape ? 6.0 : 10.h),
+                  left: isLandscape ? 40.0 : 16.w,
+                  right: isLandscape ? 40.0 : 16.w,
                   child: Directionality(
                     textDirection: TextDirection.rtl,
                     child: Material(
                       elevation: 6,
-                      borderRadius: BorderRadius.circular(12.r),
+                      borderRadius: BorderRadius.circular(
+                        isLandscape ? 8.0 : 12.r,
+                      ),
                       color: AppColors.primary,
                       child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: 14.w,
-                          vertical: 8.h,
+                          horizontal: isLandscape ? 12.0 : 14.w,
+                          vertical: isLandscape ? 4.0 : 8.h,
                         ),
                         child: Row(
                           children: [
-                            const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
+                            SizedBox(
+                              width: isLandscape ? 14 : 18,
+                              height: isLandscape ? 14 : 18,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2.0,
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   Colors.white,
                                 ),
                               ),
                             ),
-                            SizedBox(width: 12.w),
+                            SizedBox(width: isLandscape ? 8.0 : 12.w),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'جارٍ تحميل ${TajweedPageCacheService.instance.currentEdition.shortName}... (${TajweedPageCacheService.instance.currentEdition.approximateSize})',
-                                    style: TextStyle(
-                                      fontFamily: 'Almarai',
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12.sp,
-                                      color: Colors.white,
+                              child: isLandscape
+                                  ? Row(
+                                      children: [
+                                        Text(
+                                          'جارٍ تحميل ${TajweedPageCacheService.instance.currentEdition.shortName}',
+                                          style: const TextStyle(
+                                            fontFamily: 'Almarai',
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '(${progress.downloaded}/604 • ${progress.percentInt}%)',
+                                          style: TextStyle(
+                                            fontFamily: 'Almarai',
+                                            fontSize: 10.5,
+                                            color: Colors.white.withAlpha(220),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'جارٍ تحميل ${TajweedPageCacheService.instance.currentEdition.shortName}... (${TajweedPageCacheService.instance.currentEdition.approximateSize})',
+                                          style: TextStyle(
+                                            fontFamily: 'Almarai',
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12.sp,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        SizedBox(height: 2.h),
+                                        Text(
+                                          'تم تحميل ${progress.downloaded} من 604 صفحة (${progress.percentInt}%)',
+                                          style: TextStyle(
+                                            fontFamily: 'Almarai',
+                                            fontSize: 11.sp,
+                                            color: Colors.white.withAlpha(220),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  SizedBox(height: 2.h),
-                                  Text(
-                                    'تم تحميل ${progress.downloaded} من 604 صفحة (${progress.percentInt}%)',
-                                    style: TextStyle(
-                                      fontFamily: 'Almarai',
-                                      fontSize: 11.sp,
-                                      color: Colors.white.withAlpha(220),
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
                             IconButton(
                               icon: const Icon(
                                 Icons.close,
                                 color: Colors.white,
-                                size: 18,
+                                size: 16,
                               ),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
@@ -2544,17 +2862,17 @@ class _MushafPageState extends State<MushafPageView> {
             // Bottom Selected Ayah Action Bar
             if (_selectedSurah != null && _selectedAyah != null)
               Positioned(
-                bottom: 12.h,
-                left: 16.w,
-                right: 16.w,
+                bottom: isLandscape ? 8.0 : 12.h,
+                left: isLandscape ? 32.0 : 16.w,
+                right: isLandscape ? 32.0 : 16.w,
                 child: _buildAyahActionBar(),
               )
             // Bottom Page Scrubber (when overlay is active and no ayah is selected)
             else if (_showOverlay)
               Positioned(
-                bottom: 24.h,
-                left: 16.w,
-                right: 16.w,
+                bottom: isLandscape ? 6.0 : 12.h,
+                left: isLandscape ? 16.0 : 16.w,
+                right: isLandscape ? 16.0 : 16.w,
                 child: _buildPageScrubber(),
               ),
 
@@ -2565,9 +2883,11 @@ class _MushafPageState extends State<MushafPageView> {
                 builder: (context, audioState, _) {
                   if (!audioState.isActive) return const SizedBox.shrink();
                   return Positioned(
-                    bottom: _showOverlay ? 116.h : 20.h,
-                    left: 16.w,
-                    right: 16.w,
+                    bottom: _showOverlay
+                        ? (isLandscape ? 50.0 : 96.h)
+                        : (isLandscape ? 10.0 : 16.h),
+                    left: isLandscape ? 32.0 : 16.w,
+                    right: isLandscape ? 32.0 : 16.w,
                     child: _buildAudioPlayerBar(audioState),
                   );
                 },
@@ -2590,9 +2910,14 @@ class _MushafPageState extends State<MushafPageView> {
         QuranService.instance.getVerseUthmani(surahNum, ayahNum);
     final isBookmarked = QuranService.instance.isBookmarked(surahNum, ayahNum);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+      padding: EdgeInsets.symmetric(
+        horizontal: isLandscape ? 12.0 : 14.w,
+        vertical: isLandscape ? 5.0 : 10.h,
+      ),
       decoration: BoxDecoration(
         color: isDark ? AppColors.surface : Colors.white,
         borderRadius: BorderRadius.circular(16.r),
@@ -2821,6 +3146,222 @@ class _MushafPageState extends State<MushafPageView> {
         ? reciters[reciterIndex]
         : reciters.first;
 
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    if (isLandscape) {
+      return Directionality(
+        textDirection: TextDirection.ltr,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 2.0),
+          decoration: BoxDecoration(
+            color: AppColors.card.withAlpha(245),
+            borderRadius: BorderRadius.circular(14.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(25),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Next Page Button
+              IconButton(
+                icon: Icon(
+                  Icons.arrow_back_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+                tooltip: 'الصفحة التالية',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: _currentPage < 604
+                    ? () => _jumpToPage(_currentPage + 1)
+                    : null,
+              ),
+
+              // Slider across 604 pages (Page 1 on Left, Page 604 on Right)
+              Directionality(
+                textDirection: TextDirection.rtl,
+                child: Expanded(
+                  child: Slider(
+                    value: _currentPage.toDouble(),
+                    min: 1.0,
+                    max: 604.0,
+                    divisions: 603,
+                    activeColor: AppColors.primary,
+                    inactiveColor: AppColors.primary.withAlpha(80),
+                    onChanged: (val) => _jumpToPage(val.round()),
+                  ),
+                ),
+              ),
+
+              // Previous Page Button
+              IconButton(
+                icon: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+                tooltip: 'الصفحة السابقة',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: _currentPage > 1
+                    ? () => _jumpToPage(_currentPage - 1)
+                    : null,
+              ),
+
+              Container(
+                height: 22,
+                width: 1,
+                color: Colors.grey.withAlpha(60),
+                margin: const EdgeInsets.symmetric(horizontal: 6.0),
+              ),
+
+              // Listen to Page button
+              ValueListenableBuilder<QuranAudioState>(
+                valueListenable: QuranService.instance.audioService.state,
+                builder: (context, audioState, _) {
+                  final isThisPage =
+                      audioState.isActive &&
+                      QuranService.instance.getPageNumber(
+                            audioState.surah,
+                            audioState.ayah,
+                          ) ==
+                          _currentPage;
+                  final isPlaying = isThisPage && audioState.isPlaying;
+
+                  return InkWell(
+                    onTap: _togglePageAudio,
+                    borderRadius: BorderRadius.circular(6.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0,
+                        vertical: 4.0,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isPlaying
+                            ? Colors.amber.shade800
+                            : AppColors.primary,
+                        borderRadius: BorderRadius.circular(6.0),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.headphones_rounded,
+                            color: Colors.white,
+                            size: 13,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            isPlaying ? 'إيقاف' : 'استماع',
+                            style: const TextStyle(
+                              fontFamily: 'Almarai',
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(width: 6),
+
+              // Page Tafsir button
+              InkWell(
+                onTap: _showPageTafsir,
+                borderRadius: BorderRadius.circular(6.0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 4.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(6.0),
+                    border: Border.all(color: AppColors.primary.withAlpha(60)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.menu_book_rounded,
+                        color: AppColors.primary,
+                        size: 13,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'تفسير',
+                        style: TextStyle(
+                          fontFamily: 'Almarai',
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 6),
+
+              // Reciter Selector Button
+              InkWell(
+                onTap: _showReciterPicker,
+                borderRadius: BorderRadius.circular(6.0),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4.0,
+                    vertical: 4.0,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.record_voice_over_rounded,
+                        size: 13,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 3),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 85),
+                        child: Text(
+                          reciter.nameAr,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'Almarai',
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_drop_down_rounded,
+                        size: 15,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Container(
@@ -2858,7 +3399,7 @@ class _MushafPageState extends State<MushafPageView> {
                                 ) ==
                                 _currentPage;
                         final isPlaying = isThisPage && audioState.isPlaying;
-      
+
                         return InkWell(
                           onTap: _togglePageAudio,
                           borderRadius: BorderRadius.circular(8.r),
@@ -2900,7 +3441,7 @@ class _MushafPageState extends State<MushafPageView> {
                       },
                     ),
                     SizedBox(width: 6.w),
-      
+
                     // Page Tafsir button
                     InkWell(
                       onTap: _showPageTafsir,
@@ -2941,19 +3482,22 @@ class _MushafPageState extends State<MushafPageView> {
                     ),
                   ],
                 ),
-      
+
                 // Reciter Selector Button
                 InkWell(
                   onTap: _showReciterPicker,
                   borderRadius: BorderRadius.circular(8.r),
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 4.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 6.w,
+                      vertical: 4.h,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.record_voice_over_rounded,
-                          size: 14.r,
+                          size: 16.sp,
                           color: AppColors.primary,
                         ),
                         SizedBox(width: 4.w),
@@ -2968,7 +3512,7 @@ class _MushafPageState extends State<MushafPageView> {
                         ),
                         Icon(
                           Icons.arrow_drop_down_rounded,
-                          size: 16.r,
+                          size: 20.sp,
                           color: AppColors.primary,
                         ),
                       ],
@@ -2978,19 +3522,22 @@ class _MushafPageState extends State<MushafPageView> {
               ],
             ),
             SizedBox(height: 4.h),
-      
+
             // Slider across 604 pages
             Row(
               children: [
                 // Next Page Button
                 IconButton(
-                  icon: Icon(Icons.arrow_back_rounded, color: AppColors.primary),
+                  icon: Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.primary,
+                  ),
                   tooltip: 'الصفحة التالية',
                   onPressed: _currentPage < 604
                       ? () => _jumpToPage(_currentPage + 1)
                       : null,
                 ),
-      
+
                 // Slider across 604 pages (Page 1 on the Left, Page 604 on the Right)
                 Directionality(
                   textDirection: TextDirection.rtl,
@@ -3008,7 +3555,7 @@ class _MushafPageState extends State<MushafPageView> {
                     ),
                   ),
                 ),
-      
+
                 // Previous Page Button
                 IconButton(
                   icon: Icon(
@@ -3100,7 +3647,7 @@ class _MushafPageState extends State<MushafPageView> {
                           children: [
                             Icon(
                               Icons.record_voice_over_rounded,
-                              size: 12.r,
+                              size: 16.sp,
                               color: Colors.teal.shade700,
                             ),
                             SizedBox(width: 4.w),
@@ -3117,7 +3664,7 @@ class _MushafPageState extends State<MushafPageView> {
                             ),
                             Icon(
                               Icons.arrow_drop_down_rounded,
-                              size: 14.r,
+                              size: 20.sp,
                               color: isDark
                                   ? Colors.teal.shade300
                                   : Colors.teal.shade800,
@@ -3173,7 +3720,7 @@ class _MushafPageState extends State<MushafPageView> {
                 onPressed: () async {
                   final canPlay = await _verifyAudioPlayable(state.surah);
                   if (!canPlay) return;
-                  QuranService.instance.audioService.skipNext();
+                  QuranService.instance.audioService.skipPrevious();
                 },
               ),
               SizedBox(width: 14.w),
@@ -3223,7 +3770,7 @@ class _MushafPageState extends State<MushafPageView> {
                 onPressed: () async {
                   final canPlay = await _verifyAudioPlayable(state.surah);
                   if (!canPlay) return;
-                  QuranService.instance.audioService.skipPrevious();
+                  QuranService.instance.audioService.skipNext();
                 },
               ),
             ],

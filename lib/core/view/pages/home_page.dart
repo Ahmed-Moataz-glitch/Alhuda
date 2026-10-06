@@ -9,6 +9,7 @@ import 'package:alhuda/features/takweem/presentation/view/widgets/hijri_calendar
 import 'package:alhuda/features/prayer_times/presentation/view/widgets/prayer_times_widget.dart';
 import 'package:alhuda/features/qibla/presentation/view/pages/qiblah_page.dart';
 import 'package:alhuda/features/quran/presentation/view/widgets/quran_widget.dart';
+import 'package:alhuda/features/app_guide/presentation/view/pages/app_guide_page.dart';
 import 'package:alhuda/features/tasbeeh/presentation/view/widgets/tasbeeh_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -137,10 +138,24 @@ class _HomePageState extends State<HomePage> {
       icon: Icons.wb_sunny_rounded,
       builder: () => const QiblahPage(hasScaffold: false),
     ),
+    _HomeFeatureItem(
+      title: 'دليل ومميزات التطبيق',
+      subtitle: 'شرح بالفيديو وطريقة استخدام مميزات الهُدى',
+      badge: 'فيديو توضيحي',
+      icon: Icons.smart_display_rounded,
+      builder: () => const AppGuidePage(hasScaffold: true),
+    ),
   ];
 
   void _navigateToSection(String title, Widget child) {
     HapticFeedback.lightImpact();
+    if (child is AppGuidePage) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => child),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -296,20 +311,89 @@ class _HomePageState extends State<HomePage> {
                     color: Colors.white.withAlpha(210),
                   ),
                 ),
+                SizedBox(height: 8.h),
+                InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AppGuidePage(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(10.r),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8.w,
+                      vertical: 4.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(30),
+                      borderRadius: BorderRadius.circular(10.r),
+                      border: Border.all(
+                        color: Colors.amber.shade200.withAlpha(120),
+                        width: 1,
+                      ),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.play_circle_fill_rounded,
+                            color: Colors.amber.shade200,
+                            size: 14.sp,
+                          ),
+                          SizedBox(width: 4.w),
+                          Text(
+                            'دليل الاستخدام بالفيديو',
+                            style: TextStyle(
+                              fontFamily: 'Almarai',
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 3.w),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: Colors.amber.shade200,
+                            size: 9.sp,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
           SizedBox(width: 10.w),
-          Container(
-            padding: EdgeInsets.all(10.r),
-            decoration: BoxDecoration(
-              color: Colors.white.withAlpha(25),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.menu_book_rounded,
-              size: 28.sp,
-              color: Colors.amber.shade200,
+          InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AppGuidePage(),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(30.r),
+            child: Container(
+              padding: EdgeInsets.all(10.r),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(25),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.play_arrow_rounded,
+                size: 28.sp,
+                color: Colors.amber.shade200,
+              ),
             ),
           ),
         ],
