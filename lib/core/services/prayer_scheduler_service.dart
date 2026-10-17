@@ -146,7 +146,7 @@ void prayerAlarmCallback(int id) async {
           stayAwake: true,
           contentType: AndroidContentType.music,
           usageType: AndroidUsageType.alarm,
-          audioFocus: AndroidAudioFocus.gain,
+          audioFocus: AndroidAudioFocus.none,
         ),
       ),
     );

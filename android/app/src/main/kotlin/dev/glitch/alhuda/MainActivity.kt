@@ -83,7 +83,6 @@ object AdhanVolumeManager {
         isAdhanPlaying = true
         playbackStartTime = System.currentTimeMillis()
         lastInternalVolumeChangeTime = System.currentTimeMillis()
-
         registerVolumeReceiver(appCtx)
     }
 
@@ -102,10 +101,14 @@ object AdhanVolumeManager {
         unregisterVolumeReceiver(ctx)
         restoreAlarmVolume(ctx)
 
-        // 1. Cancel Adhan notification via system NotificationManager
+        // 1. Cancel Adhan notifications specifically via system NotificationManager
         try {
             val notificationManager = ctx?.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            notificationManager?.cancelAll()
+            notificationManager?.cancel(9999)
+            notificationManager?.cancel(9998)
+            for (id in 1000..1999) {
+                notificationManager?.cancel(id)
+            }
         } catch (_: Exception) {}
 
         // 2. Abandon audio focus if possible
@@ -116,6 +119,59 @@ object AdhanVolumeManager {
 
         // 3. Notify all active Flutter isolates/engines
         notifyFlutterToStop()
+
+        // 4. Send action to ActionBroadcastReceiver so background isolate cleans up if active
+        try {
+            val stopIntent = Intent(ctx, com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver::class.java).apply {
+                action = com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver.ACTION_TAPPED
+                putExtra("actionId", "stop_adhan")
+                putExtra("notificationId", 9999)
+            }
+            ctx?.sendBroadcast(stopIntent)
+        } catch (_: Exception) {}
+    }
+
+    private fun registerVolumeReceiver(context: Context) {
+        if (volumeReceiver != null) return
+        try {
+            volumeReceiver = object : BroadcastReceiver() {
+                override fun onReceive(c: Context?, intent: Intent?) {
+                    if (!isAdhanPlaying) return
+                    if (intent?.action != "android.media.VOLUME_CHANGED_ACTION") return
+
+                    val now = System.currentTimeMillis()
+                    // 1. Grace period: Ignore volume events during first 2 seconds of playback
+                    if (now - playbackStartTime < 2000L) return
+
+                    // 2. Ignore volume events triggered by app's own setAdhanVolume (e.g. volume slider)
+                    if (now - lastInternalVolumeChangeTime < 2000L) return
+
+                    // 3. Verify that volume value actually changed
+                    val prevVol = intent.getIntExtra("android.media.EXTRA_PREV_VOLUME_STREAM_VALUE", -1)
+                    val currVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
+                    if (prevVol != -1 && currVol != -1 && prevVol == currVol) {
+                        return
+                    }
+
+                    stopAdhan(c ?: context)
+                }
+            }
+            val filter = IntentFilter("android.media.VOLUME_CHANGED_ACTION")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(volumeReceiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(volumeReceiver, filter)
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun unregisterVolumeReceiver(context: Context?) {
+        if (volumeReceiver != null && context != null) {
+            try {
+                context.unregisterReceiver(volumeReceiver)
+            } catch (_: Exception) {}
+            volumeReceiver = null
+        }
     }
 
     fun notifyFlutterToStop() {
@@ -175,49 +231,6 @@ object AdhanVolumeManager {
                     }
                 }
             }
-        }
-    }
-
-    private fun registerVolumeReceiver(context: Context) {
-        if (volumeReceiver != null) return
-        try {
-            volumeReceiver = object : BroadcastReceiver() {
-                override fun onReceive(c: Context?, intent: Intent?) {
-                    if (!isAdhanPlaying) return
-                    if (intent?.action != "android.media.VOLUME_CHANGED_ACTION") return
-
-                    val now = System.currentTimeMillis()
-                    // 1. Grace period: Ignore volume events during first 3 seconds of playback
-                    if (now - playbackStartTime < 3000L) return
-
-                    // 2. Ignore volume events triggered by app's own setAdhanVolume
-                    if (now - lastInternalVolumeChangeTime < 2500L) return
-
-                    // 3. Verify that volume value actually changed
-                    val prevVol = intent.getIntExtra("android.media.EXTRA_PREV_VOLUME_STREAM_VALUE", -1)
-                    val currVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
-                    if (prevVol != -1 && currVol != -1 && prevVol == currVol) {
-                        return
-                    }
-
-                    stopAdhan(c ?: context)
-                }
-            }
-            val filter = IntentFilter("android.media.VOLUME_CHANGED_ACTION")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(volumeReceiver, filter, Context.RECEIVER_EXPORTED)
-            } else {
-                context.registerReceiver(volumeReceiver, filter)
-            }
-        } catch (_: Exception) {}
-    }
-
-    private fun unregisterVolumeReceiver(context: Context?) {
-        if (volumeReceiver != null && context != null) {
-            try {
-                context.unregisterReceiver(volumeReceiver)
-            } catch (_: Exception) {}
-            volumeReceiver = null
         }
     }
 }
@@ -354,10 +367,10 @@ class MainActivity : FlutterActivity() {
             val keyCode = event.keyCode
             if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
                 if (AdhanVolumeManager.isAdhanPlaying &&
-                    System.currentTimeMillis() - AdhanVolumeManager.playbackStartTime > 1500L
+                    System.currentTimeMillis() - AdhanVolumeManager.playbackStartTime > 800L
                 ) {
                     AdhanVolumeManager.stopAdhan(applicationContext)
-                    return true // Consume key event to silence without altering volume level
+                    return true // Consume key event to silence Adhan without altering system volume
                 }
             }
         }

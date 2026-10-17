@@ -287,7 +287,7 @@ class AdhanAudioService extends ChangeNotifier {
             stayAwake: true,
             contentType: AndroidContentType.music,
             usageType: AndroidUsageType.alarm,
-            audioFocus: AndroidAudioFocus.gain,
+            audioFocus: AndroidAudioFocus.none,
           ),
         ),
       );
