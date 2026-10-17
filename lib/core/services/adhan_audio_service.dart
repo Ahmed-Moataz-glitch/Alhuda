@@ -44,6 +44,7 @@ class AdhanAudioService extends ChangeNotifier {
   StreamSubscription? _durSubscription;
   StreamSubscription? _completeSubscription;
   ReceivePort? _controlPort;
+  bool _isStarting = false;
 
   AdhanAudioService._internal() {
     _initListeners();
@@ -104,7 +105,7 @@ class AdhanAudioService extends ChangeNotifier {
 
     _stateSubscription = _player.onPlayerStateChanged.listen((state) {
       _playerState = state;
-      if (state == PlayerState.completed || state == PlayerState.stopped) {
+      if (!_isStarting && (state == PlayerState.completed || state == PlayerState.stopped)) {
         _currentPlayingSound = null;
         _position = Duration.zero;
         _stopMonitoring();
@@ -263,12 +264,14 @@ class AdhanAudioService extends ChangeNotifier {
     int notificationId = 9999,
   }) async {
     try {
+      _isStarting = true;
       _setupControlPort();
       _currentPrayerName = prayerName;
       _currentNotificationId = notificationId;
 
       if (_currentPlayingSound?.id == sound.id &&
           _playerState == PlayerState.paused) {
+        _isStarting = false;
         await resume();
         return;
       }
@@ -280,17 +283,17 @@ class AdhanAudioService extends ChangeNotifier {
       await _player.setAudioContext(
         AudioContext(
           android: const AudioContextAndroid(
-            isSpeakerphoneOn: true,
+            isSpeakerphoneOn: false,
             stayAwake: true,
             contentType: AndroidContentType.music,
             usageType: AndroidUsageType.alarm,
-            audioFocus: AndroidAudioFocus.gainTransientExclusive,
+            audioFocus: AndroidAudioFocus.gain,
           ),
         ),
       );
 
-      await _player.setVolume(_adhanVolume);
       await _applyNativeAdhanVolume();
+      await _player.setVolume(_adhanVolume);
 
       if (sound.sourceType == AdhanAudioSourceType.asset) {
         // Remove 'assets/' prefix if present for AssetSource in audioplayers
@@ -301,6 +304,8 @@ class AdhanAudioService extends ChangeNotifier {
       } else {
         await _player.play(UrlSource(sound.source));
       }
+
+      _isStarting = false;
       await _startMonitoring();
 
       // Show interactive notification with controls
@@ -309,8 +314,10 @@ class AdhanAudioService extends ChangeNotifier {
         prayerName: _currentPrayerName,
         sound: sound,
         isPlaying: true,
+        enableFullScreenIntent: false,
       );
     } catch (e) {
+      _isStarting = false;
       debugPrint('Error playing Adhan sound: $e');
       _currentPlayingSound = null;
       _playerState = PlayerState.stopped;

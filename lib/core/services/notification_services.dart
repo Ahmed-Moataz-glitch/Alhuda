@@ -244,6 +244,7 @@ abstract class NotificationServices {
     required AdhanSound sound,
     required bool isPlaying,
     String? body,
+    bool enableFullScreenIntent = false,
   }) async {
     try {
       final actions = <AndroidNotificationAction>[
@@ -280,9 +281,10 @@ abstract class NotificationServices {
           color: AppColors.primary,
           importance: Importance.max,
           priority: Priority.max,
-          fullScreenIntent: true,
+          fullScreenIntent: enableFullScreenIntent,
           ongoing: true,
           autoCancel: false,
+          onlyAlertOnce: true,
           playSound: false,
           enableVibration: true,
           category: AndroidNotificationCategory.alarm,

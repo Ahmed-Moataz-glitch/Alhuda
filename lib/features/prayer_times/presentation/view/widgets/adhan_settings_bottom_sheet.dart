@@ -236,7 +236,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
             children: [
               Icon(
                 Icons.volume_mute_rounded,
-                size: 16.sp,
+                size: 20.sp,
                 color: AppColors.primary.withAlpha(130),
               ),
               Expanded(
@@ -262,7 +262,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
               ),
               Icon(
                 Icons.volume_up_rounded,
-                size: 18.sp,
+                size: 20.sp,
                 color: AppColors.primary,
               ),
             ],
@@ -822,7 +822,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SizedBox(width: 4.w),
+              // SizedBox(width: 6.w),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

@@ -27,9 +27,15 @@ object AdhanVolumeManager {
     var isAdhanPlaying: Boolean = false
         private set
 
+    @Volatile
+    var playbackStartTime: Long = 0L
+        private set
+
+    @Volatile
+    private var lastInternalVolumeChangeTime: Long = 0L
+
     private val channels = mutableSetOf<WeakReference<MethodChannel>>()
     private var volumeReceiver: BroadcastReceiver? = null
-    private var contentObserver: ContentObserver? = null
     private var appContext: Context? = null
     private var previousAlarmVolume: Int? = null
 
@@ -47,6 +53,7 @@ object AdhanVolumeManager {
     }
 
     fun setAdhanVolume(context: Context, volumePercent: Double) {
+        lastInternalVolumeChangeTime = System.currentTimeMillis()
         val appCtx = context.applicationContext ?: appContext ?: return
         try {
             val audioManager = appCtx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
@@ -60,6 +67,7 @@ object AdhanVolumeManager {
     }
 
     fun restoreAlarmVolume(context: Context?) {
+        lastInternalVolumeChangeTime = System.currentTimeMillis()
         val prev = previousAlarmVolume ?: return
         val appCtx = context?.applicationContext ?: appContext ?: return
         try {
@@ -73,16 +81,16 @@ object AdhanVolumeManager {
         val appCtx = context.applicationContext
         appContext = appCtx
         isAdhanPlaying = true
+        playbackStartTime = System.currentTimeMillis()
+        lastInternalVolumeChangeTime = System.currentTimeMillis()
 
         registerVolumeReceiver(appCtx)
-        registerContentObserver(appCtx)
     }
 
     fun stopAdhanMonitoring(context: Context?) {
         isAdhanPlaying = false
         val ctx = context?.applicationContext ?: appContext
         unregisterVolumeReceiver(ctx)
-        unregisterContentObserver(ctx)
         restoreAlarmVolume(ctx)
     }
 
@@ -92,7 +100,6 @@ object AdhanVolumeManager {
 
         val ctx = context?.applicationContext ?: appContext
         unregisterVolumeReceiver(ctx)
-        unregisterContentObserver(ctx)
         restoreAlarmVolume(ctx)
 
         // 1. Cancel Adhan notification via system NotificationManager
@@ -176,9 +183,24 @@ object AdhanVolumeManager {
         try {
             volumeReceiver = object : BroadcastReceiver() {
                 override fun onReceive(c: Context?, intent: Intent?) {
-                    if (isAdhanPlaying && intent?.action == "android.media.VOLUME_CHANGED_ACTION") {
-                        stopAdhan(c ?: context)
+                    if (!isAdhanPlaying) return
+                    if (intent?.action != "android.media.VOLUME_CHANGED_ACTION") return
+
+                    val now = System.currentTimeMillis()
+                    // 1. Grace period: Ignore volume events during first 3 seconds of playback
+                    if (now - playbackStartTime < 3000L) return
+
+                    // 2. Ignore volume events triggered by app's own setAdhanVolume
+                    if (now - lastInternalVolumeChangeTime < 2500L) return
+
+                    // 3. Verify that volume value actually changed
+                    val prevVol = intent.getIntExtra("android.media.EXTRA_PREV_VOLUME_STREAM_VALUE", -1)
+                    val currVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
+                    if (prevVol != -1 && currVol != -1 && prevVol == currVol) {
+                        return
                     }
+
+                    stopAdhan(c ?: context)
                 }
             }
             val filter = IntentFilter("android.media.VOLUME_CHANGED_ACTION")
@@ -187,9 +209,7 @@ object AdhanVolumeManager {
             } else {
                 context.registerReceiver(volumeReceiver, filter)
             }
-        } catch (_: Exception) {
-            // Receiver registration fallback to ContentObserver
-        }
+        } catch (_: Exception) {}
     }
 
     private fun unregisterVolumeReceiver(context: Context?) {
@@ -198,34 +218,6 @@ object AdhanVolumeManager {
                 context.unregisterReceiver(volumeReceiver)
             } catch (_: Exception) {}
             volumeReceiver = null
-        }
-    }
-
-    private fun registerContentObserver(context: Context) {
-        if (contentObserver != null) return
-        try {
-            contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
-                override fun onChange(selfChange: Boolean) {
-                    super.onChange(selfChange)
-                    if (isAdhanPlaying) {
-                        stopAdhan(context)
-                    }
-                }
-            }
-            context.contentResolver.registerContentObserver(
-                Settings.System.CONTENT_URI,
-                true,
-                contentObserver!!
-            )
-        } catch (_: Exception) {}
-    }
-
-    private fun unregisterContentObserver(context: Context?) {
-        if (contentObserver != null && context != null) {
-            try {
-                context.contentResolver.unregisterContentObserver(contentObserver!!)
-            } catch (_: Exception) {}
-            contentObserver = null
         }
     }
 }
@@ -361,7 +353,9 @@ class MainActivity : FlutterActivity() {
         if (event.action == KeyEvent.ACTION_DOWN) {
             val keyCode = event.keyCode
             if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-                if (AdhanVolumeManager.isAdhanPlaying) {
+                if (AdhanVolumeManager.isAdhanPlaying &&
+                    System.currentTimeMillis() - AdhanVolumeManager.playbackStartTime > 1500L
+                ) {
                     AdhanVolumeManager.stopAdhan(applicationContext)
                     return true // Consume key event to silence without altering volume level
                 }

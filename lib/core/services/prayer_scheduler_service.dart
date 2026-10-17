@@ -51,6 +51,7 @@ void prayerAlarmCallback(int id) async {
     prayerName: prayerName,
     sound: selectedSound,
     isPlaying: true,
+    enableFullScreenIntent: true,
   );
 
   // 4. Setup control port & MethodChannel listeners to support pause, resume, stop
@@ -66,8 +67,8 @@ void prayerAlarmCallback(int id) async {
 
   const channel = MethodChannel('com.example.alhuda/adhan');
   try {
-    await channel.invokeMethod('startAdhanMonitoring');
     await channel.invokeMethod('setAdhanVolume', {'volume': adhanVolume});
+    await channel.invokeMethod('startAdhanMonitoring');
   } catch (_) {}
 
   // 5. Play Adhan audio and handle control events
@@ -90,6 +91,7 @@ void prayerAlarmCallback(int id) async {
             prayerName: prayerName,
             sound: selectedSound,
             isPlaying: false,
+            enableFullScreenIntent: false,
           );
         } catch (_) {}
       } else if (call.method == 'resumeAdhan') {
@@ -100,6 +102,7 @@ void prayerAlarmCallback(int id) async {
             prayerName: prayerName,
             sound: selectedSound,
             isPlaying: true,
+            enableFullScreenIntent: false,
           );
         } catch (_) {}
       }
@@ -119,6 +122,7 @@ void prayerAlarmCallback(int id) async {
             prayerName: prayerName,
             sound: selectedSound,
             isPlaying: false,
+            enableFullScreenIntent: false,
           );
         } catch (_) {}
       } else if (message == 'resume') {
@@ -129,6 +133,7 @@ void prayerAlarmCallback(int id) async {
             prayerName: prayerName,
             sound: selectedSound,
             isPlaying: true,
+            enableFullScreenIntent: false,
           );
         } catch (_) {}
       }
@@ -137,11 +142,11 @@ void prayerAlarmCallback(int id) async {
     await player.setAudioContext(
       AudioContext(
         android: const AudioContextAndroid(
-          isSpeakerphoneOn: true,
+          isSpeakerphoneOn: false,
           stayAwake: true,
           contentType: AndroidContentType.music,
           usageType: AndroidUsageType.alarm,
-          audioFocus: AndroidAudioFocus.gainTransientExclusive,
+          audioFocus: AndroidAudioFocus.gain,
         ),
       ),
     );
