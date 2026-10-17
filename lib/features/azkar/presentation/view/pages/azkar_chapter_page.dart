@@ -1,5 +1,7 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/view/widgets/font_size_bottom_sheet.dart';
 import 'package:alhuda/services/azkar_service.dart';
+import 'package:alhuda/services/font_size_service.dart';
 import 'package:alhuda/services/theme_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -182,50 +184,60 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
     final completed = _completedItemsCount;
     final progress = total > 0 ? (completed / total) : 0.0;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: Text(
-            widget.chapterTitle,
-            style: TextStyle(
-              fontSize: 16.sp,
-              color: AppColors.primary,
-              fontWeight: FontWeight.w500,
-              fontFamily: 'Almarai',
-            ),
-          ),
+    return FeatureFontScope(
+      feature: AppFeature.azkar,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
           backgroundColor: AppColors.background,
-          elevation: 0,
-          centerTitle: true,
-          iconTheme: IconThemeData(color: AppColors.primary),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.remove_circle_outline_rounded),
-              tooltip: 'تصغير الخط',
-              onPressed: () {
-                if (_fontSize > 14.sp) {
-                  setState(() => _fontSize -= 1.sp);
-                }
-              },
+          appBar: AppBar(
+            title: Text(
+              widget.chapterTitle,
+              style: TextStyle(
+                fontSize: 16.sp,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Almarai',
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline_rounded),
-              tooltip: 'تكبير الخط',
-              onPressed: () {
-                if (_fontSize < 30.sp) {
-                  setState(() => _fontSize += 1.sp);
-                }
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.restart_alt_rounded),
-              tooltip: 'إعادة ضبط الجميع',
-              onPressed: _items.isEmpty ? null : _resetAllCounts,
-            ),
-          ],
-        ),
+            backgroundColor: AppColors.background,
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: AppColors.primary),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline_rounded),
+                tooltip: 'تصغير الخط',
+                onPressed: () {
+                  if (_fontSize > 14.sp) {
+                    setState(() => _fontSize -= 1.sp);
+                  }
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline_rounded),
+                tooltip: 'تكبير الخط',
+                onPressed: () {
+                  if (_fontSize < 30.sp) {
+                    setState(() => _fontSize += 1.sp);
+                  }
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.format_size_rounded),
+                tooltip: 'حجم خط الأذكار',
+                onPressed: () => FontSizeBottomSheet.show(
+                  context,
+                  initialFeature: AppFeature.azkar,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.restart_alt_rounded),
+                tooltip: 'إعادة ضبط الجميع',
+                onPressed: _items.isEmpty ? null : _resetAllCounts,
+              ),
+            ],
+          ),
         body: _isLoading
             ? Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
@@ -565,6 +577,7 @@ class _AzkarChapterPageState extends State<AzkarChapterPage> {
                     ],
                   ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

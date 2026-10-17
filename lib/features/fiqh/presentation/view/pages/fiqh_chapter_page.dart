@@ -1,5 +1,7 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/view/widgets/font_size_bottom_sheet.dart';
 import 'package:alhuda/services/fiqh_service.dart';
+import 'package:alhuda/services/font_size_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -127,57 +129,67 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
     final issues = widget.chapter.issues;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
+    return FeatureFontScope(
+      feature: AppFeature.fiqh,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
           backgroundColor: AppColors.background,
-          elevation: 0,
-          centerTitle: true,
-          iconTheme: IconThemeData(color: AppColors.primary),
-          title: Column(
-            children: [
-              Text(
-                widget.chapter.title,
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                  fontFamily: 'Almarai',
+          appBar: AppBar(
+            backgroundColor: AppColors.background,
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: AppColors.primary),
+            title: Column(
+              children: [
+                Text(
+                  widget.chapter.title,
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                    fontFamily: 'Almarai',
+                  ),
                 ),
+                Text(
+                  widget.book.title,
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    color: AppColors.primary.withAlpha(180),
+                    fontFamily: 'Almarai',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline_rounded),
+                tooltip: 'تصغير الخط',
+                onPressed: () {
+                  if (_fontSize > 13.sp) {
+                    setState(() => _fontSize -= 1.sp);
+                  }
+                },
               ),
-              Text(
-                widget.book.title,
-                style: TextStyle(
-                  fontSize: 11.sp,
-                  color: AppColors.primary.withAlpha(180),
-                  fontFamily: 'Almarai',
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline_rounded),
+                tooltip: 'تكبير الخط',
+                onPressed: () {
+                  if (_fontSize < 28.sp) {
+                    setState(() => _fontSize += 1.sp);
+                  }
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.format_size_rounded),
+                tooltip: 'حجم خط الفقه الإسلامي',
+                onPressed: () => FontSizeBottomSheet.show(
+                  context,
+                  initialFeature: AppFeature.fiqh,
                 ),
               ),
             ],
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.remove_circle_outline_rounded),
-              tooltip: 'تصغير الخط',
-              onPressed: () {
-                if (_fontSize > 13.sp) {
-                  setState(() => _fontSize -= 1.sp);
-                }
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline_rounded),
-              tooltip: 'تكبير الخط',
-              onPressed: () {
-                if (_fontSize < 28.sp) {
-                  setState(() => _fontSize += 1.sp);
-                }
-              },
-            ),
-          ],
-        ),
         body: ListView(
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
@@ -587,6 +599,7 @@ class _FiqhChapterPageState extends State<FiqhChapterPage> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

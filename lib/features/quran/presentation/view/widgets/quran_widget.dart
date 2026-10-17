@@ -329,8 +329,102 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
 
     return ListView.builder(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
-      itemCount: surahs.length,
+      itemCount: surahs.length + 1,
       itemBuilder: (context, index) {
+        if (index == surahs.length) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return Card(
+            margin: EdgeInsets.only(bottom: 16.h, top: 6.h),
+            elevation: 1,
+            color: AppColors.primary.withAlpha(isDark ? 30 : 15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14.r),
+              side: BorderSide(
+                color: AppColors.primary.withAlpha(100),
+                width: 1.2,
+              ),
+            ),
+            child: ListTile(
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
+              leading: Container(
+                width: 38.r,
+                height: 38.r,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: const Icon(
+                  Icons.auto_stories_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                'دُعَاءُ خَتْمِ القُرْآنِ الكَرِيمِ',
+                style: TextStyle(
+                  fontFamily: 'Amiri',
+                  fontSize: 17.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              subtitle: Padding(
+                padding: EdgeInsets.only(top: 4.h),
+                child: Text(
+                  'خَاتِمَةُ المُصْحَفِ الشَّرِيفِ • تَقَبَّلَ اللهُ طَاعَتَكُمْ',
+                  style: TextStyle(
+                    fontFamily: 'Almarai',
+                    fontSize: 11.5.sp,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              trailing: Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(25),
+                  borderRadius: BorderRadius.circular(8.r),
+                  border: Border.all(
+                    color: AppColors.primary.withAlpha(80),
+                    width: 0.8,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'صفحة',
+                      style: TextStyle(
+                        fontFamily: 'Almarai',
+                        fontSize: 9.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      '605',
+                      style: TextStyle(
+                        fontFamily: 'Almarai',
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MushafPageView(initialPage: 605),
+                  ),
+                ).then((_) => setState(() {}));
+              },
+            ),
+          );
+        }
         final s = surahs[index];
         final isMeccan = s.revelationType == 'مكية';
         final isDark = Theme.of(context).brightness == Brightness.dark;

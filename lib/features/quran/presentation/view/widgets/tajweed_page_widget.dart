@@ -1,7 +1,5 @@
 import 'dart:ui' as ui;
 import 'package:alhuda/services/tajweed_page_cache_service.dart';
-import 'package:alhuda/features/quran/presentation/view/widgets/mushaf_page_widget.dart'
-    show MushafThemeMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -75,7 +73,6 @@ class TajweedPageWidget extends StatefulWidget {
   final VoidCallback? onPageTap;
   final VoidCallback? onJuzTap;
   final bool fitWidthInLandscape;
-  final MushafThemeMode themeMode;
   final bool showOverlay;
 
   const TajweedPageWidget({
@@ -86,8 +83,7 @@ class TajweedPageWidget extends StatefulWidget {
     this.onSurahTap,
     this.onPageTap,
     this.onJuzTap,
-    this.fitWidthInLandscape = false,
-    this.themeMode = MushafThemeMode.parchment,
+    this.fitWidthInLandscape = true,
     this.showOverlay = false,
   });
 
@@ -192,11 +188,10 @@ class _TajweedPageWidgetState extends State<TajweedPageWidget> {
 
     final edition = TajweedPageCacheService.instance.currentEdition;
     final isWhiteEdition = !edition.cropPublisherBorders;
-    final isDark = widget.themeMode == MushafThemeMode.dark;
-    final isWhite = widget.themeMode == MushafThemeMode.white;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark
         ? const Color(0xFF121212)
-        : (isWhite || isWhiteEdition ? Colors.white : const Color(0xFFFAF7EE));
+        : (isWhiteEdition ? Colors.white : const Color(0xFFFAF7EE));
     return Container(
       color: bgColor,
       child: Column(

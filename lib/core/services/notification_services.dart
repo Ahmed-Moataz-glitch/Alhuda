@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:ui';
 import 'package:alhuda/core/constants/app_colors.dart';
 import 'package:alhuda/core/constants/app_constants.dart';
@@ -45,12 +44,13 @@ abstract class NotificationServices {
         'channelName',
         channelDescription: 'channel_description',
         icon: AppConstants.notificationIcon,
+        largeIcon: const DrawableResourceAndroidBitmap(AppConstants.notificationIcon),
         color: AppColors.primary,
         importance: Importance.max,
         priority: Priority.high,
-        playSound: true,
-        vibrationPattern: Int64List.fromList([0, 1000, 500, 2000]),
-        audioAttributesUsage: AudioAttributesUsage.alarm,
+        playSound: false,
+        enableVibration: true,
+        audioAttributesUsage: AudioAttributesUsage.notification,
       );
 
   static final NotificationDetails notificationDetails = NotificationDetails(
@@ -88,7 +88,14 @@ abstract class NotificationServices {
   static Future<void> initializeNotifications() async {
     try {
       const InitializationSettings initializationSettings =
-          InitializationSettings(android: androidInitializationSettings);
+          InitializationSettings(
+            android: androidInitializationSettings,
+            iOS: DarwinInitializationSettings(
+              requestAlertPermission: true,
+              requestBadgePermission: true,
+              requestSoundPermission: true,
+            ),
+          );
 
       await flutterLocalNotificationsPlugin.initialize(
         settings: initializationSettings,
@@ -120,17 +127,35 @@ abstract class NotificationServices {
           ),
         );
 
-        // Register dedicated Adhan control channel with silent chime so only Adhan audio plays
+        // Register dedicated Adhan control channel with silent chime for in-app mini-player
         await androidImpl.createNotificationChannel(
           const AndroidNotificationChannel(
-            'adhan_control_channel_v5',
+            'adhan_control_channel_v7',
             'تنبيهات وأدوات الأذان',
             description: 'إشعارات الأذان مع أدوات التحكم في الصوت والتشغيل',
             importance: Importance.max,
             playSound: false,
-            enableVibration: false,
+            enableVibration: true,
+            audioAttributesUsage: AudioAttributesUsage.alarm,
           ),
         );
+
+        // Register dedicated notification channels for each Adhan sound with native raw audio
+        for (final sound in AdhanData.availableSounds) {
+          final rawRes = sound.source.split('/').last.replaceAll('.mp3', '');
+          await androidImpl.createNotificationChannel(
+            AndroidNotificationChannel(
+              'adhan_sound_channel_${sound.id}_v7',
+              'أذان - ${sound.title}',
+              description: 'إشعارات الأذان بصوت ${sound.muadhin}',
+              importance: Importance.max,
+              playSound: true,
+              sound: RawResourceAndroidNotificationSound(rawRes),
+              enableVibration: true,
+              audioAttributesUsage: AudioAttributesUsage.alarm,
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error initializing notifications: $e');
@@ -246,20 +271,22 @@ abstract class NotificationServices {
 
       final details = NotificationDetails(
         android: AndroidNotificationDetails(
-          'adhan_control_channel_v5',
+          'adhan_control_channel_v7',
           'تنبيهات وأدوات الأذان',
           channelDescription:
               'إشعارات الأذان مع أدوات التحكم في الصوت والتشغيل',
           icon: AppConstants.notificationIcon,
+          largeIcon: const DrawableResourceAndroidBitmap(AppConstants.notificationIcon),
           color: AppColors.primary,
           importance: Importance.max,
           priority: Priority.max,
-          fullScreenIntent: false,
-          ongoing: false,
+          fullScreenIntent: true,
+          ongoing: true,
           autoCancel: false,
           playSound: false,
-          enableVibration: false,
+          enableVibration: true,
           category: AndroidNotificationCategory.alarm,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
           visibility: NotificationVisibility.public,
           actions: actions,
         ),
@@ -283,6 +310,64 @@ abstract class NotificationServices {
     }
   }
 
+  static Future<void> showAdhanNotification({
+    int id = 9999,
+    required String prayerName,
+    required AdhanSound sound,
+    String? body,
+  }) async {
+    try {
+      final rawRes = sound.source.split('/').last.replaceAll('.mp3', '');
+      final channelId = 'adhan_sound_channel_${sound.id}_v7';
+
+      final actions = <AndroidNotificationAction>[
+        const AndroidNotificationAction(
+          actionStopAdhan,
+          'إيقاف الأذان',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+      ];
+
+      final details = NotificationDetails(
+        android: AndroidNotificationDetails(
+          channelId,
+          'أذان - ${sound.title}',
+          channelDescription: 'تنبيه أذان بصوت ${sound.muadhin}',
+          icon: AppConstants.notificationIcon,
+          largeIcon: const DrawableResourceAndroidBitmap(AppConstants.notificationIcon),
+          color: AppColors.primary,
+          importance: Importance.max,
+          priority: Priority.max,
+          fullScreenIntent: true,
+          ongoing: true,
+          autoCancel: false,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound(rawRes),
+          enableVibration: true,
+          category: AndroidNotificationCategory.alarm,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
+          visibility: NotificationVisibility.public,
+          actions: actions,
+        ),
+      );
+
+      final title = prayerName.isNotEmpty
+          ? 'حان الآن موعد أذان $prayerName'
+          : 'حان الآن موعد الأذان (${sound.title})';
+      final defaultBody = 'حي على الصلاة .. حي على الفلاح (${sound.muadhin})';
+
+      await flutterLocalNotificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body ?? defaultBody,
+        notificationDetails: details,
+      );
+    } catch (e) {
+      debugPrint('Error showing Adhan notification: $e');
+    }
+  }
+
   static Future<void> sendAdhanNotification({
     required int id,
     required String prayerName,
@@ -291,11 +376,10 @@ abstract class NotificationServices {
     bool isPlaying = true,
   }) async {
     final adhanSound = sound ?? AdhanData.defaultAdhan;
-    await showAdhanControlNotification(
+    await showAdhanNotification(
       id: id,
       prayerName: prayerName,
       sound: adhanSound,
-      isPlaying: isPlaying,
       body: body,
     );
   }
@@ -318,7 +402,7 @@ abstract class NotificationServices {
   }) async {
     try {
       await flutterLocalNotificationsPlugin.periodicallyShow(
-        id: 0,
+        id: 1,
         title: title,
         body: body,
         repeatInterval: RepeatInterval.hourly,
@@ -328,7 +412,7 @@ abstract class NotificationServices {
     } catch (_) {
       try {
         await flutterLocalNotificationsPlugin.periodicallyShow(
-          id: 0,
+          id: 1,
           title: title,
           body: body,
           repeatInterval: RepeatInterval.hourly,

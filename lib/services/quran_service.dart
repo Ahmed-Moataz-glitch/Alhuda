@@ -9,6 +9,8 @@ import 'package:quran_kit/core.dart';
 import 'package:quran_kit/kit.dart';
 import 'package:quran_kit/text.dart';
 import 'package:quran/quran.dart' as quran;
+import 'package:alhuda/services/alhuda_quran_audio_service.dart';
+export 'package:alhuda/services/alhuda_quran_audio_service.dart';
 export 'package:alhuda/features/quran/domain/entities/quran_entities.dart';
 export 'package:alhuda/features/quran/domain/repositories/quran_repository.dart';
 export 'package:alhuda/features/quran/data/repositories/quran_repository_impl.dart';
@@ -83,7 +85,7 @@ class QuranService {
     if (_isInitialized) return;
 
     try {
-      // 1. Initialize QuranKit with QFC4 Hafs font baseUrl and colored Tajweed enabled
+      // 1. Initialize QuranKit with QFC4 Hafs font baseUrl
       try {
         await QuranKit.initialize(const QuranKitConfig(
           fontBaseUrl: 'https://github.com/MoeEyani/qfc4-quran-fonts/releases/download/v1.0.0',
@@ -91,10 +93,17 @@ class QuranService {
           enableTafsir: true,
           enableSearch: true,
           enableWordByWord: true,
-          showTajweed: true,
+          showTajweed: false,
         ));
       } catch (e) {
         debugPrint('QuranKit.initialize warning: $e');
+      }
+
+      // Initialize AlhudaQuranAudioService with custom Egyptian reciters
+      try {
+        await AlhudaQuranAudioService.instance.init();
+      } catch (e) {
+        debugPrint('AlhudaQuranAudioService.init warning: $e');
       }
 
       // 2. Load QPC v4 page layout & word assets store
@@ -263,12 +272,26 @@ class QuranService {
   }
 
   Future<bool> togglePageBookmark(int pageNumber) async {
-    final pageData = getPageData(pageNumber);
-    final first = pageData.isNotEmpty ? pageData.first : {'surah': 1, 'start': 1};
-    final surahNum = first['surah'] ?? 1;
-    final ayahNum = first['start'] ?? 1;
-    final surahName = getPageSurahName(pageNumber);
-    final snippet = getVerseUthmani(surahNum, ayahNum);
+    final int surahNum;
+    final int ayahNum;
+    final String surahName;
+    final String snippet;
+
+    if (pageNumber >= 605) {
+      surahNum = 114;
+      ayahNum = 6;
+      surahName = 'دعاء ختم القرآن';
+      snippet = pageNumber == 605
+          ? 'اللَّهُمَّ ارْحَمْنِي بِالقُرْآنِ وَاجْعَلْهُ لِي إِمَاماً وَنُوراً وَهُدًى وَرَحْمَةً'
+          : 'اللَّهُمَّ أَحْسِنْ عَاقِبَتَنَا فِي الأُمُورِ كُلِّهَا وَأَجِرْنَا مِنْ خِزْيِ الدُّنْيَا';
+    } else {
+      final pageData = getPageData(pageNumber);
+      final first = pageData.isNotEmpty ? pageData.first : {'surah': 1, 'start': 1};
+      surahNum = first['surah'] ?? 1;
+      ayahNum = first['start'] ?? 1;
+      surahName = getPageSurahName(pageNumber);
+      snippet = getVerseUthmani(surahNum, ayahNum);
+    }
 
     final index = _bookmarks.indexWhere((b) => b.pageNumber == pageNumber);
     if (index >= 0) {
@@ -437,6 +460,9 @@ class QuranService {
   int getPageNumber(int surah, int ayah) => quran.getPageNumber(surah, ayah);
 
   List<Map<String, int>> getPageData(int pageNumber) {
+    if (pageNumber < 1 || pageNumber > 604) {
+      return const [];
+    }
     final raw = quran.getPageData(pageNumber);
     return raw.map((item) {
       final map = item as Map;
@@ -449,6 +475,8 @@ class QuranService {
   }
 
   int getPageJuzNumber(int pageNumber) {
+    if (pageNumber > 604) return 30;
+    if (pageNumber < 1) return 1;
     final pageData = getPageData(pageNumber);
     if (pageData.isEmpty) return 1;
     final first = pageData.first;
@@ -456,6 +484,9 @@ class QuranService {
   }
 
   String getPageJuzName(int pageNumber) {
+    if (pageNumber >= 605) {
+      return 'خاتمة المصحف';
+    }
     final juzNum = getPageJuzNumber(pageNumber);
     if (juzNum >= 1 && juzNum <= kJuzNames.length) {
       return kJuzNames[juzNum - 1];
@@ -464,6 +495,9 @@ class QuranService {
   }
 
   String getPageSurahName(int pageNumber) {
+    if (pageNumber >= 605) {
+      return 'دعاء ختم القرآن';
+    }
     final pageData = getPageData(pageNumber);
     if (pageData.isEmpty) return '';
     final surahNum = pageData.first['surah'] ?? 1;
@@ -499,13 +533,13 @@ class QuranService {
 
   // ── Audio Helpers ──
 
-  QuranAudioService get audioService => QuranAudioService.instance;
-  List<QuranReciter> get reciters => QuranAudioService.reciters;
+  AlhudaQuranAudioService get audioService => AlhudaQuranAudioService.instance;
+  List<QuranReciter> get reciters => AlhudaQuranAudioService.reciters;
 
   /// Checks whether the surah audio is downloaded locally for offline playback
   Future<bool> isSurahAudioDownloaded(int surahNumber) async {
     try {
-      return await QuranAudioService.instance.isSurahDownloaded(surahNumber);
+      return await AlhudaQuranAudioService.instance.isSurahDownloaded(surahNumber);
     } catch (_) {
       return false;
     }

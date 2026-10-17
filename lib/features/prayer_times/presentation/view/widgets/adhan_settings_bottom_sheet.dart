@@ -30,12 +30,23 @@ class AdhanSettingsBottomSheet extends StatefulWidget {
 class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
   final AdhanAudioService _audioService = AdhanAudioService();
   int _selectedTab = 0; // 0: الأصوات, 1: التنبيهات
+  bool _isIgnoringBattery = true;
 
   @override
   void initState() {
     super.initState();
     NotificationServices.requestNotificationPermission();
     _audioService.addListener(_onAudioStateChange);
+    _checkBatteryOptimization();
+  }
+
+  Future<void> _checkBatteryOptimization() async {
+    final ignored = await _audioService.isIgnoringBatteryOptimizations();
+    if (mounted) {
+      setState(() {
+        _isIgnoringBattery = ignored;
+      });
+    }
   }
 
   @override
@@ -414,6 +425,88 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
             ],
           ),
         ),
+        SizedBox(height: 16.h),
+        if (!_isIgnoringBattery)
+          Container(
+            margin: EdgeInsets.only(bottom: 12.h),
+            padding: EdgeInsets.all(12.r),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3CD),
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(color: const Color(0xFFFFEEBA)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.battery_alert_rounded,
+                      color: const Color(0xFF856404),
+                      size: 22.sp,
+                    ),
+                    SizedBox(width: 8.w),
+                    Expanded(
+                      child: Text(
+                        'لضمان عمل الأذان على شاومي وسامسونج وأوبو وهواوي',
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF856404),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 6.h),
+                Text(
+                  'تقوم بعض الهواتف بإيقاف التطبيقات في الخلفية أثناء قفل الشاشة لتوفير الطاقة. يرجى استثناء التطبيق من موفر البطارية لضمان رنين الأذان في موعده دائماً.',
+                  style: TextStyle(
+                    fontSize: 11.5.sp,
+                    color: const Color(0xFF856404),
+                    height: 1.4,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF856404),
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 8.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                        ),
+                        icon: const Icon(Icons.bolt_rounded, size: 18),
+                        label: Text(
+                          'استثناء التطبيق من موفر البطارية',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: () async {
+                          await _audioService.requestIgnoreBatteryOptimizations();
+                          await Future.delayed(const Duration(seconds: 1));
+                          _checkBatteryOptimization();
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined),
+                      tooltip: 'فتح معلومات التطبيق (التشغيل التلقائي)',
+                      color: const Color(0xFF856404),
+                      onPressed: () => _audioService.openAppSettings(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         SizedBox(height: 14.h),
         ...prayers.map((prayer) {
           final isEnabled = _audioService.isPrayerAlertEnabled(prayer);
@@ -467,6 +560,8 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
                       if (id != null) {
                         PrayerSchedulerService().cancelPrayerAlarm(id);
                       }
+                    } else {
+                      PrayerSchedulerService().scheduleUpcomingPrayers(null);
                     }
                   },
                 ),
@@ -510,7 +605,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
               }
               await _audioService.play(
                 _audioService.selectedSound,
-                prayerName: 'تجربة التنبيه',
+                prayerName: 'تجربة الأذان',
               );
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -518,7 +613,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
                   content: Directionality(
                     textDirection: TextDirection.rtl,
                     child: Text(
-                      'جاري تشغيل صوت ${_audioService.selectedSound.title} (يمكنك التحكم به من الإشعار أو إيقافه بأزرار الصوت)',
+                      'جاري تشغيل صوت ${_audioService.selectedSound.title} (يمكنك إيقافه من زر الإشعار أو أزرار الصوت)',
                     ),
                   ),
                   backgroundColor: AppColors.primary,
@@ -540,9 +635,9 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
               ),
               padding: EdgeInsets.symmetric(vertical: 12.h),
             ),
-            icon: const Icon(Icons.alarm_on_rounded),
+            icon: const Icon(Icons.notifications_active_outlined),
             label: Text(
-              'تجربة منبه الأذان بعد 10 ثوانٍ (Alarm)',
+              'تجربة إشعار الأذان بعد 10 ثوانٍ (مع قفل الهاتف)',
               style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
             ),
             onPressed: () async {
@@ -568,7 +663,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
                 prayerAlarmCallback,
                 exact: true,
                 wakeup: true,
-                alarmClock: true,
+                alarmClock: false,
                 allowWhileIdle: true,
               );
               if (!mounted) return;
@@ -577,7 +672,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
                   content: const Directionality(
                     textDirection: TextDirection.rtl,
                     child: Text(
-                      'تمت جدولة الأذان بعد 10 ثوانٍ.. أغلق التطبيق الآن للتجربة!',
+                      'تمت جدولة إشعار الأذان بعد 10 ثوانٍ.. يمكنك قفل شاشة هاتفك الآن للتجربة!',
                     ),
                   ),
                   backgroundColor: AppColors.primary,
@@ -621,33 +716,31 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              SizedBox(width: 4.w),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.graphic_eq_rounded,
-                    color: AppColors.background,
-                    size: 20.sp,
+                  SizedBox(
+                    width: 250.w,
+                    child: Text(
+                      sound.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.background,
+                      ),
+                    ),
                   ),
-                  SizedBox(width: 8.w),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        sound.title,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.background,
-                        ),
-                      ),
-                      Text(
-                        sound.muadhin,
-                        style: TextStyle(
-                          fontSize: 11.sp,
-                          color: AppColors.background.withAlpha(200),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    sound.muadhin,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.sp,
+                      color: AppColors.background.withAlpha(200),
+                    ),
                   ),
                 ],
               ),
@@ -696,26 +789,29 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
           ),
 
           // Time labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _formatDuration(pos),
-                textDirection: TextDirection.ltr,
-                style: TextStyle(
-                  fontSize: 11.sp,
-                  color: AppColors.background.withAlpha(220),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10.w),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _formatDuration(pos),
+                  textDirection: TextDirection.ltr,
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    color: AppColors.background.withAlpha(220),
+                  ),
                 ),
-              ),
-              Text(
-                _formatDuration(dur),
-                textDirection: TextDirection.ltr,
-                style: TextStyle(
-                  fontSize: 11.sp,
-                  color: AppColors.background.withAlpha(220),
+                Text(
+                  _formatDuration(dur),
+                  textDirection: TextDirection.ltr,
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    color: AppColors.background.withAlpha(220),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

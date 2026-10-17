@@ -1,4 +1,5 @@
 import 'package:alhuda/features/qibla/presentation/view/widgets/qibla_widget.dart';
+import 'package:alhuda/features/qibla/presentation/view/widgets/qiblah_offline_view.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qibla/qibla.dart';
 
@@ -90,6 +91,47 @@ void main() {
       expect(QiblaHelper.isFacingQibla(cairoQibla + 3.0, cairoQibla, threshold: 5.0), isTrue);
       expect(QiblaHelper.isFacingQibla(cairoQibla - 3.0, cairoQibla, threshold: 5.0), isTrue);
       expect(QiblaHelper.isFacingQibla(cairoQibla + 6.0, cairoQibla, threshold: 5.0), isFalse);
+    });
+  });
+
+  group('Solar & Moon Calculation Tests', () {
+    test('Solar azimuth returns valid angle between 0 and 360', () {
+      final az = SolarCalculator.getSunAzimuth(
+        latitude: 30.0444,
+        longitude: 31.2357,
+      );
+      expect(az, greaterThanOrEqualTo(0.0));
+      expect(az, lessThan(360.0));
+    });
+
+    test('isSunAboveHorizon returns a boolean value', () {
+      final isVisible = SolarCalculator.isSunAboveHorizon(
+        latitude: 30.0444,
+        longitude: 31.2357,
+      );
+      expect(isVisible, isA<bool>());
+    });
+
+    test('Night time calculation indicates sun below horizon', () {
+      // Midnight in Cairo
+      final midnight = DateTime.utc(2026, 10, 8, 22, 0); // ~1am local
+      final isVisible = SolarCalculator.isSunAboveHorizon(
+        latitude: 30.0444,
+        longitude: 31.2357,
+        time: midnight,
+      );
+      expect(isVisible, isFalse);
+    });
+
+    test('Noon calculation indicates sun above horizon', () {
+      // Midday in Cairo (~12:00 local time = ~10:00 UTC)
+      final noon = DateTime.utc(2026, 10, 8, 10, 0);
+      final isVisible = SolarCalculator.isSunAboveHorizon(
+        latitude: 30.0444,
+        longitude: 31.2357,
+        time: noon,
+      );
+      expect(isVisible, isTrue);
     });
   });
 }

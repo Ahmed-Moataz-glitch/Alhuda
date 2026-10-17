@@ -80,7 +80,7 @@ class AlhudaApplication : FlutterApplication() {
             } ?: return
 
             val adhanNotif = activeNotifications.find {
-                it.id == 9998 || it.id == 9999 || it.id in 1001..1005
+                it.id == 9998 || it.id == 9999 || it.id in 1000..1999
             }
 
             if (adhanNotif != null) {

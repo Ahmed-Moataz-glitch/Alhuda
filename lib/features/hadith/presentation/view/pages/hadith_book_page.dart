@@ -1,4 +1,6 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/view/widgets/font_size_bottom_sheet.dart';
+import 'package:alhuda/services/font_size_service.dart';
 import 'package:alhuda/services/hadith_service.dart';
 import 'package:alhuda/features/hadith/presentation/view/pages/hadith_chapter_page.dart';
 import 'package:flutter/material.dart';
@@ -75,25 +77,37 @@ class _HadithBookPageState extends State<HadithBookPage> {
   Widget build(BuildContext context) {
     final filtered = _filteredChapters;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
+    return FeatureFontScope(
+      feature: AppFeature.hadith,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
           backgroundColor: AppColors.background,
-          elevation: 0,
-          centerTitle: true,
-          iconTheme: IconThemeData(color: AppColors.primary),
-          title: Text(
-            widget.book.title,
-            style: TextStyle(
-              fontSize: 18.sp,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              fontFamily: 'Almarai',
+          appBar: AppBar(
+            backgroundColor: AppColors.background,
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: AppColors.primary),
+            title: Text(
+              widget.book.title,
+              style: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+                fontFamily: 'Almarai',
+              ),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.format_size_rounded),
+                tooltip: 'حجم خط الأحاديث النبوية',
+                onPressed: () => FontSizeBottomSheet.show(
+                  context,
+                  initialFeature: AppFeature.hadith,
+                ),
+              ),
+            ],
           ),
-        ),
         body: _isLoading
             ? Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
@@ -405,6 +419,7 @@ class _HadithBookPageState extends State<HadithBookPage> {
                   ),
                 ],
               ),
+        ),
       ),
     );
   }

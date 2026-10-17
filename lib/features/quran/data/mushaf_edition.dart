@@ -30,25 +30,7 @@ class MushafEdition {
     required this.hasTajweedColors,
   });
 
-  /// الطبعات المتوفرة في التطبيق
-  static const MushafEdition hafsTajweed = MushafEdition(
-    id: 'hafs_tajweed',
-    name: 'مصحف التجويد الملون',
-    shortName: 'مصحف التجويد',
-    riwayah: 'حفص عن عاصم',
-    publisher: 'دار المعرفة',
-    approximateSize: '85 ميجابايت',
-    approximateSizeMB: 85.0,
-    totalPages: 604,
-    folderName: 'quran_tajweed_pages',
-    baseUrl:
-        'https://raw.githubusercontent.com/QuranHub/quran-pages-images/main/easyquran.com/hafs-tajweed',
-    fallbackBaseUrl:
-        'https://cdn.jsdelivr.net/gh/QuranHub/quran-pages-images@main/easyquran.com/hafs-tajweed',
-    cropPublisherBorders: true,
-    hasTajweedColors: true,
-  );
-
+  /// الطبعات المتوفرة في التطبيق (طبعات مصحف المدينة المنورة - مجمع الملك فهد)
   static const MushafEdition madinahHafs = MushafEdition(
     id: 'madinah_hafs',
     name: 'مصحف المدينة المنورة',
@@ -105,16 +87,16 @@ class MushafEdition {
 
   /// قائمة الطبعات المدعومة
   static const List<MushafEdition> availableEditions = [
-    hafsTajweed,
     madinahHafs,
     madinahWarsh,
     madinahShubah,
   ];
 
   static MushafEdition fromId(String id) {
+    if (id == 'hafs_tajweed') return madinahHafs;
     return availableEditions.firstWhere(
       (e) => e.id == id,
-      orElse: () => hafsTajweed,
+      orElse: () => madinahHafs,
     );
   }
 

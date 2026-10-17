@@ -166,7 +166,13 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
     }
 
     if (prayers != null) {
-      await PrayerSchedulerService().scheduleUpcomingPrayers(prayers);
+      await PrayerSchedulerService().scheduleUpcomingPrayers(
+        prayers,
+        location: _currentLocation,
+        method: _selectedMethod,
+        dstMode: _egyptDstMode,
+        manualMinutesOffset: _manualMinutesOffset,
+      );
     }
   }
 
@@ -828,7 +834,7 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                   ),
                   SizedBox(height: 10.h),
                   SizedBox(
-                    width: 220.w,
+                    width: 160.w,
                     child: Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: 20.w,
@@ -839,22 +845,22 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                         borderRadius: BorderRadius.circular(30.r),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
                             Icons.hourglass_top_rounded,
                             color: Colors.amber.shade200,
-                            size: 20.sp,
+                            size: 24.sp,
                           ),
-                          SizedBox(width: 8.w),
-                          Text(
-                            'متبقي ${_formatDuration(timeRemaining)}',
-                            textDirection: TextDirection.ltr,
-                            style: TextStyle(
-                              fontSize: 18.sp,
-                              fontFamily: 'Rubik',
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                          Expanded(
+                            child: Text(
+                              _formatDuration(timeRemaining),
+                              textDirection: TextDirection.ltr,
+                              style: TextStyle(
+                                fontSize: 18.sp,
+                                fontFamily: 'Rubik',
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ],
@@ -973,8 +979,13 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
                                 !enabled,
                               );
                               if (_prayerTime != null) {
-                                PrayerSchedulerService()
-                                    .scheduleUpcomingPrayers(_prayerTime!);
+                                PrayerSchedulerService().scheduleUpcomingPrayers(
+                                  _prayerTime!,
+                                  location: _currentLocation,
+                                  method: _selectedMethod,
+                                  dstMode: _egyptDstMode,
+                                  manualMinutesOffset: _manualMinutesOffset,
+                                );
                               }
                             },
                           ),

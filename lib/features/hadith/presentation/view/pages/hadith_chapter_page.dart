@@ -1,4 +1,6 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/view/widgets/font_size_bottom_sheet.dart';
+import 'package:alhuda/services/font_size_service.dart';
 import 'package:alhuda/services/hadith_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -149,45 +151,56 @@ class _HadithChapterPageState extends State<HadithChapterPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
+    return FeatureFontScope(
+      feature: AppFeature.hadith,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
           backgroundColor: AppColors.background,
-          elevation: 0,
-          centerTitle: true,
-          iconTheme: IconThemeData(color: AppColors.primary),
-          title: Text(
-            widget.chapter.title,
-            style: TextStyle(
-              fontSize: 17.sp,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              fontFamily: 'Almarai',
+          appBar: AppBar(
+            backgroundColor: AppColors.background,
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: AppColors.primary),
+            title: Text(
+              widget.chapter.title,
+              style: TextStyle(
+                fontSize: 17.sp,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+                fontFamily: 'Almarai',
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            actions: [
+              // زر تصغير الخط
+              IconButton(
+                icon: const Icon(Icons.text_decrease_rounded),
+                tooltip: 'تصغير الخط',
+                onPressed: () {
+                  _service.decreaseFontSize();
+                },
+              ),
+              // زر تكبير الخط
+              IconButton(
+                icon: const Icon(Icons.text_increase_rounded),
+                tooltip: 'تكبير الخط',
+                onPressed: () {
+                  _service.increaseFontSize();
+                },
+              ),
+              // زر تعديل حجم خط الأحاديث النبوية
+              IconButton(
+                icon: const Icon(Icons.format_size_rounded),
+                tooltip: 'حجم خط الأحاديث النبوية',
+                onPressed: () => FontSizeBottomSheet.show(
+                  context,
+                  initialFeature: AppFeature.hadith,
+                ),
+              ),
+            ],
           ),
-          actions: [
-            // زر تصغير الخط
-            IconButton(
-              icon: const Icon(Icons.text_decrease_rounded),
-              tooltip: 'تصغير الخط',
-              onPressed: () {
-                _service.decreaseFontSize();
-              },
-            ),
-            // زر تكبير الخط
-            IconButton(
-              icon: const Icon(Icons.text_increase_rounded),
-              tooltip: 'تكبير الخط',
-              onPressed: () {
-                _service.increaseFontSize();
-              },
-            ),
-          ],
-        ),
         body: _isLoading
             ? Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
@@ -433,6 +446,7 @@ class _HadithChapterPageState extends State<HadithChapterPage> {
                       ),
                     ],
                   ),
+        ),
       ),
     );
   }

@@ -1,5 +1,7 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/view/widgets/font_size_bottom_sheet.dart';
 import 'package:alhuda/features/fiqh/presentation/view/widgets/fiqh_widget.dart';
+import 'package:alhuda/services/font_size_service.dart';
 import 'package:alhuda/services/theme_service.dart';
 import 'package:alhuda/core/view/pages/section_detail_widget.dart';
 import 'package:alhuda/features/allah_names/presentation/view/widgets/allah_names_widget.dart';
@@ -11,6 +13,7 @@ import 'package:alhuda/features/qibla/presentation/view/pages/qiblah_page.dart';
 import 'package:alhuda/features/quran/presentation/view/widgets/quran_widget.dart';
 import 'package:alhuda/features/app_guide/presentation/view/pages/app_guide_page.dart';
 import 'package:alhuda/features/tasbeeh/presentation/view/widgets/tasbeeh_widget.dart';
+import 'package:alhuda/core/services/update_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -45,15 +48,26 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     ThemeService.instance.addListener(_onThemeChanged);
+    FontSizeService.instance.addListener(_onFontSizeChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.instance.checkAndShowForceUpdateDialog(context);
+    });
   }
 
   @override
   void dispose() {
     ThemeService.instance.removeListener(_onThemeChanged);
+    FontSizeService.instance.removeListener(_onFontSizeChanged);
     super.dispose();
   }
 
   void _onThemeChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _onFontSizeChanged() {
     if (mounted) {
       setState(() {});
     }
@@ -133,9 +147,9 @@ class _HomePageState extends State<HomePage> {
     ),
     _HomeFeatureItem(
       title: 'القبلة',
-      subtitle: 'تحديد القبلة بالشمس بدون إنترنت ومستشعر',
-      badge: 'طريقة الشمس',
-      icon: Icons.wb_sunny_rounded,
+      subtitle: 'بوصلة الكعبة وطريقة الشمس والقمر',
+      badge: 'مستشعر وفلكي',
+      icon: Icons.explore_rounded,
       builder: () => const QiblahPage(hasScaffold: false),
     ),
     _HomeFeatureItem(
@@ -149,17 +163,27 @@ class _HomePageState extends State<HomePage> {
 
   void _navigateToSection(String title, Widget child) {
     HapticFeedback.lightImpact();
+    final feature = AppFeature.fromTitle(title) ?? AppFeature.quran;
     if (child is AppGuidePage) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => child),
+        MaterialPageRoute(
+          builder: (_) => const FeatureFontScope(
+            feature: AppFeature.appGuide,
+            child: AppGuidePage(),
+          ),
+        ),
       );
       return;
     }
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SectionDetailWidget(title: title, child: child),
+        builder: (_) => SectionDetailWidget(
+          title: title,
+          feature: feature,
+          child: child,
+        ),
       ),
     );
   }
@@ -169,80 +193,95 @@ class _HomePageState extends State<HomePage> {
     final now = DateTime.now();
     final hijriDate = HijriDate.fromDate(now);
     final features = _getFeatures();
+    final homeScale = FontSizeService.instance.getScale(AppFeature.home);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    // تكييف نسبة أبعاد بطاقات الميزات تلقائياً وفق حجم الخط لتجنب أي تداخل
+    final childAspectRatio = homeScale > 1.05
+        ? (1.15 - (homeScale - 1.0) * 0.42).clamp(0.92, 1.15)
+        : (homeScale < 0.95 ? 1.25 : 1.15);
+
+    final toolbarHeight = (65.h *
+            (homeScale > 1.0 ? (1.0 + (homeScale - 1.0) * 0.2) : 1.0))
+        .clamp(65.h, 78.h);
+
+    return FeatureFontScope(
+      feature: AppFeature.home,
+      child: Scaffold(
         backgroundColor: AppColors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        toolbarHeight: 65.h,
-        title: Directionality(
-          textDirection: TextDirection.rtl,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // يمين كلمة الهدى: التاريخ الهجري (الضغط عليه يفتح صفحة التقويم)
-              Expanded(
-                flex: 3,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: _buildHijriBadge(hijriDate),
-                ),
-              ),
-
-              // الوسط: كلمة الهُدى مع شعار فرعي جمالي
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4.w),
-                child: _buildCenterTitle(),
-              ),
-
-              // شمال كلمة الهدى: التاريخ الميلادي وزر تبديل المظهر
-              Expanded(
-                flex: 4,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(child: _buildGregorianBadge(now)),
-                      SizedBox(width: 5.w),
-                      _buildThemeToggleButton(),
-                    ],
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          toolbarHeight: toolbarHeight,
+          title: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // يمين كلمة الهدى: التاريخ الهجري (الضغط عليه يفتح صفحة التقويم)
+                Expanded(
+                  flex: 3,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: _buildHijriBadge(hijriDate),
                   ),
+                ),
+
+                // الوسط: كلمة الهُدى مع شعار فرعي جمالي
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: _buildCenterTitle(),
+                ),
+
+                // شمال كلمة الهدى: التاريخ الميلادي وزر تبديل المظهر
+                Expanded(
+                  flex: 4,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(child: _buildGregorianBadge(now)),
+                        SizedBox(width: 4.w),
+                        _buildFontSizeToggleButton(),
+                        SizedBox(width: 4.w),
+                        _buildThemeToggleButton(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        body: Directionality(
+          textDirection: TextDirection.rtl,
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // 1. بطاقة روحانية ترحيبية في أعلى الصفحة
+              SliverToBoxAdapter(child: _buildTopBanner(hijriDate)),
+
+              // 2. شبكة الأقسام (عنصرين في كل صف)
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 20.h),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: childAspectRatio,
+                    crossAxisSpacing: 12.w,
+                    mainAxisSpacing: 12.h,
+                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final item = features[index];
+                    return _buildFeatureCard(item);
+                  }, childCount: features.length),
                 ),
               ),
             ],
           ),
-        ),
-      ),
-      body: Directionality(
-        textDirection: TextDirection.rtl,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // 1. بطاقة روحانية ترحيبية في أعلى الصفحة
-            SliverToBoxAdapter(child: _buildTopBanner(hijriDate)),
-
-            // 2. شبكة الأقسام (عنصرين في كل صف)
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 20.h),
-              sliver: SliverGrid(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 1.15,
-                  crossAxisSpacing: 12.w,
-                  mainAxisSpacing: 12.h,
-                ),
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final item = features[index];
-                  return _buildFeatureCard(item);
-                }, childCount: features.length),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -273,6 +312,7 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.auto_awesome,
@@ -280,13 +320,17 @@ class _HomePageState extends State<HomePage> {
                       size: 15.sp,
                     ),
                     SizedBox(width: 6.w),
-                    Text(
-                      'مَرْحَباً بِكَ فِي الهُدَى',
-                      style: TextStyle(
-                        fontFamily: 'Almarai',
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber.shade200,
+                    Flexible(
+                      child: Text(
+                        'مَرْحَباً بِكَ فِي الهُدَى',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'Almarai',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber.shade200,
+                        ),
                       ),
                     ),
                   ],
@@ -318,7 +362,10 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AppGuidePage(),
+                        builder: (_) => const FeatureFontScope(
+                          feature: AppFeature.appGuide,
+                          child: AppGuidePage(),
+                        ),
                       ),
                     );
                   },
@@ -378,7 +425,10 @@ class _HomePageState extends State<HomePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const AppGuidePage(),
+                  builder: (_) => const FeatureFontScope(
+                    feature: AppFeature.appGuide,
+                    child: AppGuidePage(),
+                  ),
                 ),
               );
             },
@@ -483,7 +533,7 @@ class _HomePageState extends State<HomePage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: 'Amiri',
+                    fontFamily: 'Almarai',
                     fontSize: 15.sp,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -548,12 +598,15 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-            Text(
-              '${hijriDate.hYear} هـ',
-              style: TextStyle(
-                fontSize: 10.sp,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '${hijriDate.hYear} هـ',
+                style: TextStyle(
+                  fontSize: 10.sp,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -564,29 +617,32 @@ class _HomePageState extends State<HomePage> {
 
   /// العنوان الرئيسي وشعار التطبيق
   Widget _buildCenterTitle() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'الهُدى',
-          style: TextStyle(
-            fontFamily: 'Amiri',
-            fontSize: 22.sp,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
-            height: 1.1,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'الهُدى',
+            style: TextStyle(
+              fontFamily: 'Amiri',
+              fontSize: 22.sp,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+              height: 1.1,
+            ),
           ),
-        ),
-        Text(
-          'نُورٌ وَهِدَايَة',
-          style: TextStyle(
-            fontFamily: 'Amiri',
-            fontSize: 9.sp,
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w600,
+          Text(
+            'نُورٌ وَهِدَايَة',
+            style: TextStyle(
+              fontFamily: 'Amiri',
+              fontSize: 9.sp,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -609,12 +665,15 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          Text(
-            '${now.year} م',
-            style: TextStyle(
-              fontSize: 10.sp,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '${now.year} م',
+              style: TextStyle(
+                fontSize: 10.sp,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -683,6 +742,98 @@ class _HomePageState extends State<HomePage> {
         );
       },
     );
+  }
+
+  /// زر التحكم وتعديل حجم خط الصفحة الرئيسية ومميزات التطبيق
+  Widget _buildFontSizeToggleButton() {
+    final fontService = FontSizeService.instance;
+    return ListenableBuilder(
+      listenable: fontService,
+      builder: (context, _) {
+        final isHomeCustom = !fontService.isFeatureDefault(AppFeature.home);
+        final anyCustom = !fontService.areAllDefault;
+        return Tooltip(
+          message: isHomeCustom
+              ? 'حجم خط الرئيسية: ${fontService.percentageText(AppFeature.home)}'
+              : 'تعديل حجم خط الصفحة الرئيسية والمميزات',
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                FontSizeBottomSheet.show(
+                  context,
+                  initialFeature: AppFeature.home,
+                );
+              },
+              onLongPress: () async {
+                HapticFeedback.mediumImpact();
+                final current = fontService.getScale(AppFeature.home);
+                final next = _getNextPreset(current);
+                await fontService.setScale(AppFeature.home, next);
+              },
+              borderRadius: BorderRadius.circular(10.r),
+              child: Container(
+                padding: EdgeInsets.all(6.r),
+                decoration: BoxDecoration(
+                  color: isHomeCustom
+                      ? AppColors.primary.withAlpha(25)
+                      : AppColors.card,
+                  borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(
+                    color: isHomeCustom
+                        ? AppColors.primary
+                        : (anyCustom
+                            ? AppColors.primary.withAlpha(120)
+                            : AppColors.primary.withAlpha(50)),
+                    width: isHomeCustom ? 1.6 : 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shadow,
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      Icons.format_size_rounded,
+                      size: 16.r,
+                      color: AppColors.primary,
+                    ),
+                    if (isHomeCustom)
+                      Positioned(
+                        top: -3.r,
+                        left: -3.r,
+                        child: Container(
+                          width: 6.r,
+                          height: 6.r,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  double _getNextPreset(double current) {
+    const presets = FontSizeService.presets;
+    for (int i = 0; i < presets.length; i++) {
+      if ((presets[i] - current).abs() < 0.03) {
+        return presets[(i + 1) % presets.length];
+      }
+    }
+    return 1.0;
   }
 
   /// حوار اختيار نمط المظهر
@@ -788,8 +939,8 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
               color: isSelected
-                  ? AppColors.primary
-                  : AppColors.primary.withAlpha(30),
+                ? AppColors.primary
+                : AppColors.primary.withAlpha(30),
               width: isSelected ? 1.5 : 1,
             ),
           ),

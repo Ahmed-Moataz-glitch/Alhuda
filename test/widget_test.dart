@@ -76,5 +76,8 @@ void main() {
 
     await tester.scrollUntilVisible(find.text('القبلة'), 100);
     expect(find.text('القبلة'), findsOneWidget);
+
+    // Drain pending update service timer
+    await tester.pump(const Duration(seconds: 5));
   });
 }

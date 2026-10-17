@@ -65,8 +65,11 @@ class AdhanAudioService extends ChangeNotifier {
         if (data['prayerAlerts'] != null) {
           final alerts = Map<String, dynamic>.from(data['prayerAlerts']);
           for (final entry in alerts.entries) {
-            _prayerAlerts[entry.key] = entry.value as bool;
+            if (entry.key != 'الشروق') {
+              _prayerAlerts[entry.key] = entry.value as bool;
+            }
           }
+          _prayerAlerts['الشروق'] = false;
         }
         notifyListeners();
       }
@@ -179,13 +182,43 @@ class AdhanAudioService extends ChangeNotifier {
   bool get isPlaying => _playerState == PlayerState.playing;
   Map<String, bool> get prayerAlerts => Map.unmodifiable(_prayerAlerts);
 
-  bool isPrayerAlertEnabled(String prayerName) =>
-      _prayerAlerts[prayerName] ?? true;
+  bool isPrayerAlertEnabled(String prayerName) {
+    if (prayerName == 'الشروق') return false;
+    return _prayerAlerts[prayerName] ?? true;
+  }
 
   void togglePrayerAlert(String prayerName, bool enabled) {
+    if (prayerName == 'الشروق') return; // Cannot enable sunrise adhan
     _prayerAlerts[prayerName] = enabled;
     notifyListeners();
     _saveSettings();
+  }
+
+  Future<bool> isIgnoringBatteryOptimizations() async {
+    try {
+      final res = await _channel.invokeMethod<bool>('isIgnoringBatteryOptimizations');
+      return res ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<bool> requestIgnoreBatteryOptimizations() async {
+    try {
+      final res = await _channel.invokeMethod<bool>('requestIgnoreBatteryOptimizations');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> openAppSettings() async {
+    try {
+      final res = await _channel.invokeMethod<bool>('openAppSettings');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   void setSelectedAdhan(AdhanSound sound) {

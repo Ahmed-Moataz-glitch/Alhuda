@@ -54,15 +54,31 @@ void main() {
       expect(sounds.length, greaterThanOrEqualTo(6));
     });
 
-    test('AdhanAudioService manages prayer alerts correctly', () {
+    test('AdhanAudioService manages prayer alerts correctly and sunrise is strictly disabled', () {
       final service = AdhanAudioService();
       expect(service.isPrayerAlertEnabled('الفجر'), isTrue);
+      expect(service.isPrayerAlertEnabled('الظهر'), isTrue);
+      expect(service.isPrayerAlertEnabled('العصر'), isTrue);
+      expect(service.isPrayerAlertEnabled('المغرب'), isTrue);
+      expect(service.isPrayerAlertEnabled('العشاء'), isTrue);
+      expect(service.isPrayerAlertEnabled('الشروق'), isFalse);
+
+      // Sunrise toggle attempt should be ignored
+      service.togglePrayerAlert('الشروق', true);
+      expect(service.isPrayerAlertEnabled('الشروق'), isFalse);
 
       service.togglePrayerAlert('الفجر', false);
       expect(service.isPrayerAlertEnabled('الفجر'), isFalse);
 
       service.togglePrayerAlert('الفجر', true);
       expect(service.isPrayerAlertEnabled('الفجر'), isTrue);
+    });
+
+    test('Battery optimization methods work through MethodChannel', () async {
+      final service = AdhanAudioService();
+      expect(await service.isIgnoringBatteryOptimizations(), isTrue);
+      expect(await service.requestIgnoreBatteryOptimizations(), isTrue);
+      expect(await service.openAppSettings(), isTrue);
     });
 
     test('AdhanAudioService manages selected adhan sound', () {
@@ -77,9 +93,18 @@ void main() {
       expect(service.selectedSound.id, equals('qatami'));
     });
 
-    test('All 8 available Adhan sounds have verified local asset files on disk', () {
+    test('Available Adhan sounds list contains all Egyptian sheikhs and verified local asset files on disk', () {
       final sounds = AdhanData.availableSounds;
-      expect(sounds.length, equals(8));
+      expect(sounds.length, equals(16));
+      expect(sounds.any((s) => s.id == 'rifaat'), isTrue);
+      expect(sounds.any((s) => s.id == 'mostafa_ismail'), isTrue);
+      expect(sounds.any((s) => s.id == 'abdulbasit'), isTrue);
+      expect(sounds.any((s) => s.id == 'minshawi'), isTrue);
+      expect(sounds.any((s) => s.id == 'shuaisha'), isTrue);
+      expect(sounds.any((s) => s.id == 'hussary'), isTrue);
+      expect(sounds.any((s) => s.id == 'mahmoud_ramadan'), isTrue);
+      expect(sounds.any((s) => s.id == 'banna'), isTrue);
+
       for (final sound in sounds) {
         expect(sound.sourceType, equals(AdhanAudioSourceType.asset));
         final file = File(sound.source);
@@ -150,6 +175,26 @@ void main() {
           prayerName: 'الفجر',
           sound: AdhanData.defaultAdhan,
           isPlaying: false,
+        ),
+        completes,
+      );
+    });
+
+    test('showAdhanNotification and sendAdhanNotification run without error', () async {
+      await expectLater(
+        NotificationServices.showAdhanNotification(
+          id: 1002,
+          prayerName: 'الظهر',
+          sound: AdhanData.defaultAdhan,
+        ),
+        completes,
+      );
+
+      await expectLater(
+        NotificationServices.sendAdhanNotification(
+          id: 1003,
+          prayerName: 'العصر',
+          sound: AdhanData.defaultAdhan,
         ),
         completes,
       );

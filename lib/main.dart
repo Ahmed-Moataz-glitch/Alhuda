@@ -2,6 +2,7 @@ import 'package:alhuda/core/constants/app_constants.dart';
 import 'package:alhuda/core/services/adhan_audio_service.dart';
 import 'package:alhuda/core/services/notification_services.dart';
 import 'package:alhuda/core/theme/app_theme.dart';
+import 'package:alhuda/services/font_size_service.dart';
 import 'package:alhuda/services/quran_service.dart';
 import 'package:alhuda/services/tajweed_page_cache_service.dart';
 import 'package:alhuda/services/tafsir_service.dart';
@@ -23,6 +24,12 @@ void main() async {
     await ThemeService.instance.init();
   } catch (e) {
     debugPrint('ThemeService initialization error: $e');
+  }
+
+  try {
+    await FontSizeService.instance.init();
+  } catch (e) {
+    debugPrint('FontSizeService initialization error: $e');
   }
 
   try {

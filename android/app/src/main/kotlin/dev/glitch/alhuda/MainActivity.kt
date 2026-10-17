@@ -9,9 +9,11 @@ import android.database.ContentObserver
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.view.KeyEvent
 import androidx.annotation.NonNull
@@ -226,11 +228,12 @@ class MainActivity : FlutterActivity() {
 
         // Sensor Channel for Qibla
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SENSOR_CHANNEL).setMethodCallHandler { call, result ->
-            if (call.method == "hasMagnetometer") {
+            if (call.method == "hasMagnetometer" || call.method == "hasCompassSensor") {
                 try {
                     val sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
                     val magSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
-                    result.success(magSensor != null)
+                    val rotSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+                    result.success(magSensor != null || rotSensor != null)
                 } catch (e: Exception) {
                     result.success(false)
                 }
@@ -268,6 +271,51 @@ class MainActivity : FlutterActivity() {
                 }
                 "isAdhanPlaying" -> {
                     result.success(AdhanVolumeManager.isAdhanPlaying)
+                }
+                "isIgnoringBatteryOptimizations" -> {
+                    try {
+                        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+                        val isIgnoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            powerManager?.isIgnoringBatteryOptimizations(packageName) ?: true
+                        } else {
+                            true
+                        }
+                        result.success(isIgnoring)
+                    } catch (_: Exception) {
+                        result.success(true)
+                    }
+                }
+                "requestIgnoreBatteryOptimizations" -> {
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
+                            startActivity(intent)
+                            result.success(true)
+                        } else {
+                            result.success(true)
+                        }
+                    } catch (_: Exception) {
+                        try {
+                            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (_: Exception) {
+                            result.success(false)
+                        }
+                    }
+                }
+                "openAppSettings" -> {
+                    try {
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (_: Exception) {
+                        result.success(false)
+                    }
                 }
                 else -> result.notImplemented()
             }

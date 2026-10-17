@@ -22,8 +22,8 @@ class TajweedDownloadProgress {
     this.isComplete = false,
     this.error,
     this.editionId,
-    this.approximateSize = '85 ميجابايت',
-    this.approximateSizeMB = 85.0,
+    this.approximateSize = '180 ميجابايت',
+    this.approximateSizeMB = 180.0,
   });
 
   double get percentage => total > 0 ? (downloaded / total).clamp(0.0, 1.0) : 0.0;
@@ -32,8 +32,7 @@ class TajweedDownloadProgress {
 }
 
 /// Central cache and image management service for Quran pages (604 pages)
-/// Supporting multiple authentic editions:
-/// - Hafs Tajweed (Dar Al-Ma'rifah)
+/// Supporting multiple authentic King Fahd Complex Madinah editions:
 /// - Madinah Hafs (King Fahd Complex)
 /// - Madinah Warsh (King Fahd Complex)
 /// - Madinah Shu'bah (King Fahd Complex)
@@ -41,9 +40,9 @@ class TajweedPageCacheService {
   TajweedPageCacheService._();
   static final TajweedPageCacheService instance = TajweedPageCacheService._();
 
-  MushafEdition _currentEdition = MushafEdition.hafsTajweed;
+  MushafEdition _currentEdition = MushafEdition.madinahHafs;
   final ValueNotifier<MushafEdition> editionNotifier =
-      ValueNotifier<MushafEdition>(MushafEdition.hafsTajweed);
+      ValueNotifier<MushafEdition>(MushafEdition.madinahHafs);
 
   MushafEdition get currentEdition => _currentEdition;
 
@@ -81,6 +80,10 @@ class TajweedPageCacheService {
       if (await configFile.exists()) {
         final savedId = (await configFile.readAsString()).trim();
         _currentEdition = MushafEdition.fromId(savedId);
+        if (savedId == 'hafs_tajweed' ||
+            !MushafEdition.availableEditions.any((e) => e.id == savedId)) {
+          await configFile.writeAsString(_currentEdition.id);
+        }
         editionNotifier.value = _currentEdition;
       }
 

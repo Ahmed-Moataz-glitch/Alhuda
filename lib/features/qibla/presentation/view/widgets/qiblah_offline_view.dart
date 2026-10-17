@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:qibla/qibla.dart' as qibla_math;
 import 'package:alhuda/core/constants/app_colors.dart';
@@ -376,14 +377,14 @@ class _QiblahOfflineViewState extends State<QiblahOfflineView> {
                     _isSunVisible ? '☀️' : '🌙',
                     style: const TextStyle(fontSize: 20),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8.w),
                   Flexible(
                     child: Text(
                       isAlignedToSun
                           ? 'الهاتف محاذٍ للشمس ☀️ • السهم يشير للقبلة 🕋'
                           : 'قم بمحاذاة الهاتف للشمس لتظهر القبلة فوراً',
                       style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 13.sp,
                         fontWeight: FontWeight.bold,
                         color: isAlignedToSun
                             ? const Color(0xFF2E7D32)

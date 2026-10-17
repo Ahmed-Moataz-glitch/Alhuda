@@ -4,13 +4,16 @@ import 'package:alhuda/services/tajweed_page_cache_service.dart';
 import 'package:alhuda/services/tajweed_span_builder.dart';
 import 'package:alhuda/features/quran/presentation/view/pages/surah_reader_page.dart';
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/view/widgets/font_size_bottom_sheet.dart';
+import 'package:alhuda/services/font_size_service.dart';
 import 'package:alhuda/services/tafsir_service.dart';
 import 'package:alhuda/services/theme_service.dart';
-import 'package:alhuda/features/quran/presentation/view/widgets/mushaf_page_widget.dart'
-    show MushafThemeMode;
 import 'package:alhuda/features/quran/presentation/view/widgets/page_tafsir_bottom_sheet.dart';
 import 'package:alhuda/features/quran/presentation/view/widgets/tajweed_page_widget.dart';
 import 'package:alhuda/features/quran/presentation/view/widgets/tafsir_bottom_sheet.dart';
+import 'package:alhuda/features/quran/presentation/view/widgets/dua_khatm_quran_mushaf_page.dart';
+import 'package:alhuda/features/quran/data/dua_khatm_quran_data.dart';
+import 'package:alhuda/features/quran/presentation/view/pages/dua_khatm_quran_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -43,8 +46,6 @@ class _MushafPageState extends State<MushafPageView> {
   String? _selectedAyahText;
   bool _showOverlay = true;
   bool _autoAdvancePages = true;
-  bool _landscapeFitWidth = true;
-  MushafThemeMode _themeMode = MushafThemeMode.parchment;
 
   int? _lastPlayingSurah;
   int? _lastPlayingAyah;
@@ -54,10 +55,7 @@ class _MushafPageState extends State<MushafPageView> {
   @override
   void initState() {
     super.initState();
-    if (ThemeService.instance.isDarkMode) {
-      _themeMode = MushafThemeMode.dark;
-    }
-    _currentPage = widget.initialPage.clamp(1, 604);
+    _currentPage = widget.initialPage.clamp(1, 606);
     _selectedSurah = widget.highlightedSurah;
     _selectedAyah = widget.highlightedAyah;
     if (_selectedSurah != null && _selectedAyah != null) {
@@ -67,7 +65,9 @@ class _MushafPageState extends State<MushafPageView> {
       );
     }
     _pageController = PageController(initialPage: _currentPage - 1);
-    _updateLastRead(_currentPage);
+    if (_currentPage <= 604) {
+      _updateLastRead(_currentPage);
+    }
 
     // Track active audio recitation
     final currentAudio = QuranService.instance.audioService.state.value;
@@ -78,7 +78,9 @@ class _MushafPageState extends State<MushafPageView> {
     }
     QuranService.instance.audioService.state.addListener(_onAudioStateChanged);
 
-    _safePrefetch(_currentPage);
+    if (_currentPage <= 604) {
+      _safePrefetch(_currentPage);
+    }
 
     // Initialize Tajweed Page Cache Service and refresh download count
     TajweedPageCacheService.instance.editionNotifier.addListener(
@@ -154,6 +156,23 @@ class _MushafPageState extends State<MushafPageView> {
 
   /// Play the entire page from its first Ayah
   Future<void> _playCurrentPage() async {
+    if (_currentPage > 604) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Text(
+                'التلاوة الصوتية غير متوفرة لصفحة دعاء ختم القرآن',
+                style: TextStyle(fontFamily: 'Almarai'),
+              ),
+            ),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
     final pageData = QuranService.instance.getPageData(_currentPage);
     if (pageData.isEmpty) return;
     final first = pageData.first;
@@ -353,6 +372,7 @@ class _MushafPageState extends State<MushafPageView> {
   }
 
   void _updateLastRead(int page) {
+    if (page > 604) return;
     final pageData = QuranService.instance.getPageData(page);
     if (pageData.isNotEmpty) {
       final first = pageData.first;
@@ -369,7 +389,7 @@ class _MushafPageState extends State<MushafPageView> {
   }
 
   void _jumpToPage(int page) {
-    final clamped = page.clamp(1, 604);
+    final clamped = page.clamp(1, 606);
     _pageController.jumpToPage(clamped - 1);
     setState(() {
       _currentPage = clamped;
@@ -377,9 +397,11 @@ class _MushafPageState extends State<MushafPageView> {
       _selectedAyah = null;
       _selectedAyahText = null;
     });
-    _updateLastRead(clamped);
-    _safePrefetch(clamped);
-    _checkAndShowHizbSnackBar(clamped);
+    if (clamped <= 604) {
+      _updateLastRead(clamped);
+      _safePrefetch(clamped);
+      _checkAndShowHizbSnackBar(clamped);
+    }
   }
 
   void _checkAndShowHizbSnackBar(int page) {
@@ -617,7 +639,7 @@ class _MushafPageState extends State<MushafPageView> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'أدخل رقم الصفحة (1 - 604)',
+                                'أدخل رقم الصفحة (1 - 606)',
                                 style: TextStyle(
                                   fontFamily: 'Almarai',
                                   fontWeight: FontWeight.bold,
@@ -662,7 +684,7 @@ class _MushafPageState extends State<MushafPageView> {
                                   final p = int.tryParse(
                                     pageInputController.text.trim(),
                                   );
-                                  if (p != null && p >= 1 && p <= 604) {
+                                  if (p != null && p >= 1 && p <= 606) {
                                     Navigator.pop(context);
                                     _jumpToPage(p);
                                   }
@@ -672,6 +694,37 @@ class _MushafPageState extends State<MushafPageView> {
                                   style: TextStyle(
                                     fontFamily: 'Almarai',
                                     fontSize: 14.sp,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(top: 12.h),
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    side: BorderSide(
+                                      color: AppColors.primary.withAlpha(120),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10.r),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _jumpToPage(605);
+                                  },
+                                  icon: const Icon(
+                                    Icons.auto_stories_rounded,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    'دعاء ختم القرآن الكريم (صفحة 605 - 606)',
+                                    style: TextStyle(
+                                      fontFamily: 'Almarai',
+                                      fontSize: 12.5.sp,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1624,47 +1677,6 @@ class _MushafPageState extends State<MushafPageView> {
                         SizedBox(height: 14.h),
                       ],
 
-                      // Theme Selection
-                      Text(
-                        'مظهر ورقة المصحف:',
-                        style: TextStyle(
-                          fontFamily: 'Almarai',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13.sp,
-                        ),
-                      ),
-                      SizedBox(height: 8.h),
-                      Row(
-                        children: [
-                          _buildThemeChip(
-                            'مصحفي كريمي',
-                            MushafThemeMode.parchment,
-                            const Color(0xFFFAF7EE),
-                            setSheetState,
-                          ),
-                          SizedBox(width: 8.w),
-                          _buildThemeChip(
-                            'أبيض ناصع',
-                            MushafThemeMode.white,
-                            Colors.white,
-                            setSheetState,
-                          ),
-                          SizedBox(width: 8.w),
-                          _buildThemeChip(
-                            'ليلي داكن',
-                            MushafThemeMode.dark,
-                            const Color(0xFF181818),
-                            setSheetState,
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 14.h),
-
-                      // Landscape Mode Selection
-                      _buildLandscapeModeOption(setSheetState),
-
-                      SizedBox(height: 14.h),
 
                       // Mushaf Editions Selection
                       _buildEditionSelector(setSheetState),
@@ -1678,6 +1690,95 @@ class _MushafPageState extends State<MushafPageView> {
 
                       // Offline Tafsir Downloads Card
                       _buildOfflineTafsirSettingsCard(setSheetState),
+
+                      SizedBox(height: 14.h),
+
+                      // General App Font Size Card
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12.w,
+                          vertical: 10.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(10),
+                          borderRadius: BorderRadius.circular(12.r),
+                          border: Border.all(
+                            color: AppColors.primary.withAlpha(35),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(7.r),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withAlpha(20),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.format_size_rounded,
+                                color: AppColors.primary,
+                                size: 18.sp,
+                              ),
+                            ),
+                            SizedBox(width: 10.w),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'حجم خط التطبيق العام',
+                                    style: TextStyle(
+                                      fontFamily: 'Almarai',
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13.sp,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2.h),
+                                  Text(
+                                    'الحالي: ${FontSizeService.instance.percentageText(AppFeature.quran)} (${FontSizeService.instance.scaleLabel(AppFeature.quran)})',
+                                    style: TextStyle(
+                                      fontFamily: 'Almarai',
+                                      fontSize: 10.5.sp,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                FontSizeBottomSheet.show(
+                                  context,
+                                  initialFeature: AppFeature.quran,
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'تعديل',
+                                    style: TextStyle(
+                                      fontFamily: 'Almarai',
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12.sp,
+                                    ),
+                                  ),
+                                  SizedBox(width: 2.w),
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 10.sp,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
 
                       SizedBox(height: 14.h),
 
@@ -1698,6 +1799,15 @@ class _MushafPageState extends State<MushafPageView> {
                         ),
                         onPressed: () {
                           Navigator.pop(context);
+                          if (_currentPage >= 605) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const DuaKhatmQuranPage(),
+                              ),
+                            );
+                            return;
+                          }
                           final pageData = QuranService.instance.getPageData(
                             _currentPage,
                           );
@@ -1760,145 +1870,6 @@ class _MushafPageState extends State<MushafPageView> {
     );
   }
 
-  Widget _buildThemeChip(
-    String label,
-    MushafThemeMode mode,
-    Color color,
-    StateSetter setSheetState,
-  ) {
-    final isSelected = _themeMode == mode;
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setSheetState(() => _themeMode = mode);
-          setState(() => _themeMode = mode);
-        },
-        borderRadius: BorderRadius.circular(8.r),
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 10.h),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(8.r),
-            border: Border.all(
-              color: isSelected ? AppColors.primary : Colors.grey.shade300,
-              width: isSelected ? 2.0 : 1.0,
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Almarai',
-              fontSize: 11.sp,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              color: mode == MushafThemeMode.dark
-                  ? Colors.white
-                  : Colors.black87,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLandscapeModeOption(StateSetter setSheetState) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'وضع القراءة بالعرض (Landscape):',
-          style: TextStyle(
-            fontFamily: 'Almarai',
-            fontWeight: FontWeight.bold,
-            fontSize: 13.sp,
-          ),
-        ),
-        SizedBox(height: 8.h),
-        Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: () {
-                  setSheetState(() => _landscapeFitWidth = false);
-                  setState(() => _landscapeFitWidth = false);
-                },
-                borderRadius: BorderRadius.circular(8.r),
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 9.h, horizontal: 6.w),
-                  decoration: BoxDecoration(
-                    color: !_landscapeFitWidth
-                        ? AppColors.primary.withAlpha(isDark ? 40 : 20)
-                        : (isDark ? AppColors.surface : Colors.grey.shade100),
-                    borderRadius: BorderRadius.circular(8.r),
-                    border: Border.all(
-                      color: !_landscapeFitWidth
-                          ? AppColors.primary
-                          : (isDark ? AppColors.border : Colors.grey.shade300),
-                      width: !_landscapeFitWidth ? 2.0 : 1.0,
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'عرض الصفحة كاملة',
-                    style: TextStyle(
-                      fontFamily: 'Almarai',
-                      fontSize: 11.sp,
-                      fontWeight: !_landscapeFitWidth
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: !_landscapeFitWidth
-                          ? AppColors.primary
-                          : (isDark ? Colors.white70 : Colors.black87),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: 8.w),
-            Expanded(
-              child: InkWell(
-                onTap: () {
-                  setSheetState(() => _landscapeFitWidth = true);
-                  setState(() => _landscapeFitWidth = true);
-                },
-                borderRadius: BorderRadius.circular(8.r),
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 9.h, horizontal: 6.w),
-                  decoration: BoxDecoration(
-                    color: _landscapeFitWidth
-                        ? AppColors.primary.withAlpha(isDark ? 40 : 20)
-                        : (isDark ? AppColors.surface : Colors.grey.shade100),
-                    borderRadius: BorderRadius.circular(8.r),
-                    border: Border.all(
-                      color: _landscapeFitWidth
-                          ? AppColors.primary
-                          : (isDark ? AppColors.border : Colors.grey.shade300),
-                      width: _landscapeFitWidth ? 2.0 : 1.0,
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'ملء العرض والتمرير',
-                    style: TextStyle(
-                      fontFamily: 'Almarai',
-                      fontSize: 11.sp,
-                      fontWeight: _landscapeFitWidth
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: _landscapeFitWidth
-                          ? AppColors.primary
-                          : (isDark ? Colors.white70 : Colors.black87),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 
   Widget _buildEditionSelector(StateSetter setSheetState) {
     final currentEd = TajweedPageCacheService.instance.currentEdition;
@@ -2273,6 +2244,21 @@ class _MushafPageState extends State<MushafPageView> {
   }
 
   void _showPageTafsir() {
+    if (_currentPage >= 605) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Text(
+              'هذه صفحة دعاء ختم القرآن الكريم',
+              style: TextStyle(fontFamily: 'Almarai'),
+            ),
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     PageTafsirBottomSheet.show(context, pageNumber: _currentPage);
   }
 
@@ -2517,48 +2503,60 @@ class _MushafPageState extends State<MushafPageView> {
 
   @override
   Widget build(BuildContext context) {
-    final surahName = QuranService.instance.getPageSurahName(_currentPage);
-    final juzName = QuranService.instance.getPageJuzName(_currentPage);
-    final pageData = QuranService.instance.getPageData(_currentPage);
+    final isDuaPage = _currentPage >= 605;
+    final surahName = isDuaPage
+        ? 'دعاء ختم القرآن'
+        : QuranService.instance.getPageSurahName(_currentPage);
+    final juzName = isDuaPage
+        ? 'خاتمة المصحف'
+        : QuranService.instance.getPageJuzName(_currentPage);
+    final pageData = isDuaPage
+        ? const <Map<String, int>>[]
+        : QuranService.instance.getPageData(_currentPage);
     final startEntry = pageData.firstWhere(
       (e) => (e['start'] ?? 0) == 1,
       orElse: () => {},
     );
-    final isSurahStart = startEntry.isNotEmpty;
+    final isSurahStart = !isDuaPage && startEntry.isNotEmpty;
     final surahNumForInfo = isSurahStart
         ? (startEntry['surah'] ?? 1)
         : (pageData.isNotEmpty ? (pageData.first['surah'] ?? 1) : 1);
-    final surahDataForInfo = QuranService.instance.getSurah(surahNumForInfo);
-    final sPlace =
-        surahDataForInfo?.revelationType ??
-        QuranService.instance.getPlaceOfRevelationArabic(surahNumForInfo);
-    final sCountAr = QuranService.toArabicDigits(
-      surahDataForInfo?.totalAyahs ??
-          QuranService.instance.getVerseCount(surahNumForInfo),
-    );
+    final surahDataForInfo =
+        isDuaPage ? null : QuranService.instance.getSurah(surahNumForInfo);
+    final sPlace = isDuaPage
+        ? ''
+        : (surahDataForInfo?.revelationType ??
+            QuranService.instance.getPlaceOfRevelationArabic(surahNumForInfo));
+    final sCountAr = isDuaPage
+        ? ''
+        : QuranService.toArabicDigits(
+            surahDataForInfo?.totalAyahs ??
+                QuranService.instance.getVerseCount(surahNumForInfo),
+          );
 
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
     final edition = TajweedPageCacheService.instance.currentEdition;
     final isWhiteEdition = !edition.cropPublisherBorders;
-    final scaffoldBgColor = _themeMode == MushafThemeMode.dark
+    final isDark = ThemeService.instance.isDarkMode;
+    final scaffoldBgColor = isDark
         ? const Color(0xFF121212)
-        : (_themeMode == MushafThemeMode.white || isWhiteEdition
-              ? Colors.white
-              : const Color(0xFFFAF7EE));
+        : (isWhiteEdition ? Colors.white : const Color(0xFFFAF7EE));
 
-    return Scaffold(
-      backgroundColor: scaffoldBgColor,
+    return FeatureFontScope(
+      feature: AppFeature.quran,
+      child: Scaffold(
+        backgroundColor: scaffoldBgColor,
       body: SafeArea(
         child: Stack(
           children: [
-            // 604-page Madinah PageView (RTL Swiping matching paper Mushaf)
+            // 606-page Madinah PageView (including Dua' Khatm Al-Quran on Pages 605 and 606)
             Directionality(
               textDirection: TextDirection.rtl,
               child: PageView.builder(
                 controller: _pageController,
-                itemCount: 604,
+                itemCount: 606,
                 reverse:
                     false, // In RTL: flips forward matching physical Mushaf
                 onPageChanged: (index) {
@@ -2568,17 +2566,25 @@ class _MushafPageState extends State<MushafPageView> {
                     _selectedAyah = null;
                     _selectedAyahText = null;
                   });
-                  _updateLastRead(_currentPage);
-                  _safePrefetch(_currentPage);
-                  _checkAndShowHizbSnackBar(_currentPage);
+                  if (_currentPage <= 604) {
+                    _updateLastRead(_currentPage);
+                    _safePrefetch(_currentPage);
+                    _checkAndShowHizbSnackBar(_currentPage);
+                  }
                 },
                 itemBuilder: (context, index) {
                   final pageNum = index + 1;
+                  if (pageNum >= 605) {
+                    return DuaKhatmQuranMushafPage(
+                      pageNumber: pageNum,
+                      onPageTapped: _onPageBackgroundTapped,
+                      showOverlay: _showOverlay,
+                    );
+                  }
                   return TajweedPageWidget(
                     key: ValueKey('tajweed_p$pageNum'),
                     pageNumber: pageNum,
-                    fitWidthInLandscape: _landscapeFitWidth,
-                    themeMode: _themeMode,
+                    fitWidthInLandscape: true,
                     showOverlay: _showOverlay,
                     onPageTapped: _onPageBackgroundTapped,
                     onBookmarkToggled: () => setState(() {}),
@@ -2647,14 +2653,21 @@ class _MushafPageState extends State<MushafPageView> {
                               children: [
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
-                                      'سورة $surahName',
-                                      style: TextStyle(
-                                        fontFamily: 'Amiri',
-                                        fontSize: isLandscape ? 14.0 : 16.sp,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
+                                    Flexible(
+                                      child: Text(
+                                        _currentPage >= 605
+                                            ? 'دعاء ختم القرآن'
+                                            : 'سورة $surahName',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontFamily: 'Amiri',
+                                          fontSize: isLandscape ? 14.0 : 16.sp,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primary,
+                                        ),
                                       ),
                                     ),
                                     SizedBox(width: 4.w),
@@ -2668,7 +2681,9 @@ class _MushafPageState extends State<MushafPageView> {
                                 if (!isLandscape)
                                   Text(
                                     textAlign: TextAlign.center,
-                                    '$juzName • ${TajweedPageCacheService.getHizbText(_currentPage)} • صفحة $_currentPage من 604 • $sPlace • آياتها $sCountAr',
+                                    _currentPage >= 605
+                                        ? 'خَاتِمَةُ المُصْحَفِ الشَّرِيفِ • صَفْحَة ${QuranService.toArabicDigits(_currentPage)} • تَقَبَّلَ اللهُ طَاعَتَكُمْ'
+                                        : '$juzName • ${TajweedPageCacheService.getHizbText(_currentPage)} • صفحة $_currentPage من 604 • $sPlace • آياتها $sCountAr',
                                     style: TextStyle(
                                       fontFamily: 'Almarai',
                                       fontSize: 10.sp,
@@ -2679,7 +2694,9 @@ class _MushafPageState extends State<MushafPageView> {
                                 else
                                   Text(
                                     textAlign: TextAlign.center,
-                                    '$juzName • صفحة $_currentPage من 604',
+                                    _currentPage >= 605
+                                        ? 'خاتمة المصحف الشريف • صفحة $_currentPage'
+                                        : '$juzName • صفحة $_currentPage من 604',
                                     style: const TextStyle(
                                       fontFamily: 'Almarai',
                                       fontSize: 9.5,
@@ -2692,23 +2709,6 @@ class _MushafPageState extends State<MushafPageView> {
                           ),
                         ),
                       ),
-                      if (isLandscape)
-                        IconButton(
-                          icon: Icon(
-                            _landscapeFitWidth
-                                ? Icons.fit_screen_rounded
-                                : Icons.unfold_more_rounded,
-                            color: AppColors.primary,
-                          ),
-                          tooltip: _landscapeFitWidth
-                              ? 'عرض الصفحة كاملة (احتواء)'
-                              : 'ملء العرض مع التمرير (خط كبير)',
-                          onPressed: () {
-                            setState(() {
-                              _landscapeFitWidth = !_landscapeFitWidth;
-                            });
-                          },
-                        ),
                       IconButton(
                         icon: Icon(
                           QuranService.instance.isPageBookmarked(_currentPage)
@@ -2727,14 +2727,65 @@ class _MushafPageState extends State<MushafPageView> {
                             : 'حفظ الصفحة كعلامة مرجعية',
                         onPressed: _toggleCurrentPageBookmark,
                       ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.palette_outlined,
-                          color: AppColors.primary,
+                      if (isDuaPage) ...[
+                        IconButton(
+                          icon: Icon(
+                            Icons.copy_rounded,
+                            color: AppColors.primary,
+                          ),
+                          tooltip: 'نسخ دعاء ختم القرآن',
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(text: DuaKhatmQuranData.fullText),
+                            );
+                            HapticFeedback.lightImpact();
+                            ScaffoldMessenger.of(context).clearSnackBars();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12.r),
+                                ),
+                                backgroundColor: AppColors.primary,
+                                duration: const Duration(seconds: 2),
+                                content: const Directionality(
+                                  textDirection: TextDirection.rtl,
+                                  child: Text(
+                                    'تم نسخ دعاء ختم القرآن الكريم إلى الحافظة بنجاح',
+                                    style: TextStyle(
+                                      fontFamily: 'Almarai',
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                        tooltip: 'دليل ألوان التجويد',
-                        onPressed: _showTajweedRulesDialog,
-                      ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.format_size_rounded,
+                            color: AppColors.primary,
+                          ),
+                          tooltip: 'حجم خط المصحف الشريف',
+                          onPressed: () => FontSizeBottomSheet.show(
+                            context,
+                            initialFeature: AppFeature.quran,
+                          ),
+                        ),
+                      ] else ...[
+                        if (TajweedPageCacheService
+                            .instance.currentEdition.hasTajweedColors)
+                          IconButton(
+                            icon: Icon(
+                              Icons.palette_outlined,
+                              color: AppColors.primary,
+                            ),
+                            tooltip: 'دليل ألوان التجويد',
+                            onPressed: _showTajweedRulesDialog,
+                          ),
+                      ],
                       IconButton(
                         icon: Icon(
                           Icons.settings_outlined,
@@ -2868,13 +2919,71 @@ class _MushafPageState extends State<MushafPageView> {
                 child: _buildAyahActionBar(),
               )
             // Bottom Page Scrubber (when overlay is active and no ayah is selected)
-            else if (_showOverlay)
+            else if (_showOverlay) ...[
+              if (_currentPage == 604 && _selectedSurah == null)
+                Positioned(
+                  bottom: isLandscape ? 58.0 : 78.h,
+                  left: isLandscape ? 40.0 : 20.w,
+                  right: isLandscape ? 40.0 : 20.w,
+                  child: Center(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _jumpToPage(605),
+                        borderRadius: BorderRadius.circular(20.r),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16.w,
+                            vertical: 8.h,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.primary,
+                                AppColors.primary.withAlpha(220),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(20.r),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withAlpha(90),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.auto_stories_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              SizedBox(width: 8.w),
+                              Text(
+                                'ختام المصحف الشريف • اقرأ دعاء الختم ➔',
+                                style: TextStyle(
+                                  fontFamily: 'Almarai',
+                                  fontSize: 12.5.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 bottom: isLandscape ? 6.0 : 12.h,
                 left: isLandscape ? 16.0 : 16.w,
                 right: isLandscape ? 16.0 : 16.w,
                 child: _buildPageScrubber(),
               ),
+            ],
 
             // Floating Audio Player Bar (when audio recitation is active and no ayah is selected)
             if (_selectedSurah == null)
@@ -2895,8 +3004,9 @@ class _MushafPageState extends State<MushafPageView> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   /// Action bar shown when an Ayah is tapped: [التفسير, استماع, حفظ, نسخ]
   Widget _buildAyahActionBar() {
@@ -3177,20 +3287,20 @@ class _MushafPageState extends State<MushafPageView> {
                 tooltip: 'الصفحة التالية',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                onPressed: _currentPage < 604
+                onPressed: _currentPage < 606
                     ? () => _jumpToPage(_currentPage + 1)
                     : null,
               ),
 
-              // Slider across 604 pages (Page 1 on Left, Page 604 on Right)
+              // Slider across 606 pages (Page 1 on Left, Page 606 on Right)
               Directionality(
                 textDirection: TextDirection.rtl,
                 child: Expanded(
                   child: Slider(
-                    value: _currentPage.toDouble(),
+                    value: _currentPage.toDouble().clamp(1.0, 606.0),
                     min: 1.0,
-                    max: 604.0,
-                    divisions: 603,
+                    max: 606.0,
+                    divisions: 605,
                     activeColor: AppColors.primary,
                     inactiveColor: AppColors.primary.withAlpha(80),
                     onChanged: (val) => _jumpToPage(val.round()),
@@ -3378,11 +3488,14 @@ class _MushafPageState extends State<MushafPageView> {
           ],
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          // mainAxisSize: MainAxisSize.min,
           children: [
-            // Row with Listen to Page Button + Current Reciter Info
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Controls row (Listen + Tafsir + Reciter)
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 6.w,
+              runSpacing: 6.h,
               children: [
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -3415,7 +3528,7 @@ class _MushafPageState extends State<MushafPageView> {
                               borderRadius: BorderRadius.circular(8.r),
                             ),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                              // mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   isPlaying
@@ -3459,7 +3572,7 @@ class _MushafPageState extends State<MushafPageView> {
                           ),
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                          // mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.menu_book_rounded,
@@ -3489,7 +3602,7 @@ class _MushafPageState extends State<MushafPageView> {
                   borderRadius: BorderRadius.circular(8.r),
                   child: Padding(
                     padding: EdgeInsets.symmetric(
-                      horizontal: 6.w,
+                      horizontal: 4.w,
                       vertical: 4.h,
                     ),
                     child: Row(
@@ -3497,17 +3610,22 @@ class _MushafPageState extends State<MushafPageView> {
                       children: [
                         Icon(
                           Icons.record_voice_over_rounded,
-                          size: 16.sp,
+                          size: 18.sp,
                           color: AppColors.primary,
                         ),
-                        SizedBox(width: 4.w),
-                        Text(
-                          reciter.nameAr,
-                          style: TextStyle(
-                            fontFamily: 'Almarai',
-                            fontSize: 11.sp,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
+                        SizedBox(
+                          width: 90.w,
+                          child: Text(
+                            textDirection: TextDirection.rtl,
+                            reciter.nameAr,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'Almarai',
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
                         Icon(
@@ -3533,20 +3651,20 @@ class _MushafPageState extends State<MushafPageView> {
                     color: AppColors.primary,
                   ),
                   tooltip: 'الصفحة التالية',
-                  onPressed: _currentPage < 604
+                  onPressed: _currentPage < 606
                       ? () => _jumpToPage(_currentPage + 1)
                       : null,
                 ),
 
-                // Slider across 604 pages (Page 1 on the Left, Page 604 on the Right)
+                // Slider across 606 pages (Page 1 on the Left, Page 606 on the Right)
                 Directionality(
                   textDirection: TextDirection.rtl,
                   child: Expanded(
                     child: Slider(
-                      value: _currentPage.toDouble(),
+                      value: _currentPage.toDouble().clamp(1.0, 606.0),
                       min: 1.0,
-                      max: 604.0,
-                      divisions: 603,
+                      max: 606.0,
+                      divisions: 605,
                       activeColor: AppColors.primary,
                       inactiveColor: AppColors.primary.withAlpha(80),
                       onChanged: (val) {
