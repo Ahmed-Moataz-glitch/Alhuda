@@ -31,6 +31,7 @@ object AdhanVolumeManager {
     private var volumeReceiver: BroadcastReceiver? = null
     private var contentObserver: ContentObserver? = null
     private var appContext: Context? = null
+    private var previousAlarmVolume: Int? = null
 
     fun registerChannel(channel: MethodChannel) {
         synchronized(channels) {
@@ -43,6 +44,29 @@ object AdhanVolumeManager {
         synchronized(channels) {
             channels.removeAll { it.get() == null || it.get() == channel }
         }
+    }
+
+    fun setAdhanVolume(context: Context, volumePercent: Double) {
+        val appCtx = context.applicationContext ?: appContext ?: return
+        try {
+            val audioManager = appCtx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+            if (previousAlarmVolume == null) {
+                previousAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+            }
+            val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            val target = (maxVol * volumePercent.coerceIn(0.1, 1.0)).toInt().coerceIn(1, maxVol)
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, target, 0)
+        } catch (_: Exception) {}
+    }
+
+    fun restoreAlarmVolume(context: Context?) {
+        val prev = previousAlarmVolume ?: return
+        val appCtx = context?.applicationContext ?: appContext ?: return
+        try {
+            val audioManager = appCtx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            audioManager?.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
+        } catch (_: Exception) {}
+        previousAlarmVolume = null
     }
 
     fun startAdhanMonitoring(context: Context) {
@@ -59,6 +83,7 @@ object AdhanVolumeManager {
         val ctx = context?.applicationContext ?: appContext
         unregisterVolumeReceiver(ctx)
         unregisterContentObserver(ctx)
+        restoreAlarmVolume(ctx)
     }
 
     fun stopAdhan(context: Context?) {
@@ -68,6 +93,7 @@ object AdhanVolumeManager {
         val ctx = context?.applicationContext ?: appContext
         unregisterVolumeReceiver(ctx)
         unregisterContentObserver(ctx)
+        restoreAlarmVolume(ctx)
 
         // 1. Cancel Adhan notification via system NotificationManager
         try {
@@ -271,6 +297,15 @@ class MainActivity : FlutterActivity() {
                 }
                 "isAdhanPlaying" -> {
                     result.success(AdhanVolumeManager.isAdhanPlaying)
+                }
+                "setAdhanVolume" -> {
+                    val volume = (call.argument<Double>("volume") ?: 1.0)
+                    AdhanVolumeManager.setAdhanVolume(applicationContext, volume)
+                    result.success(true)
+                }
+                "restoreAlarmVolume" -> {
+                    AdhanVolumeManager.restoreAlarmVolume(applicationContext)
+                    result.success(true)
                 }
                 "isIgnoringBatteryOptimizations" -> {
                     try {

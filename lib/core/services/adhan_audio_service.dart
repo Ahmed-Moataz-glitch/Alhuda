@@ -28,6 +28,7 @@ class AdhanAudioService extends ChangeNotifier {
   PlayerState _playerState = PlayerState.stopped;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  double _adhanVolume = 1.0;
 
   final Map<String, bool> _prayerAlerts = {
     'الفجر': true,
@@ -71,6 +72,9 @@ class AdhanAudioService extends ChangeNotifier {
           }
           _prayerAlerts['الشروق'] = false;
         }
+        if (data['adhanVolume'] != null) {
+          _adhanVolume = (data['adhanVolume'] as num).toDouble().clamp(0.1, 1.0);
+        }
         notifyListeners();
       }
     } catch (e) {
@@ -85,6 +89,7 @@ class AdhanAudioService extends ChangeNotifier {
       final data = {
         'selectedSoundId': _selectedSound.id,
         'prayerAlerts': _prayerAlerts,
+        'adhanVolume': _adhanVolume,
       };
       await file.writeAsString(jsonEncode(data), flush: true);
     } catch (e) {
@@ -103,6 +108,7 @@ class AdhanAudioService extends ChangeNotifier {
         _currentPlayingSound = null;
         _position = Duration.zero;
         _stopMonitoring();
+        _restoreNativeAlarmVolume();
         NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
       }
       notifyListeners();
@@ -123,6 +129,7 @@ class AdhanAudioService extends ChangeNotifier {
       _playerState = PlayerState.completed;
       _position = Duration.zero;
       _stopMonitoring();
+      _restoreNativeAlarmVolume();
       NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
       notifyListeners();
     });
@@ -174,13 +181,36 @@ class AdhanAudioService extends ChangeNotifier {
     } catch (_) {}
   }
 
+  Future<void> _applyNativeAdhanVolume() async {
+    try {
+      await _channel.invokeMethod('setAdhanVolume', {'volume': _adhanVolume});
+    } catch (_) {}
+  }
+
+  Future<void> _restoreNativeAlarmVolume() async {
+    try {
+      await _channel.invokeMethod('restoreAlarmVolume');
+    } catch (_) {}
+  }
+
   AdhanSound get selectedSound => _selectedSound;
   AdhanSound? get currentPlayingSound => _currentPlayingSound;
   PlayerState get playerState => _playerState;
   Duration get position => _position;
   Duration get duration => _duration;
   bool get isPlaying => _playerState == PlayerState.playing;
+  double get adhanVolume => _adhanVolume;
   Map<String, bool> get prayerAlerts => Map.unmodifiable(_prayerAlerts);
+
+  void setAdhanVolume(double volume) {
+    _adhanVolume = volume.clamp(0.1, 1.0);
+    _player.setVolume(_adhanVolume);
+    if (isPlaying) {
+      _applyNativeAdhanVolume();
+    }
+    notifyListeners();
+    _saveSettings();
+  }
 
   bool isPrayerAlertEnabled(String prayerName) {
     if (prayerName == 'الشروق') return false;
@@ -259,6 +289,9 @@ class AdhanAudioService extends ChangeNotifier {
         ),
       );
 
+      await _player.setVolume(_adhanVolume);
+      await _applyNativeAdhanVolume();
+
       if (sound.sourceType == AdhanAudioSourceType.asset) {
         // Remove 'assets/' prefix if present for AssetSource in audioplayers
         final cleanPath = sound.source.startsWith('assets/')
@@ -281,6 +314,7 @@ class AdhanAudioService extends ChangeNotifier {
       debugPrint('Error playing Adhan sound: $e');
       _currentPlayingSound = null;
       _playerState = PlayerState.stopped;
+      await _restoreNativeAlarmVolume();
       await _stopMonitoring();
       await NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
       notifyListeners();
@@ -317,6 +351,7 @@ class AdhanAudioService extends ChangeNotifier {
     await _player.stop();
     _currentPlayingSound = null;
     _position = Duration.zero;
+    await _restoreNativeAlarmVolume();
     await _stopMonitoring();
     await NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
     try {
@@ -341,6 +376,7 @@ class AdhanAudioService extends ChangeNotifier {
   @override
   void dispose() {
     _controlPort?.close();
+    _restoreNativeAlarmVolume();
     _stopMonitoring();
     _stateSubscription?.cancel();
     _posSubscription?.cancel();

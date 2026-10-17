@@ -43,6 +43,7 @@ void prayerAlarmCallback(int id) async {
   }
 
   final selectedSound = AdhanAudioService().selectedSound;
+  final adhanVolume = AdhanAudioService().adhanVolume;
 
   // 3. Show interactive Adhan notification with controls (visible on lock screen)
   await NotificationServices.showAdhanControlNotification(
@@ -66,6 +67,7 @@ void prayerAlarmCallback(int id) async {
   const channel = MethodChannel('com.example.alhuda/adhan');
   try {
     await channel.invokeMethod('startAdhanMonitoring');
+    await channel.invokeMethod('setAdhanVolume', {'volume': adhanVolume});
   } catch (_) {}
 
   // 5. Play Adhan audio and handle control events
@@ -152,6 +154,8 @@ void prayerAlarmCallback(int id) async {
       if (!completer.isCompleted) completer.complete();
     });
 
+    await player.setVolume(adhanVolume);
+
     if (selectedSound.sourceType == AdhanAudioSourceType.asset) {
       await player.play(AssetSource(cleanPath));
     } else {
@@ -183,6 +187,9 @@ void prayerAlarmCallback(int id) async {
     controlPort.close();
     IsolateNameServer.removePortNameMapping(NotificationServices.adhanControlPort);
     IsolateNameServer.removePortNameMapping('adhan_stop_port');
+    try {
+      await channel.invokeMethod('restoreAlarmVolume');
+    } catch (_) {}
     try {
       await channel.invokeMethod('stopAdhanMonitoring');
     } catch (_) {}

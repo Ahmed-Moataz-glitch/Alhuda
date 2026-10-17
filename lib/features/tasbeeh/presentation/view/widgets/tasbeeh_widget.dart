@@ -18,7 +18,7 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
   int _currentIndex = 0;
   int _counter = 0;
   int _totalSessionCount = 0;
-  int? _customTarget; // null means use item default, 0 means open/unlimited
+  int? _customTarget = 1; // default is 1 (عدة واحدة), 0 means open/unlimited
   bool _vibrationEnabled = true;
   bool _isAutoTransitioning = false;
 
@@ -41,13 +41,10 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
 
   TasbeehItem get _currentItem =>
       (_items.isNotEmpty && _currentIndex >= 0 && _currentIndex < _items.length)
-          ? _items[_currentIndex]
-          : const TasbeehItem(id: 0, text: 'سبحان الله');
+      ? _items[_currentIndex]
+      : const TasbeehItem(id: 0, text: 'سبحان الله');
 
-  int get _effectiveTarget {
-    if (_customTarget != null) return _customTarget!;
-    return _currentItem.targetCount;
-  }
+  int get _effectiveTarget => _customTarget ?? 1;
 
   void _increment() {
     if (_isAutoTransitioning) return;
@@ -82,11 +79,14 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
 
     // الوصول للهدف تماماً (مثلاً 33 أو 100)
     final completedTarget = target;
-    final isLastItem =
-        _items.isNotEmpty && _currentIndex == _items.length - 1;
+    final isLastItem = _items.isNotEmpty && _currentIndex == _items.length - 1;
     final message = isLastItem
-        ? 'أتممت بحمد الله ($completedTarget مرة) • أتممت جميع أذكار الختام!'
-        : 'أتممت بحمد الله ($completedTarget مرة) • تم الانتقال للذكر التالي';
+        ? (completedTarget == 1
+              ? 'أتممت بحمد الله الذكر • أتممت جميع أذكار الختام!'
+              : 'أتممت بحمد الله ($completedTarget مرة) • أتممت جميع أذكار الختام!')
+        : (completedTarget == 1
+              ? 'أتممت بحمد الله الذكر • تم الانتقال للذكر التالي'
+              : 'أتممت بحمد الله ($completedTarget مرة) • تم الانتقال للذكر التالي');
 
     setState(() {
       _counter = target;
@@ -134,7 +134,6 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
       if (!mounted) return;
       setState(() {
         _counter = 0;
-        _customTarget = null;
         _isAutoTransitioning = false;
         if (_items.isNotEmpty) {
           _currentIndex = (_currentIndex + 1) % _items.length;
@@ -158,7 +157,6 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
     setState(() {
       _currentIndex = (_currentIndex + 1) % _items.length;
       _counter = 0;
-      _customTarget = null;
     });
     if (_vibrationEnabled) {
       HapticFeedback.selectionClick();
@@ -170,7 +168,6 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
     setState(() {
       _currentIndex = (_currentIndex - 1 + _items.length) % _items.length;
       _counter = 0;
-      _customTarget = null;
     });
     if (_vibrationEnabled) {
       HapticFeedback.selectionClick();
@@ -182,147 +179,11 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
       setState(() {
         _currentIndex = index;
         _counter = 0;
-        _customTarget = null;
       });
       if (_vibrationEnabled) {
         HapticFeedback.selectionClick();
       }
     }
-  }
-
-  void _showAddCustomDhikrDialog() {
-    final textController = TextEditingController();
-    final countController = TextEditingController(text: '33');
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.card,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.r),
-          ),
-          title: Text(
-            'إضافة ذكر مخصص',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Almarai',
-              fontSize: 18.sp,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: textController,
-                  maxLines: 3,
-                  textDirection: TextDirection.rtl,
-                  decoration: InputDecoration(
-                    hintText: 'اكتب نص الذكر أو الدعاء هنا...',
-                    hintStyle: TextStyle(
-                      fontFamily: 'Almarai',
-                      fontSize: 13.sp,
-                      color: AppColors.textSecondary.withAlpha(150),
-                    ),
-                    filled: true,
-                    fillColor: AppColors.background,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                      borderSide: BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                      borderSide: BorderSide(color: AppColors.primary, width: 1.5),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 14.h),
-                TextField(
-                  controller: countController,
-                  keyboardType: TextInputType.number,
-                  textDirection: TextDirection.ltr,
-                  textAlign: TextAlign.center,
-                  decoration: InputDecoration(
-                    labelText: 'الهدف التكراري (مثلاً: 33)',
-                    labelStyle: TextStyle(
-                      fontFamily: 'Almarai',
-                      fontSize: 12.sp,
-                      color: AppColors.textSecondary,
-                    ),
-                    filled: true,
-                    fillColor: AppColors.background,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                      borderSide: BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                      borderSide: BorderSide(color: AppColors.primary, width: 1.5),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actionsAlignment: MainAxisAlignment.spaceEvenly,
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                'إلغاء',
-                style: TextStyle(
-                  fontFamily: 'Almarai',
-                  fontSize: 14.sp,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final txt = textController.text.trim();
-                if (txt.isNotEmpty) {
-                  final target = int.tryParse(countController.text.trim()) ?? 33;
-                  setState(() {
-                    _items.add(
-                      TasbeehItem(
-                        id: _items.length + 1,
-                        text: txt,
-                        targetCount: target > 0 ? target : 33,
-                        fadl: 'ذكر مخصص أضفته بنفسك',
-                        isCustom: true,
-                      ),
-                    );
-                    _currentIndex = _items.length - 1;
-                    _counter = 0;
-                    _customTarget = null;
-                  });
-                  Navigator.pop(ctx);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
-              ),
-              child: Text(
-                'إضافة',
-                style: TextStyle(
-                  fontFamily: 'Almarai',
-                  fontSize: 14.sp,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showDhikrListModal() {
@@ -337,10 +198,6 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
           onSelect: (idx) {
             Navigator.pop(ctx);
             _selectItem(idx);
-          },
-          onAddCustom: () {
-            Navigator.pop(ctx);
-            _showAddCustomDhikrDialog();
           },
         );
       },
@@ -360,85 +217,9 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
         padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
         child: Column(
           children: [
-            // شريط التنقل بين الأذكار
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(16.r),
-                border: Border.all(
-                  color: AppColors.primary.withAlpha(25),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.arrow_back_ios_rounded,
-                      color: AppColors.primary,
-                      size: 18.sp,
-                    ),
-                    tooltip: 'الذكر السابق',
-                    onPressed: _previousItem,
-                  ),
-                  InkWell(
-                    onTap: _showDhikrListModal,
-                    borderRadius: BorderRadius.circular(12.r),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 14.w,
-                        vertical: 6.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(20),
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.format_list_bulleted_rounded,
-                            size: 16.sp,
-                            color: AppColors.primary,
-                          ),
-                          SizedBox(width: 6.w),
-                          Text(
-                            'الذكر ${_currentIndex + 1} من ${_items.length}',
-                            style: TextStyle(
-                              fontFamily: 'Almarai',
-                              fontSize: 13.sp,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          SizedBox(width: 4.w),
-                          Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 18.sp,
-                            color: AppColors.primary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      color: AppColors.primary,
-                      size: 18.sp,
-                    ),
-                    tooltip: 'الذكر التالي',
-                    onPressed: _nextItem,
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 18.h),
-
             // بطاقة نص الذكر
             GestureDetector(
+              onTap: _showDhikrListModal,
               onHorizontalDragEnd: (details) {
                 if (details.primaryVelocity != null) {
                   if (details.primaryVelocity! < -100) {
@@ -450,7 +231,8 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
               },
               child: Container(
                 width: double.infinity,
-                padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 20.h),
+                constraints: BoxConstraints(minHeight: 140.h),
+                padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 16.h),
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   borderRadius: BorderRadius.circular(22.r),
@@ -467,6 +249,8 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
                   ],
                 ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
@@ -479,7 +263,7 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
                         style: TextStyle(
                           fontFamily: 'Amiri',
                           fontSize: (22 * fontScale).sp,
-                          height: 1.6,
+                          height: 1.5,
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
                         ),
@@ -487,7 +271,7 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
                     ),
                     if (_currentItem.fadl != null &&
                         _currentItem.fadl!.isNotEmpty) ...[
-                      SizedBox(height: 12.h),
+                      SizedBox(height: 10.h),
                       Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: 12.w,
@@ -534,16 +318,11 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
               runSpacing: 6.h,
               alignment: WrapAlignment.center,
               children: [
-                if (_currentItem.targetCount != 33 &&
-                    _currentItem.targetCount != 100 &&
-                    _currentItem.targetCount > 0)
-                  _buildTargetChip(
-                    label: '${_currentItem.targetCount}',
-                    isSelected: _effectiveTarget == _currentItem.targetCount,
-                    onTap: () => setState(
-                      () => _customTarget = _currentItem.targetCount,
-                    ),
-                  ),
+                _buildTargetChip(
+                  label: '1',
+                  isSelected: _effectiveTarget == 1,
+                  onTap: () => setState(() => _customTarget = 1),
+                ),
                 _buildTargetChip(
                   label: '33',
                   isSelected: _effectiveTarget == 33,
@@ -554,6 +333,17 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
                   isSelected: _effectiveTarget == 100,
                   onTap: () => setState(() => _customTarget = 100),
                 ),
+                if (_currentItem.targetCount != 1 &&
+                    _currentItem.targetCount != 33 &&
+                    _currentItem.targetCount != 100 &&
+                    _currentItem.targetCount > 0)
+                  _buildTargetChip(
+                    label: '${_currentItem.targetCount}',
+                    isSelected: _effectiveTarget == _currentItem.targetCount,
+                    onTap: () => setState(
+                      () => _customTarget = _currentItem.targetCount,
+                    ),
+                  ),
                 _buildTargetChip(
                   label: 'مفتوح',
                   isSelected: _effectiveTarget == 0,
@@ -670,10 +460,7 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
               decoration: BoxDecoration(
                 color: AppColors.card,
                 borderRadius: BorderRadius.circular(14.r),
-                border: Border.all(
-                  color: AppColors.border,
-                  width: 0.8,
-                ),
+                border: Border.all(color: AppColors.border, width: 0.8),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -791,13 +578,11 @@ class _DhikrListSheet extends StatefulWidget {
   final List<TasbeehItem> items;
   final int currentIndex;
   final ValueChanged<int> onSelect;
-  final VoidCallback onAddCustom;
 
   const _DhikrListSheet({
     required this.items,
     required this.currentIndex,
     required this.onSelect,
-    required this.onAddCustom,
   });
 
   @override
@@ -856,43 +641,22 @@ class _DhikrListSheetState extends State<_DhikrListSheet> {
               ),
             ),
 
-            // عنوان النافذة مع زر إضافة ذكر
+            // عنوان النافذة
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'قائمة الأذكار والتسبيحات (${widget.items.length})',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Almarai',
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+              child: Center(
+                child: Text(
+                  'قائمة الأذكار والتسبيحات (${widget.items.length})',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Almarai',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
                   ),
-                  SizedBox(width: 8.w),
-                  TextButton.icon(
-                    onPressed: widget.onAddCustom,
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      padding: EdgeInsets.symmetric(horizontal: 10.w),
-                    ),
-                    icon: Icon(Icons.add_circle_outline_rounded, size: 16.sp),
-                    label: Text(
-                      'إضافة ذكر',
-                      style: TextStyle(
-                        fontFamily: 'Almarai',
-                        fontSize: 12.5.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
 
@@ -934,8 +698,10 @@ class _DhikrListSheetState extends State<_DhikrListSheet> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14.r),
-                    borderSide:
-                        BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide: BorderSide(
+                      color: AppColors.primary,
+                      width: 1.5,
+                    ),
                   ),
                 ),
               ),
@@ -1060,9 +826,12 @@ class _DhikrListSheetState extends State<_DhikrListSheet> {
                                           vertical: 3.h,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppColors.primary.withAlpha(20),
-                                          borderRadius:
-                                              BorderRadius.circular(8.r),
+                                          color: AppColors.primary.withAlpha(
+                                            20,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            8.r,
+                                          ),
                                         ),
                                         child: Text(
                                           '${item.targetCount}x',

@@ -70,7 +70,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Container(
-        height: 600.h,
+        height: 650.h,
         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
         child: Column(
           children: [
@@ -149,7 +149,8 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
               ),
             ),
 
-            SizedBox(height: 14.h),
+            // Volume Control Card
+            _buildVolumeControl(),
 
             // Content Body
             Expanded(
@@ -162,6 +163,111 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
             if (_audioService.currentPlayingSound != null) _buildMiniPlayer(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildVolumeControl() {
+    final vol = _audioService.adhanVolume;
+    final percent = (vol * 100).round();
+
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 8.h),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withAlpha(15),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: AppColors.primary.withAlpha(40)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    vol > 0.6
+                        ? Icons.volume_up_rounded
+                        : (vol > 0.2
+                            ? Icons.volume_down_rounded
+                            : Icons.volume_mute_rounded),
+                    color: AppColors.primary,
+                    size: 20.sp,
+                  ),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'مستوى صوت الأذان',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Text(
+                  '$percent%',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.background,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 2.h),
+          Text(
+            'يتم رفع صوت المنبه تلقائياً إلى هذا المستوى عند الأذان ويعود كما كان بعده',
+            style: TextStyle(
+              fontSize: 11.sp,
+              color: AppColors.black.withAlpha(150),
+            ),
+          ),
+          Row(
+            children: [
+              Icon(
+                Icons.volume_mute_rounded,
+                size: 16.sp,
+                color: AppColors.primary.withAlpha(130),
+              ),
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 3.h,
+                    activeTrackColor: AppColors.primary,
+                    inactiveTrackColor: AppColors.primary.withAlpha(35),
+                    thumbColor: AppColors.primary,
+                    thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6.r),
+                    overlayShape: RoundSliderOverlayShape(overlayRadius: 12.r),
+                  ),
+                  child: Slider.adaptive(
+                    value: vol,
+                    min: 0.1,
+                    max: 1.0,
+                    divisions: 9,
+                    onChanged: (val) {
+                      _audioService.setAdhanVolume(val);
+                    },
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.volume_up_rounded,
+                size: 18.sp,
+                color: AppColors.primary,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

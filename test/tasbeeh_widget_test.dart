@@ -44,7 +44,7 @@ void main() {
       );
     }
 
-    testWidgets('Renders initial dhikr and counter', (WidgetTester tester) async {
+    testWidgets('Renders initial dhikr, counter, and target chips including 1', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.6;
       addTearDown(tester.view.resetPhysicalSize);
@@ -56,10 +56,14 @@ void main() {
       expect(find.textContaining('سبحان الله وبحمده سبحان الله العظيم'), findsOneWidget);
       expect(find.text('0'), findsOneWidget);
       expect(find.text('إعادة'), findsOneWidget);
-      expect(find.textContaining('الذكر 1 من 35'), findsOneWidget);
+      // Target chips
+      expect(find.text('1'), findsWidgets);
+      expect(find.text('33'), findsWidgets);
+      expect(find.text('100'), findsWidgets);
+      expect(find.text('مفتوح'), findsWidgets);
     });
 
-    testWidgets('Tapping + increments counter while preserving dhikr text', (WidgetTester tester) async {
+    testWidgets('Tapping + increments counter while preserving dhikr text when target > 1', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.6;
       addTearDown(tester.view.resetPhysicalSize);
@@ -68,12 +72,16 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
+      // Select target 33
+      await tester.tap(find.text('33'));
+      await tester.pumpAndSettle();
+
       await tester.ensureVisible(find.byIcon(Icons.add_rounded));
       await tester.tap(find.byIcon(Icons.add_rounded));
       await tester.pumpAndSettle();
 
       // Counter should be 1
-      expect(find.text('1'), findsOneWidget);
+      expect(find.text('1'), findsWidgets);
       // Dhikr should remain the same (NOT cycle unexpectedly)
       expect(find.textContaining('سبحان الله وبحمده سبحان الله العظيم'), findsOneWidget);
 
@@ -85,7 +93,7 @@ void main() {
       expect(find.text('0'), findsOneWidget);
     });
 
-    testWidgets('Next and previous navigation cycles between Azkar', (WidgetTester tester) async {
+    testWidgets('Swipe navigation cycles between Azkar', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.6;
       addTearDown(tester.view.resetPhysicalSize);
@@ -94,22 +102,20 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Next dhikr
-      await tester.tap(find.byIcon(Icons.arrow_forward_ios_rounded));
+      // Next dhikr via fling left
+      await tester.fling(find.textContaining('سبحان الله وبحمده سبحان الله العظيم'), const Offset(-300, 0), 1000);
       await tester.pumpAndSettle();
 
       expect(find.textContaining('لا حول ولا قوة إلا بالله'), findsOneWidget);
-      expect(find.textContaining('الذكر 2 من 35'), findsOneWidget);
 
-      // Previous dhikr
-      await tester.tap(find.byIcon(Icons.arrow_back_ios_rounded));
+      // Previous dhikr via fling right
+      await tester.fling(find.textContaining('لا حول ولا قوة إلا بالله'), const Offset(300, 0), 1000);
       await tester.pumpAndSettle();
 
       expect(find.textContaining('سبحان الله وبحمده سبحان الله العظيم'), findsOneWidget);
-      expect(find.textContaining('الذكر 1 من 35'), findsOneWidget);
     });
 
-    testWidgets('Opens Dhikr bottom sheet list modal and selects item', (WidgetTester tester) async {
+    testWidgets('Opens Dhikr bottom sheet list modal by tapping dhikr card and selects item', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.6;
       addTearDown(tester.view.resetPhysicalSize);
@@ -118,8 +124,8 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      // Tap Dhikr list chip
-      await tester.tap(find.textContaining('الذكر 1 من 35'));
+      // Tap Dhikr card
+      await tester.tap(find.textContaining('سبحان الله وبحمده سبحان الله العظيم'));
       await tester.pumpAndSettle();
 
       // Verify bottom sheet title
@@ -135,7 +141,7 @@ void main() {
       expect(find.textContaining('لا حول ولا قوة إلا بالله'), findsWidgets);
     });
 
-    testWidgets('Completing target count automatically cycles to next dhikr and resets counter', (WidgetTester tester) async {
+    testWidgets('Completing default target count (1) automatically cycles to next dhikr and resets counter', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.6;
       addTearDown(tester.view.resetPhysicalSize);
@@ -145,25 +151,44 @@ void main() {
       await tester.pumpAndSettle();
 
       // First dhikr is 'سبحان الله وبحمده سبحان الله العظيم'
-      expect(find.textContaining('الذكر 1 من 35'), findsOneWidget);
+      expect(find.textContaining('سبحان الله وبحمده سبحان الله العظيم'), findsOneWidget);
 
-      // Select target 33 for faster testing
-      await tester.tap(find.text('33'));
-      await tester.pumpAndSettle();
-
-      // Tap + 33 times to reach target
+      // Tap + once (target is 1 by default)
       final addBtn = find.byIcon(Icons.add_rounded);
-      for (int i = 0; i < 33; i++) {
-        await tester.tap(addBtn);
-        await tester.pump();
-      }
+      await tester.tap(addBtn);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
       // Should automatically transition to next dhikr ('لا حول ولا قوة إلا بالله')
-      expect(find.textContaining('الذكر 2 من 35'), findsOneWidget);
       expect(find.textContaining('لا حول ولا قوة إلا بالله'), findsOneWidget);
       // Counter should reset to 0
       expect(find.text('0'), findsOneWidget);
+    });
+
+    testWidgets('Long dhikr text with fadl renders without overflow', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 2.6;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Open sheet and filter to Yunus prayer
+      await tester.tap(find.textContaining('سبحان الله وبحمده سبحان الله العظيم'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'سبحانك');
+      await tester.pumpAndSettle();
+
+      final yunusDhikr = find.textContaining('لا إله إلا أنت سبحانك إني كنت من الظالمين').first;
+      await tester.tap(yunusDhikr);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('لا إله إلا أنت سبحانك إني كنت من الظالمين'), findsWidgets);
+      expect(find.textContaining('دعوة ذي النون'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

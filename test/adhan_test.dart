@@ -93,6 +93,33 @@ void main() {
       expect(service.selectedSound.id, equals('qatami'));
     });
 
+    test('AdhanAudioService manages volume correctly with clamping', () {
+      final service = AdhanAudioService();
+      expect(service.adhanVolume, greaterThanOrEqualTo(0.1));
+      expect(service.adhanVolume, lessThanOrEqualTo(1.0));
+
+      bool notified = false;
+      void listener() => notified = true;
+      service.addListener(listener);
+
+      service.setAdhanVolume(0.8);
+      expect(service.adhanVolume, closeTo(0.8, 0.001));
+      expect(notified, isTrue);
+
+      // Clamping test
+      service.setAdhanVolume(1.5);
+      expect(service.adhanVolume, equals(1.0));
+
+      service.setAdhanVolume(0.01);
+      expect(service.adhanVolume, equals(0.1));
+
+      // Reset to 1.0
+      service.setAdhanVolume(1.0);
+      expect(service.adhanVolume, equals(1.0));
+
+      service.removeListener(listener);
+    });
+
     test('Available Adhan sounds list contains all Egyptian sheikhs and verified local asset files on disk', () {
       final sounds = AdhanData.availableSounds;
       expect(sounds.length, equals(16));
