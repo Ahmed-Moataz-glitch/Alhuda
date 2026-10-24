@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.database.ContentObserver
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.media.AudioManager
@@ -34,10 +33,35 @@ object AdhanVolumeManager {
     @Volatile
     private var lastInternalVolumeChangeTime: Long = 0L
 
+    @Volatile
+    private var internalTargetAlarmVolume: Int = -1
+
     private val channels = mutableSetOf<WeakReference<MethodChannel>>()
     private var volumeReceiver: BroadcastReceiver? = null
     private var appContext: Context? = null
     private var previousAlarmVolume: Int? = null
+
+    fun isAdhanActive(context: Context?): Boolean {
+        if (isAdhanPlaying) return true
+        val ctx = context?.applicationContext ?: appContext ?: return false
+        try {
+            val notificationManager = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return false
+            val activeNotifications = notificationManager.activeNotifications ?: return false
+            return activeNotifications.any { notif ->
+                val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) notif.notification.channelId else null
+                val isAdhanChannel = channelId != null && channelId.startsWith("adhan_")
+                val hasAdhanAction = notif.notification.actions?.any { action ->
+                    action.title?.toString()?.contains("الأذان") == true
+                } == true
+                (notif.id == 0 && (isAdhanChannel || hasAdhanAction))
+                    || notif.id == 9999
+                    || notif.id == 9998
+                    || (notif.id in 1000..1999)
+            }
+        } catch (_: Exception) {
+            return false
+        }
+    }
 
     fun registerChannel(channel: MethodChannel) {
         synchronized(channels) {
@@ -62,6 +86,7 @@ object AdhanVolumeManager {
             }
             val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
             val target = (maxVol * volumePercent.coerceIn(0.1, 1.0)).toInt().coerceIn(1, maxVol)
+            internalTargetAlarmVolume = target
             audioManager.setStreamVolume(AudioManager.STREAM_ALARM, target, 0)
         } catch (_: Exception) {}
     }
@@ -75,6 +100,7 @@ object AdhanVolumeManager {
             audioManager?.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
         } catch (_: Exception) {}
         previousAlarmVolume = null
+        internalTargetAlarmVolume = -1
     }
 
     fun startAdhanMonitoring(context: Context) {
@@ -94,7 +120,7 @@ object AdhanVolumeManager {
     }
 
     fun stopAdhan(context: Context?) {
-        if (!isAdhanPlaying) return
+        if (!isAdhanActive(context)) return
         isAdhanPlaying = false
 
         val ctx = context?.applicationContext ?: appContext
@@ -104,6 +130,7 @@ object AdhanVolumeManager {
         // 1. Cancel Adhan notifications specifically via system NotificationManager
         try {
             val notificationManager = ctx?.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.cancel(0)
             notificationManager?.cancel(9999)
             notificationManager?.cancel(9998)
             for (id in 1000..1999) {
@@ -111,49 +138,51 @@ object AdhanVolumeManager {
             }
         } catch (_: Exception) {}
 
-        // 2. Abandon audio focus if possible
-        try {
-            val audioManager = ctx?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            audioManager?.abandonAudioFocus(null)
-        } catch (_: Exception) {}
-
-        // 3. Notify all active Flutter isolates/engines
+        // 2. Notify all active Flutter isolates/engines to stop AudioPlayer
         notifyFlutterToStop()
 
-        // 4. Send action to ActionBroadcastReceiver so background isolate cleans up if active
+        // 3. Send action to ActionBroadcastReceiver so background isolate cleans up if active
         try {
             val stopIntent = Intent(ctx, com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver::class.java).apply {
                 action = com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver.ACTION_TAPPED
                 putExtra("actionId", "stop_adhan")
-                putExtra("notificationId", 9999)
+                putExtra("notificationId", 0)
             }
             ctx?.sendBroadcast(stopIntent)
         } catch (_: Exception) {}
     }
 
-    private fun registerVolumeReceiver(context: Context) {
+    fun registerVolumeReceiver(context: Context) {
         if (volumeReceiver != null) return
         try {
             volumeReceiver = object : BroadcastReceiver() {
                 override fun onReceive(c: Context?, intent: Intent?) {
-                    if (!isAdhanPlaying) return
                     if (intent?.action != "android.media.VOLUME_CHANGED_ACTION") return
+                    val ctx = c ?: context
+                    if (!isAdhanActive(ctx)) return
 
                     val now = System.currentTimeMillis()
-                    // 1. Grace period: Ignore volume events during first 2 seconds of playback
-                    if (now - playbackStartTime < 2000L) return
+                    // 1. Grace period: Ignore initial 1.5 seconds of playback
+                    if (playbackStartTime > 0L && now - playbackStartTime < 1500L) return
 
-                    // 2. Ignore volume events triggered by app's own setAdhanVolume (e.g. volume slider)
-                    if (now - lastInternalVolumeChangeTime < 2000L) return
+                    // 2. Ignore broadcast triggered by the app's own internal setAdhanVolume
+                    if (lastInternalVolumeChangeTime > 0L && now - lastInternalVolumeChangeTime < 1500L) {
+                        val streamType = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_TYPE", -1)
+                        val currVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
+                        if (streamType == AudioManager.STREAM_ALARM && currVol == internalTargetAlarmVolume) {
+                            return
+                        }
+                    }
 
-                    // 3. Verify that volume value actually changed
+                    // 3. Verify that volume value actually changed (ignore duplicate no-op broadcasts)
                     val prevVol = intent.getIntExtra("android.media.EXTRA_PREV_VOLUME_STREAM_VALUE", -1)
                     val currVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
                     if (prevVol != -1 && currVol != -1 && prevVol == currVol) {
                         return
                     }
 
-                    stopAdhan(c ?: context)
+                    // User pressed hardware volume button while phone is locked or in background
+                    stopAdhan(ctx)
                 }
             }
             val filter = IntentFilter("android.media.VOLUME_CHANGED_ACTION")
@@ -242,16 +271,6 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            )
-        }
     }
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
@@ -273,7 +292,7 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // Adhan Channel for Volume Buttons & Stop Controls
+        // Adhan Channel for Volume & Controls
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ADHAN_CHANNEL)
         adhanMethodChannel = channel
         AdhanVolumeManager.registerChannel(channel)
@@ -301,7 +320,7 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 "isAdhanPlaying" -> {
-                    result.success(AdhanVolumeManager.isAdhanPlaying)
+                    result.success(AdhanVolumeManager.isAdhanActive(applicationContext))
                 }
                 "setAdhanVolume" -> {
                     val volume = (call.argument<Double>("volume") ?: 1.0)
@@ -366,11 +385,9 @@ class MainActivity : FlutterActivity() {
         if (event.action == KeyEvent.ACTION_DOWN) {
             val keyCode = event.keyCode
             if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-                if (AdhanVolumeManager.isAdhanPlaying &&
-                    System.currentTimeMillis() - AdhanVolumeManager.playbackStartTime > 800L
-                ) {
+                if (AdhanVolumeManager.isAdhanActive(applicationContext)) {
                     AdhanVolumeManager.stopAdhan(applicationContext)
-                    return true // Consume key event to silence Adhan without altering system volume
+                    return true // Consume key event to silence/stop Adhan immediately
                 }
             }
         }

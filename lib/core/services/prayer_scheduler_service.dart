@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
+import 'package:alhuda/core/constants/app_constants.dart';
 import 'package:alhuda/core/services/adhan_audio_service.dart';
 import 'package:alhuda/core/services/notification_services.dart';
 import 'package:alhuda/core/utils/egypt_dst_helper.dart';
@@ -20,7 +21,6 @@ void prayerAlarmCallback(int id) async {
   await NotificationServices.initializeNotifications();
   await AdhanAudioService.instance.init();
 
-  final baseId = PrayerSchedulerService.basePrayerId(id);
   final prayerName = PrayerSchedulerService.prayerNameFromId(id);
 
   // 1. Strict guard: Sunrise has no Adhan in Islam
@@ -46,12 +46,13 @@ void prayerAlarmCallback(int id) async {
   final adhanVolume = AdhanAudioService().adhanVolume;
 
   // 3. Show interactive Adhan notification with controls (visible on lock screen)
+  // Uses unified NotificationServices.notificationId so it seamlessly replaces any existing reminder notification
   await NotificationServices.showAdhanControlNotification(
-    id: baseId,
+    id: NotificationServices.notificationId,
     prayerName: prayerName,
     sound: selectedSound,
     isPlaying: true,
-    enableFullScreenIntent: true,
+    enableFullScreenIntent: false,
   );
 
   // 4. Setup control port & MethodChannel listeners to support pause, resume, stop
@@ -87,7 +88,7 @@ void prayerAlarmCallback(int id) async {
         try {
           await player.pause();
           await NotificationServices.showAdhanControlNotification(
-            id: baseId,
+            id: NotificationServices.notificationId,
             prayerName: prayerName,
             sound: selectedSound,
             isPlaying: false,
@@ -98,7 +99,7 @@ void prayerAlarmCallback(int id) async {
         try {
           await player.resume();
           await NotificationServices.showAdhanControlNotification(
-            id: baseId,
+            id: NotificationServices.notificationId,
             prayerName: prayerName,
             sound: selectedSound,
             isPlaying: true,
@@ -118,7 +119,7 @@ void prayerAlarmCallback(int id) async {
         try {
           await player.pause();
           await NotificationServices.showAdhanControlNotification(
-            id: baseId,
+            id: NotificationServices.notificationId,
             prayerName: prayerName,
             sound: selectedSound,
             isPlaying: false,
@@ -129,7 +130,7 @@ void prayerAlarmCallback(int id) async {
         try {
           await player.resume();
           await NotificationServices.showAdhanControlNotification(
-            id: baseId,
+            id: NotificationServices.notificationId,
             prayerName: prayerName,
             sound: selectedSound,
             isPlaying: true,
@@ -146,7 +147,7 @@ void prayerAlarmCallback(int id) async {
           stayAwake: true,
           contentType: AndroidContentType.music,
           usageType: AndroidUsageType.alarm,
-          audioFocus: AndroidAudioFocus.none,
+          audioFocus: AndroidAudioFocus.gain,
         ),
       ),
     );
@@ -177,7 +178,7 @@ void prayerAlarmCallback(int id) async {
     // Fallback: trigger system notification with native pre-bundled raw sound
     try {
       await NotificationServices.showAdhanNotification(
-        id: baseId,
+        id: NotificationServices.notificationId,
         prayerName: prayerName,
         sound: selectedSound,
       );
@@ -198,7 +199,11 @@ void prayerAlarmCallback(int id) async {
     try {
       await channel.invokeMethod('stopAdhanMonitoring');
     } catch (_) {}
-    await NotificationServices.cancelAdhanNotification(id: baseId);
+    await NotificationServices.cancelAdhanNotification(id: NotificationServices.notificationId);
+    NotificationServices.periodicNotification(
+      title: AppConstants.notificationTitle,
+      body: AppConstants.notificationBody,
+    );
   }
 }
 
@@ -485,6 +490,7 @@ class PrayerSchedulerService {
         allowWhileIdle: true,
         rescheduleOnReboot: true,
       );
+      return;
     } catch (e3) {
       debugPrint('Non-exact alarm failed for id $id: $e3');
     }

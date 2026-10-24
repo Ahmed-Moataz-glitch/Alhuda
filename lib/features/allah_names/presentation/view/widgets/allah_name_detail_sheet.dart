@@ -91,13 +91,6 @@ class _AllahNameDetailSheetState extends State<AllahNameDetailSheet> {
     });
   }
 
-  Future<void> _toggleFavorite() async {
-    final name = _currentName;
-    await AllahNamesService.instance.toggleFavorite(name.id);
-    setState(() {});
-    widget.onFavoriteChanged?.call(name.id);
-  }
-
   void _copyToClipboard() {
     final name = _currentName;
     final text =
@@ -136,7 +129,6 @@ ${name.quranVerse} [${name.surahRef}]
 
   @override
   Widget build(BuildContext context) {
-    final isFavorite = AllahNamesService.instance.isFavorite(_currentName.id);
 
     return Container(
       height: 0.88.sh,
@@ -165,19 +157,19 @@ ${name.quranVerse} [${name.surahRef}]
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Navigation Prev Button
+                // Right Arrow: Previous Name (الاسم السابق / اللي قبله)
                 IconButton(
-                  onPressed: _currentIndex < widget.names.length - 1
-                      ? () => _navigateToIndex(_currentIndex + 1)
+                  onPressed: _currentIndex > 0
+                      ? () => _navigateToIndex(_currentIndex - 1)
                       : null,
                   icon: Icon(
                     Icons.arrow_back_ios_new_rounded,
                     color: _currentIndex > 0
                         ? AppColors.primary
-                        : Colors.grey.shade400,
+                        : Colors.grey.shade300,
                     size: 20.sp,
                   ),
-                  tooltip: 'الاسم التالي',
+                  tooltip: 'الاسم السابق',
                 ),
 
                 // Name counter badge
@@ -202,7 +194,7 @@ ${name.quranVerse} [${name.surahRef}]
                   ),
                 ),
 
-                // Action icons (Favorite & Copy & Next)
+                // Action icons (Copy & Next)
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -216,21 +208,8 @@ ${name.quranVerse} [${name.surahRef}]
                       tooltip: 'نسخ',
                     ),
                     IconButton(
-                      onPressed: _toggleFavorite,
-                      icon: Icon(
-                        isFavorite
-                            ? Icons.star_rounded
-                            : Icons.star_border_rounded,
-                        color: isFavorite
-                            ? Colors.amber.shade700
-                            : Colors.grey.shade500,
-                        size: 24.sp,
-                      ),
-                      tooltip: 'إضافة للمفضلة',
-                    ),
-                    IconButton(
-                      onPressed: _currentIndex > 0
-                          ? () => _navigateToIndex(_currentIndex - 1)
+                      onPressed: _currentIndex < widget.names.length - 1
+                          ? () => _navigateToIndex(_currentIndex + 1)
                           : null,
                       icon: Icon(
                         Icons.arrow_forward_ios_rounded,
@@ -239,7 +218,7 @@ ${name.quranVerse} [${name.surahRef}]
                             : Colors.grey.shade300,
                         size: 20.sp,
                       ),
-                      tooltip: 'الاسم السابق',
+                      tooltip: 'الاسم التالي',
                     ),
                   ],
                 ),

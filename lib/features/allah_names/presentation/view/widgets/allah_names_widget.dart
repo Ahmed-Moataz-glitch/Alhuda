@@ -16,7 +16,6 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
   List<AllahNameModel> _allNames = [];
   bool _isLoading = true;
   String _searchQuery = '';
-  bool _showFavoritesOnly = false;
   bool _isGridView = true;
 
   @override
@@ -46,7 +45,6 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
     return AllahNamesService.instance.filterNames(
       sourceList: _allNames,
       query: _searchQuery,
-      favoritesOnly: _showFavoritesOnly,
     );
   }
 
@@ -58,17 +56,11 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
         context,
         names: displayedList,
         initialIndex: index,
-        onFavoriteChanged: (_) {
-          setState(() {});
-        },
       );
     }
   }
 
-  Future<void> _toggleFavorite(int id) async {
-    await AllahNamesService.instance.toggleFavorite(id);
-    setState(() {});
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +107,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
             ),
 
             // 2. Name of the Day Card (Visible when not searching)
-            if (!isSearching && !_showFavoritesOnly && nameOfTheDay != null)
+            if (!isSearching && nameOfTheDay != null)
               SliverToBoxAdapter(
                 child: _buildNameOfTheDayCard(nameOfTheDay),
               ),
@@ -146,7 +138,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                       final item = filteredList[index];
                       return _buildGridCard(item, isDark);
                     },
-                    childCount: filteredList.length,
+                    childCount: _filteredNames.length,
                   ),
                 ),
               )
@@ -159,7 +151,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                       final item = filteredList[index];
                       return _buildListItem(item, index);
                     },
-                    childCount: filteredList.length,
+                    childCount: _filteredNames.length,
                   ),
                 ),
               ),
@@ -453,26 +445,18 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
           ),
           SizedBox(height: 12.h),
 
-          // Filters and view switch row
+          // View switch and count row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Filter Chips: All & Favorites
-              Row(
-                children: [
-                  _buildFilterChip(
-                    label: 'الكل',
-                    isSelected: !_showFavoritesOnly,
-                    onTap: () => setState(() => _showFavoritesOnly = false),
-                  ),
-                  SizedBox(width: 6.w),
-                  _buildFilterChip(
-                    label: 'المفضلة',
-                    icon: Icons.star_rounded,
-                    isSelected: _showFavoritesOnly,
-                    onTap: () => setState(() => _showFavoritesOnly = true),
-                  ),
-                ],
+              Text(
+                'أسماء الله الحسنى (${_filteredNames.length})',
+                style: TextStyle(
+                  fontFamily: 'Almarai',
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
               ),
 
               // View Switcher (Grid vs List)
@@ -517,59 +501,6 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
     );
   }
 
-  Widget _buildFilterChip({
-    required String label,
-    required bool isSelected,
-    IconData? icon,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.card,
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withAlpha(40),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 15.sp,
-                color: isSelected ? Colors.amber.shade200 : Colors.amber.shade700,
-              ),
-              SizedBox(width: 4.w),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Almarai',
-                fontSize: 12.sp,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // --- Grid View Card ---
   Widget _buildGridCard(AllahNameModel item, bool isDark) {
     return Container(
@@ -577,9 +508,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
         color: AppColors.card,
         borderRadius: BorderRadius.circular(18.r),
         border: Border.all(
-          color: item.isFavorite
-              ? Colors.amber.shade300
-              : AppColors.primary.withAlpha(25),
+          color: AppColors.primary.withAlpha(25),
         ),
       ),
       child: Material(
@@ -592,42 +521,28 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Top row: ID badge & Favorite star
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 26.w,
-                      height: 26.w,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${item.id}',
-                          style: TextStyle(
-                            fontFamily: 'Rubik',
-                            fontSize: 11.sp,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
+                // Top row: ID badge
+                Align(
+                  alignment: AlignmentDirectional.topStart,
+                  child: Container(
+                    width: 26.w,
+                    height: 26.w,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withAlpha(15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${item.id}',
+                        style: TextStyle(
+                          fontFamily: 'Rubik',
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
                         ),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => _toggleFavorite(item.id),
-                      child: Icon(
-                        item.isFavorite
-                            ? Icons.star_rounded
-                            : Icons.star_border_rounded,
-                        color: item.isFavorite
-                            ? Colors.amber.shade700
-                            : Colors.grey.shade400,
-                        size: 24.sp,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
 
                 // Center: Name in Arabic Calligraphy
@@ -691,9 +606,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: item.isFavorite
-              ? Colors.amber.shade300
-              : AppColors.primary.withAlpha(25),
+          color: AppColors.primary.withAlpha(25),
         ),
         boxShadow: [
           BoxShadow(
@@ -779,19 +692,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
                 ),
                 SizedBox(width: 8.w),
 
-                // Favorite button & arrow
-                IconButton(
-                  onPressed: () => _toggleFavorite(item.id),
-                  icon: Icon(
-                    item.isFavorite
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
-                    color: item.isFavorite
-                        ? Colors.amber.shade700
-                        : Colors.grey.shade400,
-                    size: 22.sp,
-                  ),
-                ),
+                // Details arrow indicator
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   color: AppColors.primary.withAlpha(120),
@@ -814,15 +715,13 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              _showFavoritesOnly ? Icons.star_outline_rounded : Icons.search_off_rounded,
+              Icons.search_off_rounded,
               size: 56.sp,
               color: Colors.grey.shade400,
             ),
             SizedBox(height: 12.h),
             Text(
-              _showFavoritesOnly
-                  ? 'لا توجد أسماء في المفضلة بعد'
-                  : 'لم يتم العثور على نتائج مطابقة',
+              'لم يتم العثور على نتائج مطابقة',
               style: TextStyle(
                 fontFamily: 'Almarai',
                 fontSize: 14.sp,
@@ -832,9 +731,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
             ),
             SizedBox(height: 6.h),
             Text(
-              _showFavoritesOnly
-                  ? 'يمكنك إضافة أي اسم للمفضلة بالنقر على أيقونة النجمة'
-                  : 'جرب البحث بكلمة أخرى أو برقم الاسم',
+              'جرب البحث بكلمة أخرى أو برقم الاسم',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Almarai',

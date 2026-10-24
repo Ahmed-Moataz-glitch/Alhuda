@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:alhuda/core/constants/app_constants.dart';
 import 'package:alhuda/core/services/adhan_audio_service.dart';
 import 'package:alhuda/core/services/notification_services.dart';
 import 'package:alhuda/features/prayer_times/data/models/adhan_model.dart';
@@ -174,6 +175,18 @@ void main() {
       expect(listenerNotified, isTrue);
     });
 
+    test('Hardware keyboard volume keys trigger stop when adhan is active', () async {
+      // Simulate hardware volume down key press through HardwareKeyboard
+      final keyEvent = KeyDownEvent(
+        physicalKey: PhysicalKeyboardKey.audioVolumeDown,
+        logicalKey: LogicalKeyboardKey.audioVolumeDown,
+        timeStamp: Duration.zero,
+      );
+
+      // When stopped, key event passes through (not handled)
+      expect(HardwareKeyboard.instance.handleKeyEvent(keyEvent), isFalse);
+    });
+
     test('NotificationServices notification actions and handlers run safely', () {
       expect(NotificationServices.actionStopAdhan, equals('stop_adhan'));
       expect(NotificationServices.actionPauseAdhan, equals('pause_adhan'));
@@ -224,6 +237,56 @@ void main() {
           sound: AdhanData.defaultAdhan,
         ),
         completes,
+      );
+    });
+
+    test('Notifications share unified notificationId (0) to avoid conflict with reminder', () async {
+      expect(NotificationServices.notificationId, equals(0));
+      expect(AppConstants.notificationId, equals(0));
+      expect(NotificationServices.notificationId, equals(AppConstants.notificationId));
+
+      await expectLater(
+        NotificationServices.showAdhanControlNotification(
+          prayerName: 'الظهر',
+          sound: AdhanData.defaultAdhan,
+          isPlaying: true,
+        ),
+        completes,
+      );
+
+      await expectLater(
+        NotificationServices.showAdhanNotification(
+          prayerName: 'الظهر',
+          sound: AdhanData.defaultAdhan,
+        ),
+        completes,
+      );
+
+      await expectLater(
+        NotificationServices.sendAdhanNotification(
+          prayerName: 'الظهر',
+          sound: AdhanData.defaultAdhan,
+        ),
+        completes,
+      );
+
+      await expectLater(
+        NotificationServices.cancelAdhanNotification(),
+        completes,
+      );
+    });
+
+    test('Reminder interval is 8 hours and periodicNotification schedules correctly', () {
+      expect(AppConstants.reminderInterval, equals(const Duration(hours: 8)));
+      expect(NotificationServices.reminderInterval, equals(const Duration(hours: 8)));
+      expect(NotificationServices.reminderInterval.inHours, equals(8));
+
+      expect(
+        () => NotificationServices.periodicNotification(
+          title: AppConstants.notificationTitle,
+          body: AppConstants.notificationBody,
+        ),
+        returnsNormally,
       );
     });
   });

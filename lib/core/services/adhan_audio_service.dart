@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
+import 'package:alhuda/core/constants/app_constants.dart';
 import 'package:alhuda/core/services/notification_services.dart';
 import 'package:alhuda/features/prayer_times/data/models/adhan_model.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -24,7 +25,7 @@ class AdhanAudioService extends ChangeNotifier {
   AdhanSound _selectedSound = AdhanData.defaultAdhan;
   AdhanSound? _currentPlayingSound;
   String _currentPrayerName = '';
-  int _currentNotificationId = 9999;
+  int _currentNotificationId = NotificationServices.notificationId;
   PlayerState _playerState = PlayerState.stopped;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -44,7 +45,6 @@ class AdhanAudioService extends ChangeNotifier {
   StreamSubscription? _durSubscription;
   StreamSubscription? _completeSubscription;
   ReceivePort? _controlPort;
-  bool _isStarting = false;
 
   AdhanAudioService._internal() {
     _initListeners();
@@ -103,15 +103,10 @@ class AdhanAudioService extends ChangeNotifier {
 
     _setupControlPort();
 
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+
     _stateSubscription = _player.onPlayerStateChanged.listen((state) {
       _playerState = state;
-      if (!_isStarting && (state == PlayerState.completed || state == PlayerState.stopped)) {
-        _currentPlayingSound = null;
-        _position = Duration.zero;
-        _stopMonitoring();
-        _restoreNativeAlarmVolume();
-        NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
-      }
       notifyListeners();
     });
 
@@ -132,6 +127,10 @@ class AdhanAudioService extends ChangeNotifier {
       _stopMonitoring();
       _restoreNativeAlarmVolume();
       NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
+      NotificationServices.periodicNotification(
+        title: AppConstants.notificationTitle,
+        body: AppConstants.notificationBody,
+      );
       notifyListeners();
     });
   }
@@ -168,6 +167,22 @@ class AdhanAudioService extends ChangeNotifier {
     } else if (call.method == 'resumeAdhan') {
       await resume();
     }
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      final key = event.logicalKey;
+      if (key == LogicalKeyboardKey.audioVolumeUp ||
+          key == LogicalKeyboardKey.audioVolumeDown ||
+          key == LogicalKeyboardKey.audioVolumeMute) {
+        if (_currentPlayingSound != null || isPlaying) {
+          debugPrint('AdhanAudioService: Hardware volume key pressed - stopping Adhan');
+          stop();
+          return true; // Consume key event to stop playback
+        }
+      }
+    }
+    return false;
   }
 
   Future<void> _startMonitoring() async {
@@ -261,17 +276,16 @@ class AdhanAudioService extends ChangeNotifier {
   Future<void> play(
     AdhanSound sound, {
     String prayerName = '',
-    int notificationId = 9999,
+    int notificationId = NotificationServices.notificationId,
   }) async {
     try {
-      _isStarting = true;
       _setupControlPort();
       _currentPrayerName = prayerName;
       _currentNotificationId = notificationId;
+      await _startMonitoring();
 
       if (_currentPlayingSound?.id == sound.id &&
           _playerState == PlayerState.paused) {
-        _isStarting = false;
         await resume();
         return;
       }
@@ -287,7 +301,7 @@ class AdhanAudioService extends ChangeNotifier {
             stayAwake: true,
             contentType: AndroidContentType.music,
             usageType: AndroidUsageType.alarm,
-            audioFocus: AndroidAudioFocus.none,
+            audioFocus: AndroidAudioFocus.gain,
           ),
         ),
       );
@@ -305,7 +319,6 @@ class AdhanAudioService extends ChangeNotifier {
         await _player.play(UrlSource(sound.source));
       }
 
-      _isStarting = false;
       await _startMonitoring();
 
       // Show interactive notification with controls
@@ -317,13 +330,16 @@ class AdhanAudioService extends ChangeNotifier {
         enableFullScreenIntent: false,
       );
     } catch (e) {
-      _isStarting = false;
       debugPrint('Error playing Adhan sound: $e');
       _currentPlayingSound = null;
       _playerState = PlayerState.stopped;
       await _restoreNativeAlarmVolume();
       await _stopMonitoring();
       await NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
+      NotificationServices.periodicNotification(
+        title: AppConstants.notificationTitle,
+        body: AppConstants.notificationBody,
+      );
       notifyListeners();
     }
   }
@@ -361,6 +377,10 @@ class AdhanAudioService extends ChangeNotifier {
     await _restoreNativeAlarmVolume();
     await _stopMonitoring();
     await NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
+    NotificationServices.periodicNotification(
+      title: AppConstants.notificationTitle,
+      body: AppConstants.notificationBody,
+    );
     try {
       final legacySendPort = IsolateNameServer.lookupPortByName('adhan_stop_port');
       legacySendPort?.send('stop');
@@ -382,9 +402,10 @@ class AdhanAudioService extends ChangeNotifier {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _controlPort?.close();
-    _restoreNativeAlarmVolume();
-    _stopMonitoring();
+    IsolateNameServer.removePortNameMapping(NotificationServices.adhanControlPort);
+    IsolateNameServer.removePortNameMapping('adhan_stop_port');
     _stateSubscription?.cancel();
     _posSubscription?.cancel();
     _durSubscription?.cancel();

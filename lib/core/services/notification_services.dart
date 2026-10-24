@@ -17,12 +17,12 @@ void notificationTapBackground(NotificationResponse response) async {
     NotificationServices.handlePauseAdhanAction(fromBackgroundIsolate: true);
   } else if (actionId == NotificationServices.actionResumeAdhan) {
     NotificationServices.handleResumeAdhanAction(fromBackgroundIsolate: true);
-  } else {
-    NotificationServices.handleStopAdhanAction(fromBackgroundIsolate: true);
   }
 }
 
 abstract class NotificationServices {
+  static const int notificationId = AppConstants.notificationId;
+  static const Duration reminderInterval = AppConstants.reminderInterval;
   static const String actionStopAdhan = 'stop_adhan';
   static const String actionPauseAdhan = 'pause_adhan';
   static const String actionResumeAdhan = 'resume_adhan';
@@ -184,7 +184,7 @@ abstract class NotificationServices {
     }
 
     try {
-      cancelAdhanNotification();
+      cancelAdhanNotification(id: notificationId);
     } catch (_) {}
   }
 
@@ -225,10 +225,11 @@ abstract class NotificationServices {
   static void sendNotification({
     required String title,
     required String body,
+    int id = notificationId,
   }) async {
     try {
       await flutterLocalNotificationsPlugin.show(
-        id: 0,
+        id: id,
         title: title,
         body: body,
         notificationDetails: notificationDetails,
@@ -239,7 +240,7 @@ abstract class NotificationServices {
   }
 
   static Future<void> showAdhanControlNotification({
-    int id = 9999,
+    int id = notificationId,
     required String prayerName,
     required AdhanSound sound,
     required bool isPlaying,
@@ -313,10 +314,11 @@ abstract class NotificationServices {
   }
 
   static Future<void> showAdhanNotification({
-    int id = 9999,
+    int id = notificationId,
     required String prayerName,
     required AdhanSound sound,
     String? body,
+    bool enableFullScreenIntent = false,
   }) async {
     try {
       final rawRes = sound.source.split('/').last.replaceAll('.mp3', '');
@@ -341,7 +343,7 @@ abstract class NotificationServices {
           color: AppColors.primary,
           importance: Importance.max,
           priority: Priority.max,
-          fullScreenIntent: true,
+          fullScreenIntent: enableFullScreenIntent,
           ongoing: true,
           autoCancel: false,
           playSound: true,
@@ -371,11 +373,12 @@ abstract class NotificationServices {
   }
 
   static Future<void> sendAdhanNotification({
-    required int id,
+    int id = notificationId,
     required String prayerName,
     AdhanSound? sound,
     String? body,
     bool isPlaying = true,
+    bool enableFullScreenIntent = false,
   }) async {
     final adhanSound = sound ?? AdhanData.defaultAdhan;
     await showAdhanNotification(
@@ -383,16 +386,13 @@ abstract class NotificationServices {
       prayerName: prayerName,
       sound: adhanSound,
       body: body,
+      enableFullScreenIntent: enableFullScreenIntent,
     );
   }
 
   static Future<void> cancelAdhanNotification({int? id}) async {
     try {
-      if (id != null) {
-        await flutterLocalNotificationsPlugin.cancel(id: id);
-      } else {
-        await flutterLocalNotificationsPlugin.cancelAll();
-      }
+      await flutterLocalNotificationsPlugin.cancel(id: id ?? notificationId);
     } catch (e) {
       debugPrint('Error canceling adhan notification: $e');
     }
@@ -401,25 +401,27 @@ abstract class NotificationServices {
   static void periodicNotification({
     required String title,
     required String body,
+    int id = notificationId,
+    Duration repeatDuration = reminderInterval,
   }) async {
     try {
-      await flutterLocalNotificationsPlugin.periodicallyShow(
-        id: 1,
+      await flutterLocalNotificationsPlugin.periodicallyShowWithDuration(
+        id: id,
         title: title,
         body: body,
-        repeatInterval: RepeatInterval.hourly,
+        repeatDurationInterval: repeatDuration,
         notificationDetails: notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
     } catch (_) {
       try {
-        await flutterLocalNotificationsPlugin.periodicallyShow(
-          id: 1,
+        await flutterLocalNotificationsPlugin.periodicallyShowWithDuration(
+          id: id,
           title: title,
           body: body,
-          repeatInterval: RepeatInterval.hourly,
+          repeatDurationInterval: repeatDuration,
           notificationDetails: notificationDetails,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.inexact,
         );
       } catch (e) {
         debugPrint('Error scheduling periodic notification: $e');

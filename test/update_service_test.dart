@@ -57,7 +57,14 @@ void main() {
       expect(
         updateService.isVersionHigher(
           AppConstants.minRequiredVersion,
-          '1.1.0',
+          '2.2.0',
+        ),
+        isTrue,
+      );
+      expect(
+        updateService.isVersionHigher(
+          AppConstants.minRequiredVersion,
+          '2.3.0',
         ),
         isFalse,
       );
