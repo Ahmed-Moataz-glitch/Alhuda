@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:alhuda/core/constants/app_constants.dart';
 import 'package:alhuda/core/view/widgets/force_update_dialog.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:upgrader/upgrader.dart';
@@ -41,23 +42,40 @@ class UpdateService {
   /// Cached dialog display flag to prevent multiple dialogs from stacking.
   bool _isDialogOpen = false;
 
+  /// Safely checks whether network connectivity is active.
+  Future<bool> _isOnline() async {
+    try {
+      final results = await Connectivity()
+          .checkConnectivity()
+          .timeout(const Duration(seconds: 1));
+      return results.isNotEmpty && !results.contains(ConnectivityResult.none);
+    } catch (_) {
+      // If check fails or in test/headless environment, allow standard attempt
+      return true;
+    }
+  }
+
   /// Returns the current installed app version using [Upgrader],
-  /// falling back to [AppConstants.appVersion] on failure.
+  /// falling back to [AppConstants.appVersion] on failure or timeout.
   Future<String> getCurrentVersion() async {
     try {
-      await Upgrader.sharedInstance.initialize().timeout(const Duration(seconds: 4));
+      final cached = Upgrader.sharedInstance.currentInstalledVersion?.trim();
+      if (cached != null && cached.isNotEmpty) {
+        return cached;
+      }
+      await Upgrader.sharedInstance.initialize().timeout(const Duration(seconds: 3));
       final version = Upgrader.sharedInstance.currentInstalledVersion?.trim();
       if (version != null && version.isNotEmpty) {
         return version;
       }
+    } on TimeoutException {
+      debugPrint('[UpdateService] Upgrader initialization timed out (normal in emulator or offline).');
     } catch (e) {
-      debugPrint('[UpdateService] Error fetching app version via upgrader: $e');
-      final current = Upgrader.sharedInstance.currentInstalledVersion?.trim();
-      if (current != null && current.isNotEmpty) {
-        return current;
-      }
+      debugPrint('[UpdateService] Note fetching app version via upgrader: $e');
     }
-    return AppConstants.appVersion;
+    return Upgrader.sharedInstance.currentInstalledVersion?.trim().isNotEmpty == true
+        ? Upgrader.sharedInstance.currentInstalledVersion!.trim()
+        : AppConstants.appVersion;
   }
 
   /// Extracts the latest version string from Google Play Store web page.
@@ -79,7 +97,7 @@ class UpdateService {
       try {
         final response = await http
             .get(Uri.parse(url), headers: headers)
-            .timeout(const Duration(seconds: 8));
+            .timeout(const Duration(seconds: 4));
 
         if (response.statusCode == 200) {
           final body = response.body;
@@ -87,12 +105,11 @@ class UpdateService {
           if (version != null && version.isNotEmpty) {
             return version;
           }
-        } else {
-          debugPrint(
-              '[UpdateService] Play Store request returned status ${response.statusCode} for $url');
         }
+      } on TimeoutException {
+        debugPrint('[UpdateService] Play Store request timed out for $url');
       } catch (e) {
-        debugPrint('[UpdateService] Network error checking $url: $e');
+        debugPrint('[UpdateService] Network note checking $url: $e');
       }
     }
 
@@ -164,7 +181,7 @@ class UpdateService {
     try {
       final response = await http
           .get(Uri.parse(AppConstants.remoteVersionUrl))
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 4));
       if (response.statusCode == 200) {
         final regex = RegExp(r'version:\s*([0-9]+\.[0-9]+(?:\.[0-9]+)?)');
         final match = regex.firstMatch(response.body);
@@ -172,8 +189,10 @@ class UpdateService {
           return match.group(1);
         }
       }
+    } on TimeoutException {
+      debugPrint('[UpdateService] Remote version check timed out.');
     } catch (e) {
-      debugPrint('[UpdateService] Error fetching remote version: $e');
+      debugPrint('[UpdateService] Note fetching remote version: $e');
     }
     return null;
   }
@@ -192,28 +211,42 @@ class UpdateService {
       );
     }
 
+    // Quick online check before triggering remote network requests
+    final isOnline = await _isOnline();
+    if (!isOnline) {
+      debugPrint('[UpdateService] Device is offline. Skipping remote update check.');
+      final fallbackUpdate =
+          isVersionHigher(AppConstants.minRequiredVersion, currentVersion);
+      return UpdateCheckResult(
+        hasUpdate: fallbackUpdate,
+        currentVersion: currentVersion,
+        storeVersion: AppConstants.minRequiredVersion,
+      );
+    }
+
     try {
-      // 1. Fetch remote version from GitHub
-      final remoteVersion = await fetchRemoteVersion();
+      // Run remote version check and store check concurrently to minimize wait time
+      final results = await Future.wait([
+        fetchRemoteVersion(),
+        () async {
+          try {
+            final upgraderVersion = Upgrader.sharedInstance.currentAppStoreVersion;
+            if (upgraderVersion != null && upgraderVersion.isNotEmpty) {
+              return upgraderVersion;
+            }
+          } catch (e) {
+            debugPrint('[UpdateService] Note reading store version from upgrader: $e');
+          }
+          return await fetchPlayStoreVersion();
+        }(),
+      ]);
+
+      final remoteVersion = results[0];
+      final playStoreVersion = results[1];
+
       if (remoteVersion != null) {
         debugPrint('[UpdateService] Found remote version: $remoteVersion');
       }
-
-      // 2. Fetch version from Google Play Store (via Upgrader or fallback)
-      String? playStoreVersion;
-      try {
-        final upgraderVersion = Upgrader.sharedInstance.currentAppStoreVersion;
-        if (upgraderVersion != null && upgraderVersion.isNotEmpty) {
-          playStoreVersion = upgraderVersion;
-        }
-      } catch (e) {
-        debugPrint('[UpdateService] Error reading store version from upgrader: $e');
-      }
-
-      if (playStoreVersion == null || playStoreVersion.isEmpty) {
-        playStoreVersion = await fetchPlayStoreVersion();
-      }
-
       if (playStoreVersion != null) {
         debugPrint('[UpdateService] Found Play Store version: $playStoreVersion');
       }
@@ -237,7 +270,7 @@ class UpdateService {
         isForceUpdate: hasUpdate,
       );
     } catch (e) {
-      debugPrint('[UpdateService] Error during check: $e');
+      debugPrint('[UpdateService] Note during check: $e');
       final fallbackUpdate =
           isVersionHigher(AppConstants.minRequiredVersion, currentVersion);
       return UpdateCheckResult(

@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('AppGuideData Tests', () {
-    test('Video ID and URL match expected YouTube values', () {
+    test('Video asset path, ID and URL match expected values', () {
+      expect(AppGuideData.videoAssetPath, equals('assets/video/app_guide.mp4'));
       expect(AppGuideData.videoId, equals('5lrnmmRFXSI'));
       expect(
         AppGuideData.videoUrl,

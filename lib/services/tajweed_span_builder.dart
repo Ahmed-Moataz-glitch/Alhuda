@@ -209,8 +209,11 @@ class TajweedSpanBuilder {
     Color? highlightColor,
     VoidCallback? onTap,
     void Function(LongPressStartDetails)? onLongPress,
+    GestureRecognizer? recognizer,
   }) {
     if (verseText.isEmpty) return const [];
+
+    final effectiveRecognizer = recognizer ?? _createRecognizer(onTap, onLongPress);
 
     // If verse is highlighted, use highlightColor for all text
     if (isHighlighted && highlightColor != null) {
@@ -218,7 +221,7 @@ class TajweedSpanBuilder {
         TextSpan(
           text: verseText,
           style: baseStyle.copyWith(color: highlightColor),
-          recognizer: _createRecognizer(onTap, onLongPress),
+          recognizer: effectiveRecognizer,
         ),
       ];
     }
@@ -383,7 +386,7 @@ class TajweedSpanBuilder {
         style: currentColor != null
             ? baseStyle.copyWith(color: currentColor)
             : baseStyle,
-        recognizer: _createRecognizer(onTap, onLongPress),
+        recognizer: effectiveRecognizer,
       ));
       currentText.clear();
     }

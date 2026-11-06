@@ -1,5 +1,6 @@
 import 'package:alhuda/services/theme_service.dart';
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:hijri_date/hijri_date.dart';
@@ -220,44 +221,59 @@ class _HijriCalendarWidgetState extends State<HijriCalendarWidget> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: ListView(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-          children: [
-            // 1. Today & Moon Phase Header Card
-            _buildTodayHeaderCard(),
-            SizedBox(height: 16.h),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= AdaptiveBreakpoints.tabletMin;
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: isWide ? 850.0 : double.infinity,
+                ),
+                child: ListView(
+                  controller: _scrollController,
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isWide ? 28.0 : 16.w,
+                    vertical: 12.h,
+                  ),
+                  children: [
+                    // 1. Today & Moon Phase Header Card
+                    _buildTodayHeaderCard(),
+                    SizedBox(height: 16.h),
 
-            // 2. Month Calendar Card
-            _buildMonthCalendarCard(),
-            SizedBox(height: 16.h),
+                    // 2. Month Calendar Card
+                    _buildMonthCalendarCard(),
+                    SizedBox(height: 16.h),
 
-            // 3. Selected Day Details Card
-            if (hasSelectedDay &&
-                currentHijriSelection != null &&
-                selectedGregorian != null &&
-                moonInfo != null)
-              _buildSelectedDayCard(
-                currentHijriSelection,
-                selectedGregorian,
-                moonInfo,
-                dayEvents,
-              )
-            else
-              _buildNoDaySelectedCard(),
-            SizedBox(height: 16.h),
+                    // 3. Selected Day Details Card
+                    if (hasSelectedDay &&
+                        currentHijriSelection != null &&
+                        selectedGregorian != null &&
+                        moonInfo != null)
+                      _buildSelectedDayCard(
+                        currentHijriSelection,
+                        selectedGregorian,
+                        moonInfo,
+                        dayEvents,
+                      )
+                    else
+                      _buildNoDaySelectedCard(),
+                    SizedBox(height: 16.h),
 
-            // 4. Upcoming Islamic Occasions
-            _buildUpcomingEventsCard(),
-            SizedBox(height: 16.h),
+                    // 4. Upcoming Islamic Occasions
+                    _buildUpcomingEventsCard(),
+                    SizedBox(height: 16.h),
 
-            // 5. Date Converter Action Button
-            _buildConverterButton(),
-            SizedBox(height: 24.h),
-          ],
+                    // 5. Date Converter Action Button
+                    _buildConverterButton(),
+                    SizedBox(height: 24.h),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

@@ -3,6 +3,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
@@ -19,6 +20,45 @@
         android:label="الهُدى"
         android:name=".AlhudaApplication"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- Adhan Foreground Audio & Alarm Service -->
+        <service
+            android:name=".AdhanForegroundService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
+
+        <!-- Native Exact Alarm Receiver (Guaranteed immediate wake in Doze/Lock screen) -->
+        <receiver
+            android:name=".AdhanAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="dev.glitch.alhuda.ACTION_PRAYER_ALARM" />
+                <action android:name="dev.glitch.alhuda.ACTION_PRE_PRAYER_ALARM" />
+                <action android:name="dev.glitch.alhuda.ACTION_UPDATE_NOTIFICATION" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Native Reboot Receiver to restore alarms -->
+        <receiver
+            android:name=".AdhanBootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Full-Screen Adhan Alarm Activity (Shown on Lock Screen) -->
+        <activity
+            android:name=".AdhanAlarmActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:theme="@style/AdhanAlarmTheme"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true" />
 
         <!-- Android Alarm Manager Plus Components -->
         <service

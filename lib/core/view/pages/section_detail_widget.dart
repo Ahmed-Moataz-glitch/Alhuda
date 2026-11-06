@@ -1,4 +1,5 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:alhuda/core/view/widgets/font_size_bottom_sheet.dart';
 import 'package:alhuda/services/font_size_service.dart';
 import 'package:alhuda/services/theme_service.dart';
@@ -94,9 +95,21 @@ class _SectionDetailWidgetState extends State<SectionDetailWidget> {
               ),
             ],
           ),
-          body: KeyedSubtree(
-            key: ValueKey(ThemeService.instance.isDarkMode),
-            child: widget.child,
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= AdaptiveBreakpoints.tabletMin;
+              return Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isWide ? 1200.0 : double.infinity,
+                  ),
+                  child: KeyedSubtree(
+                    key: ValueKey(ThemeService.instance.isDarkMode),
+                    child: widget.child,
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/adhan_alarm_bg"
+    android:gravity="center_horizontal"
+    android:layoutDirection="rtl"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- Top Spacer -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- App Icon / Mosque Glow -->
+    <ImageView
+        android:id="@+id/iv_adhan_icon"
+        android:layout_width="84dp"
+        android:layout_height="84dp"
+        android:layout_marginBottom="16dp"
+        android:contentDescription="Alhuda Adhan"
+        android:src="@drawable/ic_launcher" />
+
+    <!-- Takbeer Subtitle -->
+    <TextView
+        android:id="@+id/tv_takbeer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:letterSpacing="0.05"
+        android:text="الله أكبر .. الله أكبر"
+        android:textColor="@color/adhan_alarm_gold"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <!-- Prayer Name Title -->
+    <TextView
+        android:id="@+id/tv_prayer_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:gravity="center"
+        android:text="حان الآن موعد أذان الصلاة"
+        android:textColor="@color/adhan_alarm_text"
+        android:textSize="26sp"
+        android:textStyle="bold" />
+
+    <!-- Muadhin Name -->
+    <TextView
+        android:id="@+id/tv_muadhin_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:text="حي على الصلاة .. حي على الفلاح"
+        android:textColor="@color/adhan_alarm_subtext"
+        android:textSize="16sp" />
+
+    <!-- Digital Clock -->
+    <TextClock
+        android:id="@+id/tc_current_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp"
+        android:format12Hour="hh:mm a"
+        android:format24Hour="HH:mm"
+        android:textColor="@color/adhan_alarm_gold"
+        android:textSize="44sp"
+        android:textStyle="bold" />
+
+    <!-- Middle Spacer -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1.2" />
+
+    <!-- Primary Stop Button -->
+    <Button
+        android:id="@+id/btn_stop_adhan"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/btn_stop_bg"
+        android:elevation="6dp"
+        android:stateListAnimator="@null"
+        android:text="إيقاف الأذان"
+        android:textColor="@color/adhan_alarm_text"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <!-- Secondary Open App Button -->
+    <Button
+        android:id="@+id/btn_open_app"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:background="@drawable/btn_open_bg"
+        android:stateListAnimator="@null"
+        android:text="فتح تطبيق الهُدى"
+        android:textColor="@color/adhan_alarm_primary"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <!-- Hardware Button Hint -->
+    <TextView
+        android:id="@+id/tv_volume_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:gravity="center"
+        android:text="💡 يمكنك أيضاً إيقاف الأذان بالضغط على أزرار الصوت بالجهاز"
+        android:textColor="@color/adhan_alarm_subtext"
+        android:textSize="13sp" />
+
+</LinearLayout>

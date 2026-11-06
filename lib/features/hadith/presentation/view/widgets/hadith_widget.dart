@@ -4,6 +4,7 @@ import 'package:alhuda/features/hadith/presentation/view/pages/hadith_bookmarks_
 import 'package:alhuda/features/hadith/presentation/view/pages/hadith_chapter_page.dart';
 import 'package:alhuda/features/hadith/presentation/view/pages/hadith_search_page.dart';
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -127,13 +128,24 @@ class _HadithWidgetState extends State<HadithWidget> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // 1. شريط الإجراءات السريعة (بحث + مفضلة)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final isWide = width >= AdaptiveBreakpoints.tabletMin;
+          final int bookColumns = width >= AdaptiveBreakpoints.desktopMin
+              ? 3
+              : (isWide ? 2 : 1);
+          final horizontalPadding = isWide
+              ? (width >= AdaptiveBreakpoints.desktopMin ? 28.0 : 20.0)
+              : 16.w;
+
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // 1. شريط الإجراءات السريعة (بحث + مفضلة)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(horizontalPadding, 12.h, horizontalPadding, 12.h),
               child: Row(
                 children: [
                   Expanded(
@@ -385,151 +397,181 @@ class _HadithWidgetState extends State<HadithWidget> {
             ),
           ),
 
-          // 5. بطاقات الكتب
-          SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final book = _books[index];
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: 12.h),
-                    child: InkWell(
-                      onTap: () => _openBook(book),
-                      borderRadius: BorderRadius.circular(18.r),
-                      child: Container(
-                        padding: EdgeInsets.all(16.r),
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          borderRadius: BorderRadius.circular(18.r),
-                          border: Border.all(color: AppColors.border),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.shadow,
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            // أيقونة الكتاب ملونة
-                            Container(
-                              width: 52.w,
-                              height: 52.w,
-                              decoration: BoxDecoration(
-                                color: book.color.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(14.r),
-                              ),
-                              child: Icon(
-                                book.icon,
-                                color: book.color,
-                                size: 28.sp,
-                              ),
-                            ),
-                            SizedBox(width: 14.w),
-                            // نصوص وبيانات الكتاب
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        book.title,
-                                        style: TextStyle(
-                                          fontSize: 16.sp,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.textPrimary,
-                                          fontFamily: 'Almarai',
-                                        ),
-                                      ),
-                                      SizedBox(width: 8.w),
-                                      Container(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 8.w, vertical: 2.h),
-                                        decoration: BoxDecoration(
-                                          color: book.color.withValues(alpha: 0.12),
-                                          borderRadius:
-                                              BorderRadius.circular(6.r),
-                                        ),
-                                        child: Text(
-                                          book.badge,
-                                          style: TextStyle(
-                                            fontSize: 10.sp,
-                                            fontWeight: FontWeight.bold,
-                                            color: book.color,
-                                            fontFamily: 'Almarai',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 4.h),
-                                  Text(
-                                    book.author,
-                                    style: TextStyle(
-                                      fontSize: 12.sp,
-                                      color: AppColors.textSecondary,
-                                      fontFamily: 'Almarai',
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  SizedBox(height: 8.h),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        '${book.totalChapters} باباً',
-                                        style: TextStyle(
-                                          fontSize: 12.sp,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textPrimary,
-                                          fontFamily: 'Almarai',
-                                        ),
-                                      ),
-                                      Text(
-                                        '  •  ',
-                                        style: TextStyle(
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${book.totalHadiths} حديثاً',
-                                        style: TextStyle(
-                                          fontSize: 12.sp,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textPrimary,
-                                          fontFamily: 'Almarai',
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 16.sp,
-                              color:
-                                  AppColors.textSecondary.withValues(alpha: 0.6),
-                            ),
-                          ],
-                        ),
-                      ),
+          // 5. بطاقات الكتب المتكيفة
+          bookColumns > 1
+              ? SliverPadding(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  sliver: SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: bookColumns,
+                      childAspectRatio: bookColumns == 3 ? 2.5 : 2.8,
+                      crossAxisSpacing: 14.0,
+                      mainAxisSpacing: 12.0,
                     ),
-                  );
-                },
-                childCount: _books.length,
-              ),
-            ),
-          ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final book = _books[index];
+                        return _buildBookCard(book, isGrid: true);
+                      },
+                      childCount: _books.length,
+                    ),
+                  ),
+                )
+              : SliverPadding(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final book = _books[index];
+                        return _buildBookCard(book, isGrid: false);
+                      },
+                      childCount: _books.length,
+                    ),
+                  ),
+                ),
 
           // مساحة سفلية
           SliverToBoxAdapter(
             child: SizedBox(height: 24.h),
           ),
         ],
+      );
+    },
+  ),
+);
+  }
+
+  Widget _buildBookCard(HadithBook book, {bool isGrid = false}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isGrid ? 0 : 12.h),
+      child: InkWell(
+        onTap: () => _openBook(book),
+        borderRadius: BorderRadius.circular(18.r),
+        child: Container(
+          padding: EdgeInsets.all(16.r),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(18.r),
+            border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadow,
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // أيقونة الكتاب ملونة
+              Container(
+                width: 52.w,
+                height: 52.w,
+                decoration: BoxDecoration(
+                  color: book.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14.r),
+                ),
+                child: Icon(
+                  book.icon,
+                  color: book.color,
+                  size: 28.sp,
+                ),
+              ),
+              SizedBox(width: 14.w),
+              // نصوص وبيانات الكتاب
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            book.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                              fontFamily: 'Almarai',
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8.w, vertical: 2.h),
+                          decoration: BoxDecoration(
+                            color: book.color.withValues(alpha: 0.12),
+                            borderRadius:
+                                BorderRadius.circular(6.r),
+                          ),
+                          child: Text(
+                            book.badge,
+                            style: TextStyle(
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.bold,
+                              color: book.color,
+                              fontFamily: 'Almarai',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      book.author,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Almarai',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 8.h),
+                    Row(
+                      children: [
+                        Text(
+                          '${book.totalChapters} باباً',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Almarai',
+                          ),
+                        ),
+                        Text(
+                          '  •  ',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          '${book.totalHadiths} حديثاً',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Almarai',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16.sp,
+                color:
+                    AppColors.textSecondary.withValues(alpha: 0.6),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:alhuda/core/utils/egypt_dst_helper.dart';
 import 'package:alhuda/core/models/city_locations_data.dart';
 import 'package:alhuda/features/prayer_times/presentation/view/widgets/adhan_settings_bottom_sheet.dart';
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
@@ -637,15 +638,23 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.only(
-          right: 16.w,
-          left: 16.w,
-          top: 12.h,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16.h,
-        ),
-        child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= AdaptiveBreakpoints.tabletMin;
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: isWide ? 750.0 : double.infinity,
+              ),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.only(
+                  right: isWide ? 24.0 : 16.w,
+                  left: isWide ? 24.0 : 16.w,
+                  top: 12.h,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16.h,
+                ),
+                child: Column(
           children: [
             // Top Bar with Location and Settings
             Row(
@@ -1000,7 +1009,11 @@ class _PrayerTimesWidgetState extends State<PrayerTimesWidget> {
           ],
         ),
       ),
-    );
+    ),
+  );
+},
+  ),
+);
   }
 }
 

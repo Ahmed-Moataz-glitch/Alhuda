@@ -95,6 +95,8 @@ class _TajweedPageWidgetState extends State<TajweedPageWidget> {
   ui.Image? _decodedImage;
   bool _isLoading = true;
   final ScrollController _scrollController = ScrollController();
+  ImageStream? _imageStream;
+  ImageStreamListener? _imageStreamListener;
 
   @override
   void initState() {
@@ -103,10 +105,20 @@ class _TajweedPageWidgetState extends State<TajweedPageWidget> {
     _loadImage();
   }
 
+  void _cleanupStreamListener() {
+    if (_imageStream != null && _imageStreamListener != null) {
+      _imageStream!.removeListener(_imageStreamListener!);
+      _imageStreamListener = null;
+      _imageStream = null;
+    }
+  }
+
   void _onEditionChanged() {
     if (mounted) {
+      _cleanupStreamListener();
+      _decodedImage?.dispose();
+      _decodedImage = null;
       setState(() {
-        _decodedImage = null;
         _isLoading = true;
       });
       _loadImage();
@@ -117,6 +129,8 @@ class _TajweedPageWidgetState extends State<TajweedPageWidget> {
   void didUpdateWidget(TajweedPageWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.pageNumber != widget.pageNumber) {
+      _cleanupStreamListener();
+      _decodedImage?.dispose();
       _decodedImage = null;
       _isLoading = true;
       if (_scrollController.hasClients) {
@@ -129,7 +143,9 @@ class _TajweedPageWidgetState extends State<TajweedPageWidget> {
   @override
   void dispose() {
     TajweedPageCacheService.instance.editionNotifier.removeListener(_onEditionChanged);
+    _cleanupStreamListener();
     _scrollController.dispose();
+    _decodedImage?.dispose();
     _decodedImage = null;
     super.dispose();
   }
@@ -145,24 +161,31 @@ class _TajweedPageWidgetState extends State<TajweedPageWidget> {
         final codec = await ui.instantiateImageCodec(bytes);
         final frame = await codec.getNextFrame();
         if (mounted) {
+          _decodedImage?.dispose();
           setState(() {
             _decodedImage = frame.image;
             _isLoading = false;
           });
+        } else {
+          frame.image.dispose();
         }
       } else {
         // Try direct network load if file wasn't saved
+        _cleanupStreamListener();
         final url = TajweedPageCacheService.instance.getPageUrl(widget.pageNumber);
         final imageProvider = NetworkImage(url);
         final stream = imageProvider.resolve(const ImageConfiguration());
-        stream.addListener(ImageStreamListener(
+        _imageStream = stream;
+        _imageStreamListener = ImageStreamListener(
           (ImageInfo info, bool _) {
-            if (mounted) {
-              setState(() {
-                _decodedImage = info.image;
-                _isLoading = false;
-              });
+            if (!mounted) {
+              return;
             }
+            _decodedImage?.dispose();
+            setState(() {
+              _decodedImage = info.image.clone();
+              _isLoading = false;
+            });
           },
           onError: (dynamic _, StackTrace? __) {
             if (mounted) {
@@ -171,7 +194,8 @@ class _TajweedPageWidgetState extends State<TajweedPageWidget> {
               });
             }
           },
-        ));
+        );
+        stream.addListener(_imageStreamListener!);
       }
     } catch (e) {
       if (mounted) {

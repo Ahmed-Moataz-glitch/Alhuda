@@ -350,7 +350,7 @@ class TajweedPageCacheService {
   }
 
   /// Prefetch adjacent pages in background (ahead and behind)
-  void prefetchPages(int currentPage, {int radius = 5, MushafEdition? edition}) {
+  void prefetchPages(int currentPage, {int radius = 2, MushafEdition? edition}) {
     final ed = edition ?? _currentEdition;
     for (int offset = 1; offset <= radius; offset++) {
       final nextPage = currentPage + offset;

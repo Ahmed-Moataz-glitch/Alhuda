@@ -328,7 +328,7 @@ class _MushafPageState extends State<MushafPageView> {
   }
 
   void _safePrefetch(int page) {
-    TajweedPageCacheService.instance.prefetchPages(page, radius: 5);
+    TajweedPageCacheService.instance.prefetchPages(page, radius: 2);
   }
 
   Future<bool> _verifyAudioPlayable(int surahNumber) async {

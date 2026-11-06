@@ -183,5 +183,37 @@ void main() {
         completes,
       );
     });
+
+    test('updatePersistentPrayerNotification immediately selects upcoming prayer when adhan finishes', () async {
+      final now = DateTime.now();
+      // Isha was 10 minutes ago, next prayer is tomorrow's Fajr
+      final prayerTime = PrayerTime(
+        fajr: now.subtract(const Duration(hours: 14)),
+        sunrise: now.subtract(const Duration(hours: 12)),
+        dhuhr: now.subtract(const Duration(hours: 7)),
+        asr: now.subtract(const Duration(hours: 4)),
+        maghrib: now.subtract(const Duration(hours: 2)),
+        isha: now.subtract(const Duration(minutes: 10)),
+      );
+
+      final scheduler = PrayerSchedulerService();
+      // When adhan completes (activePrayerName is null), notification updates to upcoming prayer (Fajr)
+      await expectLater(
+        scheduler.updatePersistentPrayerNotification(
+          prayerTime: prayerTime,
+          activePrayerName: null,
+        ),
+        completes,
+      );
+
+      // While adhan is active, it displays the current prayer
+      await expectLater(
+        scheduler.updatePersistentPrayerNotification(
+          prayerTime: prayerTime,
+          activePrayerName: 'العشاء',
+        ),
+        completes,
+      );
+    });
   });
 }

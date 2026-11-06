@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:ui';
-import 'package:alhuda/core/constants/app_constants.dart';
 import 'package:alhuda/core/services/notification_services.dart';
+import 'package:alhuda/core/services/prayer_scheduler_service.dart';
 import 'package:alhuda/features/prayer_times/data/models/adhan_model.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
@@ -25,13 +25,27 @@ class AdhanAudioService extends ChangeNotifier {
   AdhanSound _selectedSound = AdhanData.defaultAdhan;
   AdhanSound? _currentPlayingSound;
   String _currentPrayerName = '';
-  int _currentNotificationId = NotificationServices.notificationId;
+  int _currentNotificationId = NotificationServices.persistentNotificationId;
   PlayerState _playerState = PlayerState.stopped;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   double _adhanVolume = 1.0;
+  double _prePrayerVolume = 1.0;
+  bool _isPersistentNotificationEnabled = true;
+  bool _isPrePrayerAlertEnabled = true;
+  bool _isAlarmMode = true;
+  int _prePrayerMinutes = 15;
 
   final Map<String, bool> _prayerAlerts = {
+    'الفجر': true,
+    'الشروق': false,
+    'الظهر': true,
+    'العصر': true,
+    'المغرب': true,
+    'العشاء': true,
+  };
+
+  final Map<String, bool> _prePrayerAlerts = {
     'الفجر': true,
     'الشروق': false,
     'الظهر': true,
@@ -73,11 +87,42 @@ class AdhanAudioService extends ChangeNotifier {
           }
           _prayerAlerts['الشروق'] = false;
         }
+        if (data['isAlarmMode'] != null) {
+          _isAlarmMode = data['isAlarmMode'] as bool;
+        }
         if (data['adhanVolume'] != null) {
           _adhanVolume = (data['adhanVolume'] as num).toDouble().clamp(0.1, 1.0);
         }
+        if (data['prePrayerVolume'] != null) {
+          _prePrayerVolume =
+              (data['prePrayerVolume'] as num).toDouble().clamp(0.1, 1.0);
+        }
+        if (data['isPersistentNotificationEnabled'] != null) {
+          _isPersistentNotificationEnabled =
+              data['isPersistentNotificationEnabled'] as bool;
+        }
+        if (data['isPrePrayerAlertEnabled'] != null) {
+          _isPrePrayerAlertEnabled = data['isPrePrayerAlertEnabled'] as bool;
+        }
+        if (data['prePrayerMinutes'] != null) {
+          _prePrayerMinutes = (data['prePrayerMinutes'] as num).toInt();
+        }
+        if (data['prePrayerAlerts'] != null) {
+          final alerts = Map<String, dynamic>.from(data['prePrayerAlerts']);
+          for (final entry in alerts.entries) {
+            if (entry.key != 'الشروق') {
+              _prePrayerAlerts[entry.key] = entry.value as bool;
+            }
+          }
+          _prePrayerAlerts['الشروق'] = false;
+        }
         notifyListeners();
       }
+      try {
+        _channel.invokeMethod('setPersistentNotificationEnabled', {
+          'enabled': _isPersistentNotificationEnabled,
+        });
+      } catch (_) {}
     } catch (e) {
       debugPrint('Error loading adhan settings: $e');
     }
@@ -91,6 +136,12 @@ class AdhanAudioService extends ChangeNotifier {
         'selectedSoundId': _selectedSound.id,
         'prayerAlerts': _prayerAlerts,
         'adhanVolume': _adhanVolume,
+        'prePrayerVolume': _prePrayerVolume,
+        'isAlarmMode': _isAlarmMode,
+        'isPersistentNotificationEnabled': _isPersistentNotificationEnabled,
+        'isPrePrayerAlertEnabled': _isPrePrayerAlertEnabled,
+        'prePrayerMinutes': _prePrayerMinutes,
+        'prePrayerAlerts': _prePrayerAlerts,
       };
       await file.writeAsString(jsonEncode(data), flush: true);
     } catch (e) {
@@ -127,10 +178,9 @@ class AdhanAudioService extends ChangeNotifier {
       _stopMonitoring();
       _restoreNativeAlarmVolume();
       NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
-      NotificationServices.periodicNotification(
-        title: AppConstants.notificationTitle,
-        body: AppConstants.notificationBody,
-      );
+      if (_isPersistentNotificationEnabled) {
+        PrayerSchedulerService().updatePersistentPrayerNotification();
+      }
       notifyListeners();
     });
   }
@@ -161,11 +211,15 @@ class AdhanAudioService extends ChangeNotifier {
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
     if (call.method == 'stopAdhan') {
-      await stop();
+      await stop(fromNative: true);
     } else if (call.method == 'pauseAdhan') {
       await pause();
     } else if (call.method == 'resumeAdhan') {
       await resume();
+    } else if (call.method == 'onPersistentNotificationUpdate') {
+      if (_isPersistentNotificationEnabled) {
+        await PrayerSchedulerService().updatePersistentPrayerNotification();
+      }
     }
   }
 
@@ -175,7 +229,8 @@ class AdhanAudioService extends ChangeNotifier {
       if (key == LogicalKeyboardKey.audioVolumeUp ||
           key == LogicalKeyboardKey.audioVolumeDown ||
           key == LogicalKeyboardKey.audioVolumeMute) {
-        if (_currentPlayingSound != null || isPlaying) {
+        // Only stop if an actual prayer alarm is ringing (never during in-app preview)
+        if (_currentPrayerName.isNotEmpty && isPlaying) {
           debugPrint('AdhanAudioService: Hardware volume key pressed - stopping Adhan');
           stop();
           return true; // Consume key event to stop playback
@@ -203,6 +258,12 @@ class AdhanAudioService extends ChangeNotifier {
     } catch (_) {}
   }
 
+  Future<void> _applyNativePrePrayerVolume() async {
+    try {
+      await _channel.invokeMethod('setAdhanVolume', {'volume': _prePrayerVolume});
+    } catch (_) {}
+  }
+
   Future<void> _restoreNativeAlarmVolume() async {
     try {
       await _channel.invokeMethod('restoreAlarmVolume');
@@ -216,14 +277,22 @@ class AdhanAudioService extends ChangeNotifier {
   Duration get duration => _duration;
   bool get isPlaying => _playerState == PlayerState.playing;
   double get adhanVolume => _adhanVolume;
+  double get prePrayerVolume => _prePrayerVolume;
   Map<String, bool> get prayerAlerts => Map.unmodifiable(_prayerAlerts);
 
   void setAdhanVolume(double volume) {
     _adhanVolume = volume.clamp(0.1, 1.0);
     _player.setVolume(_adhanVolume);
-    if (isPlaying) {
+    if (isPlaying && _currentPrayerName.isNotEmpty) {
       _applyNativeAdhanVolume();
     }
+    notifyListeners();
+    _saveSettings();
+    PrayerSchedulerService().scheduleUpcomingPrayers(null);
+  }
+
+  void setPrePrayerVolume(double volume) {
+    _prePrayerVolume = volume.clamp(0.1, 1.0);
     notifyListeners();
     _saveSettings();
   }
@@ -238,6 +307,148 @@ class AdhanAudioService extends ChangeNotifier {
     _prayerAlerts[prayerName] = enabled;
     notifyListeners();
     _saveSettings();
+  }
+
+  bool get isPersistentNotificationEnabled => _isPersistentNotificationEnabled;
+  bool get isPrePrayerAlertEnabled => _isPrePrayerAlertEnabled;
+  bool get isAlarmMode => _isAlarmMode;
+  int get prePrayerMinutes => _prePrayerMinutes;
+  Map<String, bool> get prePrayerAlerts => Map.unmodifiable(_prePrayerAlerts);
+
+  Future<void> toggleAlarmMode(bool enabled) async {
+    _isAlarmMode = enabled;
+    await _saveSettings();
+    notifyListeners();
+    await PrayerSchedulerService().scheduleUpcomingPrayers(null);
+  }
+
+  Future<bool> startNativeAdhanService({
+    required String prayerName,
+    required String soundId,
+    String? rawRes,
+    String? title,
+    String? muadhin,
+    double? volume,
+    bool? isAlarmMode,
+  }) async {
+    try {
+      final res = await _channel.invokeMethod<bool>('startAdhanService', {
+        'prayerName': prayerName,
+        'soundId': soundId,
+        'rawRes': rawRes,
+        'title': title,
+        'muadhin': muadhin,
+        'volume': volume ?? _adhanVolume,
+        'isAlarmMode': isAlarmMode ?? _isAlarmMode,
+      });
+      if (res == true) {
+        _currentPrayerName = prayerName;
+        _playerState = PlayerState.playing;
+        notifyListeners();
+      }
+      return res ?? false;
+    } catch (e) {
+      debugPrint('Error invoking native startAdhanService: $e');
+      return false;
+    }
+  }
+
+  bool isPrePrayerAlertEnabledFor(String prayerName) {
+    if (!_isPrePrayerAlertEnabled) return false;
+    if (prayerName == 'الشروق') return false;
+    return _prePrayerAlerts[prayerName] ?? true;
+  }
+
+  Future<void> togglePersistentNotification(bool enabled) async {
+    _isPersistentNotificationEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+    try {
+      await _channel.invokeMethod('setPersistentNotificationEnabled', {
+        'enabled': enabled,
+      });
+    } catch (_) {}
+    if (!enabled) {
+      await NotificationServices.cancelPersistentPrayerNotification();
+    } else {
+      await PrayerSchedulerService().updatePersistentPrayerNotification();
+    }
+  }
+
+  Future<void> togglePrePrayerAlert(bool enabled) async {
+    _isPrePrayerAlertEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+    await PrayerSchedulerService().scheduleUpcomingPrayers(null);
+  }
+
+  Future<void> setPrePrayerMinutes(int minutes) async {
+    _prePrayerMinutes = minutes.clamp(1, 60);
+    await _saveSettings();
+    notifyListeners();
+    await PrayerSchedulerService().scheduleUpcomingPrayers(null);
+  }
+
+  Future<void> togglePrayerPreAlert(String prayerName, bool enabled) async {
+    if (prayerName == 'الشروق') return;
+    _prePrayerAlerts[prayerName] = enabled;
+    await _saveSettings();
+    notifyListeners();
+    await PrayerSchedulerService().scheduleUpcomingPrayers(null);
+  }
+
+  Future<void> playPrePrayerAlertVoice({
+    required String prayerName,
+    int minutesRemaining = 15,
+  }) async {
+    try {
+      final key = NotificationServices.prayerNameToKey(prayerName);
+      final assetPath = 'audio/pre_prayer_$key.mp3';
+
+      final voicePlayer = AudioPlayer();
+      final completer = Completer<void>();
+      StreamSubscription? sub;
+
+      sub = voicePlayer.onPlayerComplete.listen((_) {
+        if (!completer.isCompleted) completer.complete();
+      });
+
+      await voicePlayer.setAudioContext(
+        AudioContext(
+          android: const AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.alarm,
+            audioFocus: AndroidAudioFocus.gainTransient,
+          ),
+        ),
+      );
+      await _applyNativePrePrayerVolume();
+      await voicePlayer.setVolume(_prePrayerVolume);
+      await voicePlayer.play(AssetSource(assetPath));
+
+      try {
+        await completer.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => voicePlayer.stop(),
+        );
+      } finally {
+        await sub.cancel();
+        await voicePlayer.dispose();
+        await _restoreNativeAlarmVolume();
+      }
+    } catch (e) {
+      debugPrint('Error playing pre-prayer alert voice: $e');
+      await _restoreNativeAlarmVolume();
+    }
+  }
+
+  Future<void> testPrePrayerAlert({String prayerName = 'الظهر'}) async {
+    await playPrePrayerAlertVoice(
+      prayerName: prayerName,
+      minutesRemaining: _prePrayerMinutes,
+    );
   }
 
   Future<bool> isIgnoringBatteryOptimizations() async {
@@ -271,18 +482,19 @@ class AdhanAudioService extends ChangeNotifier {
     _selectedSound = sound;
     notifyListeners();
     _saveSettings();
+    PrayerSchedulerService().scheduleUpcomingPrayers(null);
   }
 
   Future<void> play(
     AdhanSound sound, {
     String prayerName = '',
-    int notificationId = NotificationServices.notificationId,
+    int notificationId = NotificationServices.persistentNotificationId,
   }) async {
     try {
       _setupControlPort();
       _currentPrayerName = prayerName;
       _currentNotificationId = notificationId;
-      await _startMonitoring();
+      final isPreview = prayerName.isEmpty;
 
       if (_currentPlayingSound?.id == sound.id &&
           _playerState == PlayerState.paused) {
@@ -296,17 +508,19 @@ class AdhanAudioService extends ChangeNotifier {
 
       await _player.setAudioContext(
         AudioContext(
-          android: const AudioContextAndroid(
+          android: AudioContextAndroid(
             isSpeakerphoneOn: false,
             stayAwake: true,
             contentType: AndroidContentType.music,
-            usageType: AndroidUsageType.alarm,
-            audioFocus: AndroidAudioFocus.gain,
+            usageType: isPreview ? AndroidUsageType.media : AndroidUsageType.alarm,
+            audioFocus: isPreview ? AndroidAudioFocus.gainTransientMayDuck : AndroidAudioFocus.gain,
           ),
         ),
       );
 
-      await _applyNativeAdhanVolume();
+      if (!isPreview) {
+        await _applyNativeAdhanVolume();
+      }
       await _player.setVolume(_adhanVolume);
 
       if (sound.sourceType == AdhanAudioSourceType.asset) {
@@ -319,16 +533,26 @@ class AdhanAudioService extends ChangeNotifier {
         await _player.play(UrlSource(sound.source));
       }
 
-      await _startMonitoring();
+      if (!isPreview) {
+        await _startMonitoring();
+        if (!_isPersistentNotificationEnabled) {
+          await NotificationServices.showAdhanControlNotification(
+            id: _currentNotificationId,
+            prayerName: _currentPrayerName,
+            sound: sound,
+            isPlaying: true,
+            enableFullScreenIntent: false,
+          );
+        }
+      }
 
-      // Show interactive notification with controls
-      await NotificationServices.showAdhanControlNotification(
-        id: _currentNotificationId,
-        prayerName: _currentPrayerName,
-        sound: sound,
-        isPlaying: true,
-        enableFullScreenIntent: false,
-      );
+      if (_isPersistentNotificationEnabled && _currentPrayerName.isNotEmpty) {
+        try {
+          await PrayerSchedulerService().updatePersistentPrayerNotification(
+            activePrayerName: _currentPrayerName,
+          );
+        } catch (_) {}
+      }
     } catch (e) {
       debugPrint('Error playing Adhan sound: $e');
       _currentPlayingSound = null;
@@ -336,10 +560,9 @@ class AdhanAudioService extends ChangeNotifier {
       await _restoreNativeAlarmVolume();
       await _stopMonitoring();
       await NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
-      NotificationServices.periodicNotification(
-        title: AppConstants.notificationTitle,
-        body: AppConstants.notificationBody,
-      );
+      if (_isPersistentNotificationEnabled) {
+        PrayerSchedulerService().updatePersistentPrayerNotification();
+      }
       notifyListeners();
     }
   }
@@ -347,7 +570,7 @@ class AdhanAudioService extends ChangeNotifier {
   Future<void> pause() async {
     await _player.pause();
     await _stopMonitoring();
-    if (_currentPlayingSound != null) {
+    if (_currentPlayingSound != null && !_isPersistentNotificationEnabled) {
       await NotificationServices.showAdhanControlNotification(
         id: _currentNotificationId,
         prayerName: _currentPrayerName,
@@ -360,7 +583,7 @@ class AdhanAudioService extends ChangeNotifier {
   Future<void> resume() async {
     await _player.resume();
     await _startMonitoring();
-    if (_currentPlayingSound != null) {
+    if (_currentPlayingSound != null && !_isPersistentNotificationEnabled) {
       await NotificationServices.showAdhanControlNotification(
         id: _currentNotificationId,
         prayerName: _currentPrayerName,
@@ -370,21 +593,40 @@ class AdhanAudioService extends ChangeNotifier {
     }
   }
 
-  Future<void> stop() async {
+  Future<bool> isAdhanActive() async {
+    if (_playerState == PlayerState.playing) return true;
+    try {
+      final isPlaying = await _channel.invokeMethod<bool>('isAdhanPlaying');
+      return isPlaying ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> stop({bool fromNative = false}) async {
+    if (!fromNative) {
+      try {
+        await _channel.invokeMethod('stopAdhan');
+        await _channel.invokeMethod('stopPrePrayerVoice');
+      } catch (_) {}
+    }
     await _player.stop();
     _currentPlayingSound = null;
+    _currentPrayerName = '';
+    _playerState = PlayerState.stopped;
     _position = Duration.zero;
     await _restoreNativeAlarmVolume();
     await _stopMonitoring();
     await NotificationServices.cancelAdhanNotification(id: _currentNotificationId);
-    NotificationServices.periodicNotification(
-      title: AppConstants.notificationTitle,
-      body: AppConstants.notificationBody,
-    );
     try {
       final legacySendPort = IsolateNameServer.lookupPortByName('adhan_stop_port');
       legacySendPort?.send('stop');
     } catch (_) {}
+    if (_isPersistentNotificationEnabled) {
+      try {
+        await PrayerSchedulerService().updatePersistentPrayerNotification();
+      } catch (_) {}
+    }
     notifyListeners();
   }
 

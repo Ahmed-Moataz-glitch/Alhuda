@@ -1,4 +1,5 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:alhuda/core/services/font_size_service.dart';
 import 'package:alhuda/features/tasbeeh/data/repositories/tasbeeh_repository_impl.dart';
 import 'package:alhuda/features/tasbeeh/domain/entities/tasbeeh_item.dart';
@@ -212,329 +213,403 @@ class _TasbeehWidgetState extends State<TasbeehWidget> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
-        child: Column(
-          children: [
-            // بطاقة نص الذكر
-            GestureDetector(
-              onTap: _showDhikrListModal,
-              onHorizontalDragEnd: (details) {
-                if (details.primaryVelocity != null) {
-                  if (details.primaryVelocity! < -100) {
-                    _nextItem();
-                  } else if (details.primaryVelocity! > 100) {
-                    _previousItem();
-                  }
-                }
-              },
-              child: Container(
-                width: double.infinity,
-                constraints: BoxConstraints(minHeight: 140.h),
-                padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 16.h),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(22.r),
-                  border: Border.all(
-                    color: AppColors.primary.withAlpha(35),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.shadow,
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      transitionBuilder: (child, anim) =>
-                          FadeTransition(opacity: anim, child: child),
-                      child: Text(
-                        _currentItem.text,
-                        key: ValueKey<int>(_currentItem.id),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Amiri',
-                          fontSize: (22 * fontScale).sp,
-                          height: 1.5,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    if (_currentItem.fadl != null &&
-                        _currentItem.fadl!.isNotEmpty) ...[
-                      SizedBox(height: 10.h),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12.w,
-                          vertical: 6.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(14),
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.auto_awesome_rounded,
-                              size: 13.sp,
-                              color: AppColors.primary,
-                            ),
-                            SizedBox(width: 6.w),
-                            Flexible(
-                              child: Text(
-                                _currentItem.fadl!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'Almarai',
-                                  fontSize: 11.5.sp,
-                                  color: AppColors.textSecondary,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 16.h),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= AdaptiveBreakpoints.tabletMin;
 
-            // أزرار اختيار الهدف
-            Wrap(
-              spacing: 8.w,
-              runSpacing: 6.h,
-              alignment: WrapAlignment.center,
-              children: [
-                _buildTargetChip(
-                  label: '1',
-                  isSelected: _effectiveTarget == 1,
-                  onTap: () => setState(() => _customTarget = 1),
-                ),
-                _buildTargetChip(
-                  label: '33',
-                  isSelected: _effectiveTarget == 33,
-                  onTap: () => setState(() => _customTarget = 33),
-                ),
-                _buildTargetChip(
-                  label: '100',
-                  isSelected: _effectiveTarget == 100,
-                  onTap: () => setState(() => _customTarget = 100),
-                ),
-                if (_currentItem.targetCount != 1 &&
-                    _currentItem.targetCount != 33 &&
-                    _currentItem.targetCount != 100 &&
-                    _currentItem.targetCount > 0)
-                  _buildTargetChip(
-                    label: '${_currentItem.targetCount}',
-                    isSelected: _effectiveTarget == _currentItem.targetCount,
-                    onTap: () => setState(
-                      () => _customTarget = _currentItem.targetCount,
-                    ),
-                  ),
-                _buildTargetChip(
-                  label: 'مفتوح',
-                  isSelected: _effectiveTarget == 0,
-                  onTap: () => setState(() => _customTarget = 0),
-                ),
-              ],
-            ),
-            SizedBox(height: 18.h),
-
-            // عداد التسبيح مع مؤشر التقدم
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                if (target > 0)
-                  SizedBox(
-                    width: 130.w,
-                    height: 130.w,
-                    child: CircularProgressIndicator(
-                      value: progress,
-                      strokeWidth: 4.w,
-                      backgroundColor: AppColors.primary.withAlpha(25),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppColors.primary,
-                      ),
-                    ),
-                  ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _counter.toString(),
-                      style: TextStyle(
-                        fontFamily: 'Almarai',
-                        fontSize: 50.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    if (target > 0)
-                      Text(
-                        'من أصل $target',
-                        style: TextStyle(
-                          fontFamily: 'Almarai',
-                          fontSize: 12.sp,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-            SizedBox(height: 22.h),
-
-            // زر التسبيح الدائري الرئيسي
-            GestureDetector(
-              onTap: _increment,
-              child: Container(
-                width: 82.w,
-                height: 82.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withAlpha(80),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.add_rounded,
-                  color: Colors.white,
-                  size: 42.sp,
-                ),
-              ),
-            ),
-            SizedBox(height: 22.h),
-
-            // زر إعادة التصفير للذكر الحالي
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _resetCounter,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14.r),
-                  ),
-                  padding: EdgeInsets.symmetric(vertical: 13.h),
-                  elevation: 2,
-                ),
-                icon: Icon(
-                  Icons.refresh_rounded,
-                  color: Colors.white,
-                  size: 20.sp,
-                ),
-                label: Text(
-                  'إعادة',
-                  style: TextStyle(
-                    fontFamily: 'Almarai',
-                    fontSize: 16.sp,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: 14.h),
-
-            // شريط الإحصائيات والإعدادات السريعة
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(14.r),
-                border: Border.all(color: AppColors.border, width: 0.8),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.insights_rounded,
-                          size: 16.sp,
-                          color: AppColors.textSecondary,
-                        ),
-                        SizedBox(width: 6.w),
-                        Flexible(
-                          child: Text(
-                            'إجمالي التسبيحات: $_totalSessionCount',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: 'Almarai',
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Row(
+          if (isWide) {
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100.0),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        icon: Icon(
-                          _vibrationEnabled
-                              ? Icons.vibration_rounded
-                              : Icons.smartphone_rounded,
-                          size: 24.sp,
-                          color: _vibrationEnabled
-                              ? AppColors.primary
-                              : AppColors.textSecondary.withAlpha(120),
-                        ),
-                        tooltip: _vibrationEnabled
-                            ? 'الاهتزاز مفعل'
-                            : 'الاهتزاز معطل',
-                        onPressed: () {
-                          setState(() {
-                            _vibrationEnabled = !_vibrationEnabled;
-                          });
-                        },
-                      ),
-                      if (_totalSessionCount > 0)
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: Icon(
-                            Icons.delete_sweep_outlined,
-                            size: 24.sp,
-                            color: AppColors.textSecondary,
+                      // العمود الأيمن: بطاقة الذكر والعداد وزر التسبيح
+                      Expanded(
+                        flex: 6,
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            children: [
+                              _buildDhikrCard(fontScale),
+                              const SizedBox(height: 20),
+                              _buildCounterDisplay(progress, target),
+                              const SizedBox(height: 20),
+                              _buildTapButton(),
+                            ],
                           ),
-                          tooltip: 'تصفير إجمالي الجلسة',
-                          onPressed: () {
-                            setState(() {
-                              _totalSessionCount = 0;
-                            });
-                          },
                         ),
+                      ),
+                      const SizedBox(width: 24),
+                      // العمود الأيسر: تحديد الهدف، زر الإعادة، والإحصائيات
+                      Expanded(
+                        flex: 5,
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            children: [
+                              _buildTargetSelector(),
+                              const SizedBox(height: 20),
+                              _buildResetButton(),
+                              const SizedBox(height: 20),
+                              _buildStatsBar(),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                ],
+                ),
+              ),
+            );
+          }
+
+          // عرض الهاتف أو الوضع الرأسي المعتاد
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 540.0),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+                child: Column(
+                  children: [
+                    _buildDhikrCard(fontScale),
+                    SizedBox(height: 16.h),
+                    _buildTargetSelector(),
+                    SizedBox(height: 18.h),
+                    _buildCounterDisplay(progress, target),
+                    SizedBox(height: 22.h),
+                    _buildTapButton(),
+                    SizedBox(height: 22.h),
+                    _buildResetButton(),
+                    SizedBox(height: 14.h),
+                    _buildStatsBar(),
+                    SizedBox(height: 16.h),
+                  ],
+                ),
               ),
             ),
-            SizedBox(height: 16.h),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDhikrCard(double fontScale) {
+    return GestureDetector(
+      onTap: _showDhikrListModal,
+      onHorizontalDragEnd: (details) {
+        if (details.primaryVelocity != null) {
+          if (details.primaryVelocity! < -100) {
+            _nextItem();
+          } else if (details.primaryVelocity! > 100) {
+            _previousItem();
+          }
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        constraints: BoxConstraints(minHeight: 140.h),
+        padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 16.h),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(22.r),
+          border: Border.all(
+            color: AppColors.primary.withAlpha(35),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              transitionBuilder: (child, anim) =>
+                  FadeTransition(opacity: anim, child: child),
+              child: Text(
+                _currentItem.text,
+                key: ValueKey<int>(_currentItem.id),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Amiri',
+                  fontSize: (22 * fontScale).sp,
+                  height: 1.5,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            if (_currentItem.fadl != null &&
+                _currentItem.fadl!.isNotEmpty) ...[
+              SizedBox(height: 10.h),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 12.w,
+                  vertical: 6.h,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(14),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 13.sp,
+                      color: AppColors.primary,
+                    ),
+                    SizedBox(width: 6.w),
+                    Flexible(
+                      child: Text(
+                        _currentItem.fadl!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Almarai',
+                          fontSize: 11.5.sp,
+                          color: AppColors.textSecondary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTargetSelector() {
+    return Wrap(
+      spacing: 8.w,
+      runSpacing: 6.h,
+      alignment: WrapAlignment.center,
+      children: [
+        _buildTargetChip(
+          label: '1',
+          isSelected: _effectiveTarget == 1,
+          onTap: () => setState(() => _customTarget = 1),
+        ),
+        _buildTargetChip(
+          label: '33',
+          isSelected: _effectiveTarget == 33,
+          onTap: () => setState(() => _customTarget = 33),
+        ),
+        _buildTargetChip(
+          label: '100',
+          isSelected: _effectiveTarget == 100,
+          onTap: () => setState(() => _customTarget = 100),
+        ),
+        if (_currentItem.targetCount != 1 &&
+            _currentItem.targetCount != 33 &&
+            _currentItem.targetCount != 100 &&
+            _currentItem.targetCount > 0)
+          _buildTargetChip(
+            label: '${_currentItem.targetCount}',
+            isSelected: _effectiveTarget == _currentItem.targetCount,
+            onTap: () => setState(
+              () => _customTarget = _currentItem.targetCount,
+            ),
+          ),
+        _buildTargetChip(
+          label: 'مفتوح',
+          isSelected: _effectiveTarget == 0,
+          onTap: () => setState(() => _customTarget = 0),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCounterDisplay(double progress, int target) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        if (target > 0)
+          SizedBox(
+            width: 130.w,
+            height: 130.w,
+            child: CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 4.w,
+              backgroundColor: AppColors.primary.withAlpha(25),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
+            ),
+          ),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _counter.toString(),
+              style: TextStyle(
+                fontFamily: 'Almarai',
+                fontSize: 50.sp,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+            if (target > 0)
+              Text(
+                'من أصل $target',
+                style: TextStyle(
+                  fontFamily: 'Almarai',
+                  fontSize: 12.sp,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTapButton() {
+    return GestureDetector(
+      onTap: _increment,
+      child: Container(
+        width: 82.w,
+        height: 82.w,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.primary,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withAlpha(80),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Icon(
+          Icons.add_rounded,
+          color: Colors.white,
+          size: 42.sp,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResetButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _resetCounter,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14.r),
+          ),
+          padding: EdgeInsets.symmetric(vertical: 13.h),
+          elevation: 2,
+        ),
+        icon: Icon(
+          Icons.refresh_rounded,
+          color: Colors.white,
+          size: 20.sp,
+        ),
+        label: Text(
+          'إعادة',
+          style: TextStyle(
+            fontFamily: 'Almarai',
+            fontSize: 16.sp,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsBar() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: AppColors.border, width: 0.8),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Icon(
+                  Icons.insights_rounded,
+                  size: 16.sp,
+                  color: AppColors.textSecondary,
+                ),
+                SizedBox(width: 6.w),
+                Flexible(
+                  child: Text(
+                    'إجمالي التسبيحات: $_totalSessionCount',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Almarai',
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Row(
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  _vibrationEnabled
+                      ? Icons.vibration_rounded
+                      : Icons.smartphone_rounded,
+                  size: 24.sp,
+                  color: _vibrationEnabled
+                      ? AppColors.primary
+                      : AppColors.textSecondary.withAlpha(120),
+                ),
+                tooltip: _vibrationEnabled
+                    ? 'الاهتزاز مفعل'
+                    : 'الاهتزاز معطل',
+                onPressed: () {
+                  setState(() {
+                    _vibrationEnabled = !_vibrationEnabled;
+                  });
+                },
+              ),
+              if (_totalSessionCount > 0)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    Icons.delete_sweep_outlined,
+                    size: 24.sp,
+                    color: AppColors.textSecondary,
+                  ),
+                  tooltip: 'تصفير إجمالي الجلسة',
+                  onPressed: () {
+                    setState(() {
+                      _totalSessionCount = 0;
+                    });
+                  },
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

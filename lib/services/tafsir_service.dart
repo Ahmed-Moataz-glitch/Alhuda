@@ -260,6 +260,11 @@ class TafsirService {
     return false;
   }
 
+  /// Free in-memory parsed Tafsirs to recover RAM on low memory
+  void clearInMemoryCache() {
+    _offlineTafsirStore.clear();
+  }
+
   /// Ensure offline JSON dataset is parsed into the in-memory lookup map
   Future<bool> ensureOfflineLoaded(String tafsirId) async {
     if (_offlineTafsirStore.containsKey(tafsirId) &&

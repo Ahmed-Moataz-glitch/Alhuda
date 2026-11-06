@@ -1,7 +1,8 @@
-import 'package:alhuda/services/quran_service.dart';
+import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:alhuda/features/quran/presentation/view/pages/mushaf_page_view.dart';
 import 'package:alhuda/features/quran/presentation/view/pages/quran_search_page.dart';
-import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/services/quran_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -38,14 +39,25 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Column(
-        children: [
-        SizedBox(height: 10.h),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final isWide = width >= AdaptiveBreakpoints.tabletMin;
+          final int quranColumns = width >= AdaptiveBreakpoints.desktopMin
+              ? 3
+              : (isWide ? 2 : 1);
+          final horizontalPadding = isWide
+              ? (width >= AdaptiveBreakpoints.desktopMin ? 28.0 : 20.0)
+              : 16.w;
 
-        // Quick Search Bar & Last Read Banner
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
-          child: Column(
+          return Column(
+            children: [
+              SizedBox(height: 10.h),
+
+              // Quick Search Bar & Last Read Banner
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: Column(
             children: [
               // Search Input Button
               InkWell(
@@ -103,7 +115,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
         ClipRRect(
           borderRadius: BorderRadius.circular(10.r),
           child: Container(
-            margin: EdgeInsets.symmetric(horizontal: 16.w),
+            margin: EdgeInsets.symmetric(horizontal: horizontalPadding),
             decoration: BoxDecoration(
               color: isDark ? AppColors.surface : Colors.grey.shade200,
               borderRadius: BorderRadius.circular(10.r),
@@ -140,19 +152,21 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
             controller: _innerTabController,
             children: [
               // 1. Surah List Tab
-              _buildSurahsTab(allSurahs),
+              _buildSurahsTab(allSurahs, columns: quranColumns, horizontalPadding: horizontalPadding),
 
               // 2. Juzs List Tab
-              _buildJuzsTab(allJuzs),
+              _buildJuzsTab(allJuzs, columns: quranColumns, horizontalPadding: horizontalPadding),
 
               // 3. Bookmarks Tab
-              _buildBookmarksTab(bookmarks),
+              _buildBookmarksTab(bookmarks, columns: quranColumns, horizontalPadding: horizontalPadding),
             ],
           ),
         ),
       ],
-    ),
-  );
+    );
+  },
+),
+);
 }
 
   Widget _buildLastReadCard(LastReadPosition? lastRead) {
@@ -317,7 +331,7 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildSurahsTab(List<SurahData> surahs) {
+  Widget _buildSurahsTab(List<SurahData> surahs, {int columns = 1, double horizontalPadding = 16.0}) {
     if (surahs.isEmpty) {
       return Center(
         child: Text(
@@ -327,10 +341,28 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
       );
     }
 
+    if (columns > 1) {
+      return GridView.builder(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 6.h),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          childAspectRatio: columns == 3 ? 2.6 : 3.0,
+          crossAxisSpacing: 12.0,
+          mainAxisSpacing: 8.0,
+        ),
+        itemCount: surahs.length + 1,
+        itemBuilder: (context, index) => _buildSurahItem(context, surahs, index),
+      );
+    }
+
     return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 6.h),
       itemCount: surahs.length + 1,
-      itemBuilder: (context, index) {
+      itemBuilder: (context, index) => _buildSurahItem(context, surahs, index),
+    );
+  }
+
+  Widget _buildSurahItem(BuildContext context, List<SurahData> surahs, int index) {
         if (index == surahs.length) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
           return Card(
@@ -556,91 +588,104 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
             },
           ),
         );
-      },
-    );
   }
 
-  Widget _buildJuzsTab(List<JuzData> juzs) {
+  Widget _buildJuzsTab(List<JuzData> juzs, {int columns = 1, double horizontalPadding = 16.0}) {
+    if (columns > 1) {
+      return GridView.builder(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 6.h),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          childAspectRatio: columns == 3 ? 2.6 : 3.0,
+          crossAxisSpacing: 12.0,
+          mainAxisSpacing: 8.0,
+        ),
+        itemCount: juzs.length,
+        itemBuilder: (context, index) => _buildJuzItem(context, juzs[index]),
+      );
+    }
+
     return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 6.h),
       itemCount: juzs.length,
-      itemBuilder: (context, index) {
-        final juz = juzs[index];
-        return Card(
-          margin: EdgeInsets.only(bottom: 8.h),
-          elevation: 0.5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.r),
-            side: BorderSide(color: Colors.grey.withAlpha(30)),
-          ),
-          child: ListTile(
-            contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 4.h),
-            leading: Container(
-              width: 40.r,
-              height: 40.r,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '${juz.number}',
-                style: TextStyle(
-                  fontFamily: 'Almarai',
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15.sp,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            title: Text(
-              'الجزء ${juz.number}',
-              style: TextStyle(
-                fontFamily: 'Almarai',
-                fontWeight: FontWeight.bold,
-                fontSize: 15.sp,
-                color: AppColors.primary,
-              ),
-            ),
-            subtitle: Text(
-              'يبدأ من سورة ${juz.startSurahName} (الآية ${juz.startAyahNumber})',
-              style: TextStyle(fontSize: 12.sp, color: AppColors.textSecondary, fontFamily: 'Almarai'),
-            ),
-            trailing: Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(15),
-                borderRadius: BorderRadius.circular(6.r),
-              ),
-              child: Text(
-                'ص ${juz.startPage}',
-                style: TextStyle(
-                  fontFamily: 'Almarai',
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => MushafPageView(
-                    initialPage: juz.startPage,
-                    highlightedSurah: juz.startSurahNumber,
-                    highlightedAyah: juz.startAyahNumber,
-                  ),
-                ),
-              ).then((_) => setState(() {}));
-            },
-          ),
-        );
-      },
+      itemBuilder: (context, index) => _buildJuzItem(context, juzs[index]),
     );
   }
 
-  Widget _buildBookmarksTab(List<QuranBookmark> bookmarks) {
+  Widget _buildJuzItem(BuildContext context, JuzData juz) {
+    return Card(
+      margin: EdgeInsets.only(bottom: 8.h),
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.r),
+        side: BorderSide(color: Colors.grey.withAlpha(30)),
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 4.h),
+        leading: Container(
+          width: 40.r,
+          height: 40.r,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(10.r),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            '${juz.number}',
+            style: TextStyle(
+              fontFamily: 'Almarai',
+              fontWeight: FontWeight.bold,
+              fontSize: 15.sp,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        title: Text(
+          'الجزء ${juz.number}',
+          style: TextStyle(
+            fontFamily: 'Almarai',
+            fontWeight: FontWeight.bold,
+            fontSize: 15.sp,
+            color: AppColors.primary,
+          ),
+        ),
+        subtitle: Text(
+          'يبدأ من سورة ${juz.startSurahName} (الآية ${juz.startAyahNumber})',
+          style: TextStyle(fontSize: 12.sp, color: AppColors.textSecondary, fontFamily: 'Almarai'),
+        ),
+        trailing: Container(
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withAlpha(15),
+            borderRadius: BorderRadius.circular(6.r),
+          ),
+          child: Text(
+            'ص ${juz.startPage}',
+            style: TextStyle(
+              fontFamily: 'Almarai',
+              fontSize: 12.sp,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MushafPageView(
+                initialPage: juz.startPage,
+                highlightedSurah: juz.startSurahNumber,
+                highlightedAyah: juz.startAyahNumber,
+              ),
+            ),
+          ).then((_) => setState(() {}));
+        },
+      ),
+    );
+  }
+
+  Widget _buildBookmarksTab(List<QuranBookmark> bookmarks, {int columns = 1, double horizontalPadding = 16.0}) {
     if (bookmarks.isEmpty) {
       return Padding(
         padding: EdgeInsets.symmetric(horizontal: 12.w),
@@ -675,97 +720,112 @@ class _QuranWidgetState extends State<QuranWidget> with SingleTickerProviderStat
       );
     }
 
+    if (columns > 1) {
+      return GridView.builder(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 6.h),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          childAspectRatio: columns == 3 ? 2.4 : 2.7,
+          crossAxisSpacing: 12.0,
+          mainAxisSpacing: 8.0,
+        ),
+        itemCount: bookmarks.length,
+        itemBuilder: (context, index) => _buildBookmarkItem(context, bookmarks[index]),
+      );
+    }
+
     return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 6.h),
       itemCount: bookmarks.length,
-      itemBuilder: (context, index) {
-        final b = bookmarks[index];
-        return Directionality(
-          textDirection: TextDirection.ltr,
-          child: Card(
-            margin: EdgeInsets.only(bottom: 8.h),
-            elevation: 0.5,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12.r),
-              side: BorderSide(color: Colors.grey.withAlpha(30)),
-            ),
-            child: ListTile(
-              contentPadding: EdgeInsets.all(12.r),
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      itemBuilder: (context, index) => _buildBookmarkItem(context, bookmarks[index]),
+    );
+  }
+
+  Widget _buildBookmarkItem(BuildContext context, QuranBookmark b) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Card(
+        margin: EdgeInsets.only(bottom: 8.h),
+        elevation: 0.5,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          side: BorderSide(color: Colors.grey.withAlpha(30)),
+        ),
+        child: ListTile(
+          contentPadding: EdgeInsets.all(12.r),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 24.sp),
+                onPressed: () async {
+                  await QuranService.instance.removeBookmark(b.surahNumber, b.ayahNumber);
+                  await QuranService.instance.removeBookmarkByPage(b.pageNumber);
+                  setState(() {});
+                },
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 24.sp),
-                    onPressed: () async {
-                      await QuranService.instance.removeBookmark(b.surahNumber, b.ayahNumber);
-                      await QuranService.instance.removeBookmarkByPage(b.pageNumber);
-                      setState(() {});
-                    },
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withAlpha(15),
+                      borderRadius: BorderRadius.circular(6.r),
+                      border: Border.all(color: AppColors.primary.withAlpha(40)),
+                    ),
+                    child: Text(
+                      'ص ${b.pageNumber}',
+                      style: TextStyle(
+                        fontFamily: 'Almarai',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.sp,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(15),
-                          borderRadius: BorderRadius.circular(6.r),
-                          border: Border.all(color: AppColors.primary.withAlpha(40)),
-                        ),
-                        child: Text(
-                          'ص ${b.pageNumber}',
-                          style: TextStyle(
-                            fontFamily: 'Almarai',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12.sp,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 8.w),
-                      Text(
-                        'سورة ${b.surahName} • آية ${b.ayahNumber}',
-                        style: TextStyle(
-                          fontFamily: 'Almarai',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14.sp,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
+                  SizedBox(width: 8.w),
+                  Text(
+                    'سورة ${b.surahName} • آية ${b.ayahNumber}',
+                    style: TextStyle(
+                      fontFamily: 'Almarai',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14.sp,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ],
               ),
-              subtitle: Directionality(
-                textDirection: TextDirection.rtl,
-                child: Text(
-                  b.snippet,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'Amiri',
-                    fontSize: 14.sp,
-                    color: AppColors.textPrimary,
-                    height: 1.6,
-                  ),
-                ),
+            ],
+          ),
+          subtitle: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Text(
+              b.snippet,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'Amiri',
+                fontSize: 14.sp,
+                color: AppColors.textPrimary,
+                height: 1.6,
               ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MushafPageView(
-                      initialPage: b.pageNumber,
-                      highlightedSurah: b.surahNumber,
-                      highlightedAyah: b.ayahNumber,
-                    ),
-                  ),
-                ).then((_) => setState(() {}));
-              },
             ),
           ),
-        );
-      },
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MushafPageView(
+                  initialPage: b.pageNumber,
+                  highlightedSurah: b.surahNumber,
+                  highlightedAyah: b.ayahNumber,
+                ),
+              ),
+            ).then((_) => setState(() {}));
+          },
+        ),
+      ),
     );
   }
 }

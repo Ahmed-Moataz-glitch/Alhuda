@@ -18,6 +18,12 @@ class _QuranSearchPageState extends State<QuranSearchPage> {
   bool _hasSearched = false;
 
   @override
+  void initState() {
+    super.initState();
+    QuranService.instance.ensureEmbeddedTextLoaded();
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();

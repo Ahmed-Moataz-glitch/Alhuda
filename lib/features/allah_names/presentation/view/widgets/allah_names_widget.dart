@@ -1,4 +1,5 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../../services/allah_names_service.dart';
@@ -96,79 +97,121 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
       child: RefreshIndicator(
         onRefresh: _loadData,
         color: AppColors.primary,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          slivers: [
-            // 1. Hero Islamic Header Banner
-            SliverToBoxAdapter(
-              child: _buildHeroBanner(),
-            ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final isWide = width >= AdaptiveBreakpoints.tabletMin;
+            final columns = AdaptiveGridHelper.getColumns(
+              width,
+              mobile: 2,
+              tablet: 3,
+              desktop: 4,
+              largeDesktop: 5,
+            );
+            final childAspectRatio = AdaptiveGridHelper.getCardAspectRatio(
+              width: width,
+              columns: columns,
+              baseMobileRatio: 1.15,
+            );
+            final horizontalPadding = isWide
+                ? (width >= AdaptiveBreakpoints.desktopMin ? 28.0 : 20.0)
+                : 16.w;
 
-            // 2. Name of the Day Card (Visible when not searching)
-            if (!isSearching && nameOfTheDay != null)
-              SliverToBoxAdapter(
-                child: _buildNameOfTheDayCard(nameOfTheDay),
+            return CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-
-            // 3. Search & View Mode Controls
-            SliverToBoxAdapter(
-              child: _buildSearchAndControls(),
-            ),
-
-            // 4. Content (Grid or List or Empty)
-            if (filteredList.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _buildEmptyState(),
-              )
-            else if (_isGridView)
-              SliverPadding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 1.15,
-                    crossAxisSpacing: 12.w,
-                    mainAxisSpacing: 12.h,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final item = filteredList[index];
-                      return _buildGridCard(item, isDark);
-                    },
-                    childCount: _filteredNames.length,
-                  ),
+              slivers: [
+                // 1. Hero Islamic Header Banner
+                SliverToBoxAdapter(
+                  child: _buildHeroBanner(horizontalPadding: horizontalPadding, isWide: isWide),
                 ),
-              )
-            else
-              SliverPadding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final item = filteredList[index];
-                      return _buildListItem(item, index);
-                    },
-                    childCount: _filteredNames.length,
-                  ),
-                ),
-              ),
 
-            SliverToBoxAdapter(
-              child: SizedBox(height: 24.h),
-            ),
-          ],
+                // 2. Name of the Day Card (Visible when not searching)
+                if (!isSearching && nameOfTheDay != null)
+                  SliverToBoxAdapter(
+                    child: _buildNameOfTheDayCard(nameOfTheDay, horizontalPadding: horizontalPadding, isWide: isWide),
+                  ),
+
+                // 3. Search & View Mode Controls
+                SliverToBoxAdapter(
+                  child: _buildSearchAndControls(horizontalPadding: horizontalPadding),
+                ),
+
+                // 4. Content (Grid or List or Empty)
+                if (filteredList.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildEmptyState(),
+                  )
+                else if (_isGridView)
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8.h),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        childAspectRatio: childAspectRatio,
+                        crossAxisSpacing: isWide ? 14.0 : 12.w,
+                        mainAxisSpacing: isWide ? 14.0 : 12.h,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final item = filteredList[index];
+                          return _buildGridCard(item, isDark, isWide: isWide);
+                        },
+                        childCount: _filteredNames.length,
+                      ),
+                    ),
+                  )
+                else if (isWide)
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8.h),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: width >= AdaptiveBreakpoints.desktopMin ? 3 : 2,
+                        childAspectRatio: 2.7,
+                        crossAxisSpacing: 14.0,
+                        mainAxisSpacing: 10.0,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final item = filteredList[index];
+                          return _buildListItem(item, index);
+                        },
+                        childCount: _filteredNames.length,
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8.h),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final item = filteredList[index];
+                          return _buildListItem(item, index);
+                        },
+                        childCount: _filteredNames.length,
+                      ),
+                    ),
+                  ),
+
+                SliverToBoxAdapter(
+                  child: SizedBox(height: 24.h),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
   // --- Header Banner ---
-  Widget _buildHeroBanner() {
+  Widget _buildHeroBanner({double? horizontalPadding, bool isWide = false}) {
+    final marginH = horizontalPadding ?? 16.w;
     return Container(
-      margin: EdgeInsets.all(16.r),
+      margin: EdgeInsets.fromLTRB(marginH, 16.r, marginH, 8.r),
       padding: EdgeInsets.all(18.r),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -246,11 +289,12 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
   }
 
   // --- Name of the Day Card ---
-  Widget _buildNameOfTheDayCard(AllahNameModel item) {
+  Widget _buildNameOfTheDayCard(AllahNameModel item, {double? horizontalPadding, bool isWide = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final marginH = horizontalPadding ?? 16.w;
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
-      padding: EdgeInsets.all(16.r),
+      margin: EdgeInsets.symmetric(horizontal: marginH, vertical: 4.h),
+      padding: EdgeInsets.all(isWide ? 20.0 : 16.r),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20.r),
@@ -384,9 +428,10 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
   }
 
   // --- Search Bar & Filtering Controls ---
-  Widget _buildSearchAndControls() {
+  Widget _buildSearchAndControls({double? horizontalPadding}) {
+    final marginH = horizontalPadding ?? 16.w;
     return Padding(
-      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 8.h),
+      padding: EdgeInsets.fromLTRB(marginH, 12.h, marginH, 8.h),
       child: Column(
         children: [
           // Search Box
@@ -502,7 +547,7 @@ class _AllahNamesWidgetState extends State<AllahNamesWidget> {
   }
 
   // --- Grid View Card ---
-  Widget _buildGridCard(AllahNameModel item, bool isDark) {
+  Widget _buildGridCard(AllahNameModel item, bool isDark, {bool isWide = false}) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,

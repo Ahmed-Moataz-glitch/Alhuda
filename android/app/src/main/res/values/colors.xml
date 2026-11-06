@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#0A1123</color>
+    <color name="adhan_alarm_bg">#091A17</color>
+    <color name="adhan_alarm_card_bg">#132B26</color>
+    <color name="adhan_alarm_primary">#20A376</color>
+    <color name="adhan_alarm_gold">#E5C07B</color>
+    <color name="adhan_alarm_text">#FFFFFF</color>
+    <color name="adhan_alarm_subtext">#B2DFDB</color>
+    <color name="adhan_alarm_btn_stop">#D32F2F</color>
 </resources>

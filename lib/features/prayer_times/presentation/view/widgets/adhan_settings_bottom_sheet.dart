@@ -1,9 +1,10 @@
 import 'package:alhuda/core/services/adhan_audio_service.dart';
 import 'package:alhuda/core/services/notification_services.dart';
 import 'package:alhuda/core/services/prayer_scheduler_service.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:alhuda/features/prayer_times/data/models/adhan_model.dart';
 import 'package:alhuda/core/constants/app_colors.dart';
-import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -30,7 +31,7 @@ class AdhanSettingsBottomSheet extends StatefulWidget {
 class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
   final AdhanAudioService _audioService = AdhanAudioService();
   int _selectedTab = 0; // 0: الأصوات, 1: التنبيهات
-  bool _isIgnoringBattery = true;
+  bool _isBatteryOptimized = false;
 
   @override
   void initState() {
@@ -41,12 +42,79 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
   }
 
   Future<void> _checkBatteryOptimization() async {
-    final ignored = await _audioService.isIgnoringBatteryOptimizations();
+    final ignoring = await _audioService.isIgnoringBatteryOptimizations();
     if (mounted) {
       setState(() {
-        _isIgnoringBattery = ignored;
+        _isBatteryOptimized = !ignoring;
       });
     }
+  }
+
+  Widget _buildBatteryOptimizationBanner() {
+    if (!_isBatteryOptimized) return const SizedBox.shrink();
+    return Container(
+      margin: EdgeInsets.only(bottom: 12.h),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: Colors.amber.withAlpha(35),
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: Colors.amber.shade700, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.battery_alert_rounded, color: Colors.amber.shade800, size: 22.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text(
+                  'تنبيه مهم لضمان دقة الأذان أثناء قفل الشاشة',
+                  style: TextStyle(
+                    fontSize: 13.5.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          Text(
+            'نظام أندرويد قد يؤخر الأذان ومنبه الصلاة عند قفل الشاشة بسبب ميزة "توفير شحن البطارية". اضغط بالأسفل للسماح للتطبيق بالعمل بدقة وبدون قيود.',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: AppColors.black.withAlpha(180),
+              height: 1.4,
+            ),
+          ),
+          SizedBox(height: 8.h),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber.shade800,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                padding: EdgeInsets.symmetric(vertical: 8.h),
+              ),
+              icon: const Icon(Icons.bolt_rounded, size: 18),
+              label: const Text(
+                'استثناء التطبيق من توفير البطارية (بدون قيود)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: () async {
+                await _audioService.requestIgnoreBatteryOptimizations();
+                await Future.delayed(const Duration(seconds: 1));
+                await _checkBatteryOptimization();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -69,107 +137,129 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Container(
-        height: 650.h,
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              width: 40.w,
-              height: 4.h,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(80),
-                borderRadius: BorderRadius.circular(2.r),
+      child: AdaptiveSheetWrapper(
+        maxSheetWidth: 620.0,
+        child: Container(
+          height: 680.h,
+          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 40.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(80),
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
               ),
-            ),
-            SizedBox(height: 12.h),
+              SizedBox(height: 12.h),
 
-            // Header Title
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.notifications_active_rounded,
-                      color: AppColors.primary,
-                      size: 24.sp,
-                    ),
-                    SizedBox(width: 8.w),
-                    Text(
-                      'أصوات الأذان والتنبيهات',
-                      style: TextStyle(
-                        fontSize: 18.sp,
-                        fontWeight: FontWeight.bold,
+              // Header Title
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.notifications_active_rounded,
                         color: AppColors.primary,
+                        size: 24.sp,
+                      ),
+                      SizedBox(width: 8.w),
+                      Text(
+                        'أصوات الأذان والتنبيهات',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    color: AppColors.primary,
+                    onPressed: () {
+                      _audioService.stop();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 12.h),
+
+              // Tabs Selector (أصوات المؤذنين / تنبيهات الأذان / منبه قبل الصلاة)
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(20),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                padding: EdgeInsets.all(4.r),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildTabButton(
+                        title: 'المؤذنين',
+                        icon: Icons.record_voice_over_rounded,
+                        isSelected: _selectedTab == 0,
+                        onTap: () => setState(() => _selectedTab = 0),
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildTabButton(
+                        title: 'تنبيهات الأذان',
+                        icon: Icons.alarm_on_rounded,
+                        isSelected: _selectedTab == 1,
+                        onTap: () => setState(() => _selectedTab = 1),
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildTabButton(
+                        title: 'منبه قبل الصلاة',
+                        icon: Icons.notifications_active_rounded,
+                        isSelected: _selectedTab == 2,
+                        onTap: () => setState(() => _selectedTab = 2),
                       ),
                     ),
                   ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  color: AppColors.primary,
-                  onPressed: () {
-                    _audioService.stop();
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
-            ),
-
-            SizedBox(height: 12.h),
-
-            // Tabs Selector (أصوات المؤذنين / تنبيهات الصلوات)
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(20),
-                borderRadius: BorderRadius.circular(12.r),
               ),
-              padding: EdgeInsets.all(4.r),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildTabButton(
-                      title: 'أصوات المؤذنين',
-                      icon: Icons.record_voice_over_rounded,
-                      isSelected: _selectedTab == 0,
-                      onTap: () => setState(() => _selectedTab = 0),
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildTabButton(
-                      title: 'تنبيهات الصلوات',
-                      icon: Icons.alarm_on_rounded,
-                      isSelected: _selectedTab == 1,
-                      onTap: () => setState(() => _selectedTab = 1),
-                    ),
-                  ),
-                ],
+
+              // Volume Control Card (controls adhan volume or pre-prayer alert volume)
+              _buildVolumeControl(),
+
+              // Content Body
+              Expanded(
+                child: _selectedTab == 0
+                    ? _buildSoundsList()
+                    : (_selectedTab == 1
+                          ? _buildAlertsList()
+                          : _buildPrePrayerAlertsTab()),
               ),
-            ),
 
-            // Volume Control Card
-            _buildVolumeControl(),
-
-            // Content Body
-            Expanded(
-              child: _selectedTab == 0
-                  ? _buildSoundsList()
-                  : _buildAlertsList(),
-            ),
-
-            // Mini Player Controls Bar
-            if (_audioService.currentPlayingSound != null) _buildMiniPlayer(),
-          ],
+              // Mini Player Controls Bar
+              if (_audioService.currentPlayingSound != null) _buildMiniPlayer(),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildVolumeControl() {
-    final vol = _audioService.adhanVolume;
+    final isPrePrayerTab = _selectedTab == 2;
+    final vol = isPrePrayerTab
+        ? _audioService.prePrayerVolume
+        : _audioService.adhanVolume;
     final percent = (vol * 100).round();
+    final title = isPrePrayerTab
+        ? 'مستوى صوت منبه قبل الصلاة'
+        : 'مستوى صوت الأذان';
+    final subtitle = isPrePrayerTab
+        ? 'يتم رفع صوت المنبه تلقائياً إلى هذا المستوى عند التنبيه ويعود كما كان بعده'
+        : 'يتم رفع صوت المنبه تلقائياً إلى هذا المستوى عند الأذان ويعود كما كان بعده';
 
     return Container(
       margin: EdgeInsets.symmetric(vertical: 8.h),
@@ -191,14 +281,14 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
                     vol > 0.6
                         ? Icons.volume_up_rounded
                         : (vol > 0.2
-                            ? Icons.volume_down_rounded
-                            : Icons.volume_mute_rounded),
+                              ? Icons.volume_down_rounded
+                              : Icons.volume_mute_rounded),
                     color: AppColors.primary,
                     size: 20.sp,
                   ),
                   SizedBox(width: 8.w),
                   Text(
-                    'مستوى صوت الأذان',
+                    title,
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.bold,
@@ -226,7 +316,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
           ),
           SizedBox(height: 2.h),
           Text(
-            'يتم رفع صوت المنبه تلقائياً إلى هذا المستوى عند الأذان ويعود كما كان بعده',
+            subtitle,
             style: TextStyle(
               fontSize: 11.sp,
               color: AppColors.black.withAlpha(150),
@@ -255,7 +345,11 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
                     max: 1.0,
                     divisions: 9,
                     onChanged: (val) {
-                      _audioService.setAdhanVolume(val);
+                      if (isPrePrayerTab) {
+                        _audioService.setPrePrayerVolume(val);
+                      } else {
+                        _audioService.setAdhanVolume(val);
+                      }
                     },
                   ),
                 ),
@@ -282,7 +376,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        padding: EdgeInsets.symmetric(vertical: 8.h),
+        padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 2.w),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(10.r),
@@ -292,16 +386,20 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
           children: [
             Icon(
               icon,
-              size: 18.sp,
+              size: 16.sp,
               color: isSelected ? AppColors.background : AppColors.primary,
             ),
-            SizedBox(width: 6.w),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                color: isSelected ? AppColors.background : AppColors.primary,
+            SizedBox(width: 4.w),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5.sp,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? AppColors.background : AppColors.primary,
+                ),
               ),
             ),
           ],
@@ -460,6 +558,115 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
     return ListView(
       physics: const BouncingScrollPhysics(),
       children: [
+        _buildBatteryOptimizationBanner(),
+        // Persistent Prayer Notification Card
+        Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withAlpha(20),
+            borderRadius: BorderRadius.circular(14.r),
+            border: Border.all(color: AppColors.primary.withAlpha(70)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.timer_rounded,
+                          color: AppColors.primary,
+                          size: 24.sp,
+                        ),
+                        SizedBox(width: 10.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'الإشعار الدائم لمواقيت الصلاة',
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              SizedBox(height: 2.h),
+                              Text(
+                                'إشعار ثابت في شريط الإشعارات وشاشة القفل بالصلاة القادمة والعداد بالسالب',
+                                style: TextStyle(
+                                  fontSize: 11.5.sp,
+                                  color: AppColors.black.withAlpha(160),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _audioService.isPersistentNotificationEnabled,
+                    activeTrackColor: AppColors.primary,
+                    onChanged: (val) async {
+                      if (val) {
+                        await NotificationServices.requestNotificationPermission();
+                      }
+                      await _audioService.togglePersistentNotification(val);
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                ],
+              ),
+              if (_audioService.isPersistentNotificationEnabled) ...[
+                SizedBox(height: 10.h),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: BorderSide(color: AppColors.primary.withAlpha(100)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 8.h),
+                    ),
+                    icon: Icon(Icons.refresh_rounded, size: 18.sp),
+                    label: Text(
+                      'تحديث وعرض الإشعار الدائم الآن',
+                      style: TextStyle(
+                        fontSize: 12.5.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onPressed: () async {
+                      await NotificationServices.requestNotificationPermission();
+                      await PrayerSchedulerService()
+                          .updatePersistentPrayerNotification();
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Directionality(
+                            textDirection: TextDirection.rtl,
+                            child: Text(
+                              'تم تحديث الإشعار الدائم في شريط الإشعارات بنجاح!',
+                            ),
+                          ),
+                          backgroundColor: AppColors.primary,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
         Container(
           margin: EdgeInsets.only(bottom: 12.h),
           padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
@@ -532,88 +739,6 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
           ),
         ),
         SizedBox(height: 16.h),
-        if (!_isIgnoringBattery)
-          Container(
-            margin: EdgeInsets.only(bottom: 12.h),
-            padding: EdgeInsets.all(12.r),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF3CD),
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: const Color(0xFFFFEEBA)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.battery_alert_rounded,
-                      color: const Color(0xFF856404),
-                      size: 22.sp,
-                    ),
-                    SizedBox(width: 8.w),
-                    Expanded(
-                      child: Text(
-                        'لضمان عمل الأذان على شاومي وسامسونج وأوبو وهواوي',
-                        style: TextStyle(
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF856404),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 6.h),
-                Text(
-                  'تقوم بعض الهواتف بإيقاف التطبيقات في الخلفية أثناء قفل الشاشة لتوفير الطاقة. يرجى استثناء التطبيق من موفر البطارية لضمان رنين الأذان في موعده دائماً.',
-                  style: TextStyle(
-                    fontSize: 11.5.sp,
-                    color: const Color(0xFF856404),
-                    height: 1.4,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF856404),
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 8.h),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                        ),
-                        icon: const Icon(Icons.bolt_rounded, size: 18),
-                        label: Text(
-                          'استثناء التطبيق من موفر البطارية',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        onPressed: () async {
-                          await _audioService.requestIgnoreBatteryOptimizations();
-                          await Future.delayed(const Duration(seconds: 1));
-                          _checkBatteryOptimization();
-                        },
-                      ),
-                    ),
-                    SizedBox(width: 8.w),
-                    IconButton(
-                      icon: const Icon(Icons.settings_outlined),
-                      tooltip: 'فتح معلومات التطبيق (التشغيل التلقائي)',
-                      color: const Color(0xFF856404),
-                      onPressed: () => _audioService.openAppSettings(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        SizedBox(height: 14.h),
         ...prayers.map((prayer) {
           final isEnabled = _audioService.isPrayerAlertEnabled(prayer);
 
@@ -743,7 +868,7 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
             ),
             icon: const Icon(Icons.notifications_active_outlined),
             label: Text(
-              'تجربة إشعار الأذان بعد 10 ثوانٍ (مع قفل الهاتف)',
+              'تجربة تنبيه الأذان بعد 10 ثوانٍ (مع قفل الهاتف)',
               style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold),
             ),
             onPressed: () async {
@@ -763,22 +888,28 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
                   ),
                 );
               }
-              await AndroidAlarmManager.oneShot(
-                const Duration(seconds: 10),
-                9998,
-                prayerAlarmCallback,
-                exact: true,
-                wakeup: true,
-                alarmClock: false,
-                allowWhileIdle: true,
-              );
+              const channel = MethodChannel('com.example.alhuda/adhan');
+              final rawRes = _audioService.selectedSound.source
+                  .split('/')
+                  .last
+                  .replaceAll('.mp3', '');
+              await channel.invokeMethod('scheduleNativeTestAlarm', {
+                'delaySeconds': 10,
+                'prayerName': 'الظهر',
+                'soundId': _audioService.selectedSound.id,
+                'rawRes': rawRes,
+                'title': _audioService.selectedSound.title,
+                'muadhin': _audioService.selectedSound.muadhin,
+                'volume': _audioService.adhanVolume,
+                'isAlarmMode': _audioService.isAlarmMode,
+              });
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Directionality(
                     textDirection: TextDirection.rtl,
                     child: Text(
-                      'تمت جدولة إشعار الأذان بعد 10 ثوانٍ.. يمكنك قفل شاشة هاتفك الآن للتجربة!',
+                      'تمت جدولة تنبيه الأذان بدقة بعد 10 ثوانٍ.. اقفل شاشة هاتفك الآن لتجربة ظهور المنبه وإيقافه بأزرار الصوت!',
                     ),
                   ),
                   backgroundColor: AppColors.primary,
@@ -789,6 +920,333 @@ class _AdhanSettingsBottomSheetState extends State<AdhanSettingsBottomSheet> {
           ),
         ),
         SizedBox(height: 10.h),
+      ],
+    );
+  }
+
+  Widget _buildPrePrayerAlertsTab() {
+    const prayers = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
+    final isGloballyEnabled = _audioService.isPrePrayerAlertEnabled;
+    final minutes = _audioService.prePrayerMinutes;
+
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      children: [
+        _buildBatteryOptimizationBanner(),
+        SizedBox(height: 8.h),
+        // 1. Info & Master Toggle Card
+        Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withAlpha(20),
+            borderRadius: BorderRadius.circular(14.r),
+            border: Border.all(color: AppColors.primary.withAlpha(70)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.notifications_active_rounded,
+                          color: AppColors.primary,
+                          size: 24.sp,
+                        ),
+                        SizedBox(width: 10.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'صوت منبه اقتراب الصلاة (صوت فقط)',
+                                style: TextStyle(
+                                  fontSize: 14.5.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              SizedBox(height: 2.h),
+                              Text(
+                                'منبه صوتي ينطق "اقتربت صلاة كذا" قبل كل صلاة بربع ساعة (صوت ناطق فقط بدون أي إشعار)',
+                                style: TextStyle(
+                                  fontSize: 11.5.sp,
+                                  color: AppColors.black.withAlpha(160),
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: isGloballyEnabled,
+                    activeTrackColor: AppColors.primary,
+                    onChanged: (val) async {
+                      await _audioService.togglePrePrayerAlert(val);
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // 2. Alert Timing Selection Card
+        Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(14.r),
+            border: Border.all(color: AppColors.primary.withAlpha(50)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.access_time_rounded,
+                    color: AppColors.primary,
+                    size: 20.sp,
+                  ),
+                  SizedBox(width: 8.w),
+                  Text(
+                    'وقت التنبيه قبل دخول وقت الصلاة:',
+                    style: TextStyle(
+                      fontSize: 13.5.sp,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10.h),
+              Wrap(
+                spacing: 8.w,
+                runSpacing: 8.h,
+                children: [5, 10, 15, 20, 30].map((m) {
+                  final isSelected = minutes == m;
+                  final label = m == 15 ? '$m دقيقة (الافتراضي)' : '$m دقائق';
+                  return ChoiceChip(
+                    label: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: isSelected
+                            ? AppColors.background
+                            : AppColors.primary,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: AppColors.primary,
+                    backgroundColor: AppColors.primary.withAlpha(20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.r),
+                      side: BorderSide(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.primary.withAlpha(40),
+                      ),
+                    ),
+                    onSelected: (selected) async {
+                      if (selected) {
+                        await _audioService.setPrePrayerMinutes(m);
+                        if (mounted) setState(() {});
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+
+        // 3. Test Voice Button
+        Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          child: Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.background,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                  ),
+                  icon: const Icon(Icons.volume_up_rounded),
+                  label: Text(
+                    'تجربة صوت المنبه ("اقتربت صلاة الظهر")',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () async {
+                    await _audioService.testPrePrayerAlert(prayerName: 'الظهر');
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Directionality(
+                          textDirection: TextDirection.rtl,
+                          child: Text(
+                            'جاري تشغيل الصوت: "اقتربت صلاة الظهر"..',
+                          ),
+                        ),
+                        backgroundColor: AppColors.primary,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: 8.h),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 10.h),
+                  ),
+                  icon: const Icon(Icons.screen_lock_portrait_rounded),
+                  label: Text(
+                    'تجربة منبه اقتراب الصلاة بعد 10 ثوانٍ (مع قفل الشاشة - صوت فقط)',
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () async {
+                    const channel = MethodChannel('com.example.alhuda/adhan');
+                    await channel.invokeMethod('scheduleNativeTestPrePrayerAlarm', {
+                      'delaySeconds': 10,
+                      'prayerName': 'الظهر',
+                      'rawRes': 'pre_prayer_dhuhr',
+                      'volume': _audioService.prePrayerVolume,
+                    });
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Directionality(
+                          textDirection: TextDirection.rtl,
+                          child: Text(
+                            'تمت جدولة منبه صلاة الظهر بدقة بعد 10 ثوانٍ.. يمكنك قفل هاتفك الآن لسماع الصوت بدقة!',
+                          ),
+                        ),
+                        backgroundColor: AppColors.primary,
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 4. Per-Prayer Switch List
+        Container(
+          padding: EdgeInsets.all(12.r),
+          margin: EdgeInsets.only(bottom: 8.h),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withAlpha(15),
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.tune_rounded, color: AppColors.primary, size: 20.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text(
+                  'تخصيص المنبه لكل صلاة بشكل مستقل:',
+                  style: TextStyle(
+                    fontSize: 12.5.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...prayers.map((prayer) {
+          final isPrayerEnabled = _audioService.isPrePrayerAlertEnabledFor(
+            prayer,
+          );
+
+          return Container(
+            margin: EdgeInsets.only(bottom: 8.h),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(14.r),
+              border: Border.all(
+                color: isPrayerEnabled
+                    ? AppColors.primary.withAlpha(80)
+                    : AppColors.black.withAlpha(30),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isPrayerEnabled
+                          ? Icons.notifications_active_rounded
+                          : Icons.notifications_off_rounded,
+                      color: isPrayerEnabled
+                          ? AppColors.primary
+                          : AppColors.black.withAlpha(100),
+                      size: 22.sp,
+                    ),
+                    SizedBox(width: 12.w),
+                    Text(
+                      'منبه اقتراب صلاة $prayer',
+                      style: TextStyle(
+                        fontSize: 14.5.sp,
+                        fontWeight: FontWeight.bold,
+                        color: isPrayerEnabled
+                            ? AppColors.primary
+                            : AppColors.black.withAlpha(120),
+                      ),
+                    ),
+                  ],
+                ),
+                Switch.adaptive(
+                  value: isPrayerEnabled,
+                  activeTrackColor: AppColors.primary,
+                  onChanged: isGloballyEnabled
+                      ? (val) async {
+                          await _audioService.togglePrayerPreAlert(prayer, val);
+                          if (mounted) setState(() {});
+                        }
+                      : null,
+                ),
+              ],
+            ),
+          );
+        }),
+        SizedBox(height: 14.h),
       ],
     );
   }

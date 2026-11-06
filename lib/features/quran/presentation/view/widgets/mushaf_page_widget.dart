@@ -168,6 +168,31 @@ class MushafPageWidget extends StatefulWidget {
 class _MushafPageWidgetState extends State<MushafPageWidget> {
   bool _useOfflineUthmani = false;
   List<QpcV4RenderBlock>? _blocks;
+  final List<GestureRecognizer> _recognizers = [];
+
+  void _disposeRecognizers() {
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    _recognizers.clear();
+  }
+
+  TapLongPressRecognizer _createRecognizer({
+    required VoidCallback onTap,
+    required void Function(LongPressStartDetails) onLongPress,
+  }) {
+    final recognizer = TapLongPressRecognizer()
+      ..onQuickTap = onTap
+      ..onLongPress = onLongPress;
+    _recognizers.add(recognizer);
+    return recognizer;
+  }
+
+  @override
+  void dispose() {
+    _disposeRecognizers();
+    super.dispose();
+  }
 
   QpcV4AssetsStore? get effectiveStore => widget.store ?? QuranService.instance.qpcStore;
 
@@ -244,6 +269,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
 
   @override
   Widget build(BuildContext context) {
+    _disposeRecognizers();
     final juzName = QuranService.instance.getPageJuzName(widget.pageNumber);
     final surahName = QuranService.instance.getPageSurahName(widget.pageNumber);
 
@@ -551,6 +577,15 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
         // while preserving equal, natural spacing between words.
         final stretchedVerseText = TajweedSpanBuilder.applyKashida(cleanVerseText);
 
+        final ayahRecognizer = _createRecognizer(
+          onTap: () {
+            widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
+          },
+          onLongPress: (details) {
+            widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
+          },
+        );
+
         if (widget.showTajweed) {
           spans.addAll(TajweedSpanBuilder.buildVerseSpans(
             verseText: stretchedVerseText,
@@ -558,24 +593,13 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
             isDark: isDark,
             isHighlighted: isHighlighted,
             highlightColor: ayahColor,
-            onTap: () {
-              widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
-            },
-            onLongPress: (details) {
-              widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
-            },
+            recognizer: ayahRecognizer,
           ));
         } else {
           spans.add(TextSpan(
             text: stretchedVerseText,
             style: verseBaseStyle,
-            recognizer: TapLongPressRecognizer()
-              ..onQuickTap = () {
-                widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
-              }
-              ..onLongPress = (details) {
-                widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
-              },
+            recognizer: ayahRecognizer,
           ));
         }
 
@@ -591,13 +615,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
             height: effectiveHeight,
             color: ayahColor,
           ),
-          recognizer: TapLongPressRecognizer()
-            ..onQuickTap = () {
-              widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
-            }
-            ..onLongPress = (details) {
-              widget.onAyahTapped(thisSurah, thisAyah, cleanVerseText);
-            },
+          recognizer: ayahRecognizer,
         ));
       }
 
@@ -799,6 +817,23 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
               ? (playingAyah != null ? highlightColor.withAlpha(100) : highlightColor)
               : null);
 
+      final segRecognizer = _createRecognizer(
+        onTap: () {
+          final text = QuranService.instance.getVerseUthmani(
+            seg.surahNumber,
+            seg.ayahNumber,
+          );
+          onAyahTapped(seg.surahNumber, seg.ayahNumber, text);
+        },
+        onLongPress: (details) {
+          final text = QuranService.instance.getVerseUthmani(
+            seg.surahNumber,
+            seg.ayahNumber,
+          );
+          onAyahTapped(seg.surahNumber, seg.ayahNumber, text);
+        },
+      );
+
       spans.add(TextSpan(
         text: seg.glyphs,
         style: TextStyle(
@@ -809,21 +844,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
           color: isHighlighted ? ayahColor : (widget.showTajweed ? null : textColor),
           backgroundColor: bgColor,
         ),
-        recognizer: TapLongPressRecognizer()
-          ..onQuickTap = () {
-            final text = QuranService.instance.getVerseUthmani(
-              seg.surahNumber,
-              seg.ayahNumber,
-            );
-            onAyahTapped(seg.surahNumber, seg.ayahNumber, text);
-          }
-          ..onLongPress = (details) {
-            final text = QuranService.instance.getVerseUthmani(
-              seg.surahNumber,
-              seg.ayahNumber,
-            );
-            onAyahTapped(seg.surahNumber, seg.ayahNumber, text);
-          },
+        recognizer: segRecognizer,
       ));
 
       if (seg.isAyahEnd) {
@@ -836,21 +857,7 @@ class _MushafPageWidgetState extends State<MushafPageWidget> {
             height: 1.5,
             color: ayahColor,
           ),
-          recognizer: TapLongPressRecognizer()
-            ..onQuickTap = () {
-              final text = QuranService.instance.getVerseUthmani(
-                seg.surahNumber,
-                seg.ayahNumber,
-              );
-              onAyahTapped(seg.surahNumber, seg.ayahNumber, text);
-            }
-            ..onLongPress = (details) {
-              final text = QuranService.instance.getVerseUthmani(
-                seg.surahNumber,
-                seg.ayahNumber,
-              );
-              onAyahTapped(seg.surahNumber, seg.ayahNumber, text);
-            },
+          recognizer: segRecognizer,
         ));
       }
     }

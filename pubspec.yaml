@@ -2,7 +2,7 @@ name: alhuda
 description: "A new Flutter project."
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
-version: 2.3.0+9
+version: 3.3.0+10
 
 environment:
   sdk: ^3.9.2
@@ -20,6 +20,7 @@ dependencies:
   flutter_qiblah: ^3.2.0
   flutter_screenutil: ^5.9.3
   flutter_svg: ^2.0.17
+  flutter_tts: ^4.2.5
   geolocator: ^14.0.2
   hijri_date: ^1.1.0
   http: ^1.2.0
@@ -32,6 +33,8 @@ dependencies:
   upgrader: ^13.7.0
   url_launcher: ^6.3.2
   youtube_player_flutter: ^9.1.3
+  video_player: ^2.9.2
+  better_player_plus: ^1.1.5
 
 dev_dependencies:
   bloc_test: ^10.0.0
@@ -47,6 +50,7 @@ flutter:
     - assets/images/
     - assets/fonts/
     - assets/audio/
+    - assets/video/
     - assets/hadith/
     - assets/hadith/bukhari/
     - assets/hadith/bukhari/chapters/
@@ -67,24 +71,10 @@ flutter:
         - asset: assets/fonts/Amiri-Regular.ttf
         - asset: assets/fonts/Amiri-Bold.ttf
           weight: 700
-        - asset: assets/fonts/Amiri-Italic.ttf
-          style: italic
-        - asset: assets/fonts/Amiri-BoldItalic.ttf
-          weight: 700
-          style: italic
     - family: Rubik
       fonts:
-        - asset: assets/fonts/Rubik-Black.ttf
-        - asset: assets/fonts/Rubik-BlackItalic.ttf
-        - asset: assets/fonts/Rubik-Bold.ttf
-        - asset: assets/fonts/Rubik-BoldItalic.ttf
-        - asset: assets/fonts/Rubik-ExtraBold.ttf
-        - asset: assets/fonts/Rubik-ExtraBoldItalic.ttf
-        - asset: assets/fonts/Rubik-Italic.ttf
-        - asset: assets/fonts/Rubik-Light.ttf
-        - asset: assets/fonts/Rubik-LightItalic.ttf
-        - asset: assets/fonts/Rubik-Medium.ttf
-        - asset: assets/fonts/Rubik-MediumItalic.ttf
         - asset: assets/fonts/Rubik-Regular.ttf
-        - asset: assets/fonts/Rubik-SemiBold.ttf
-        - asset: assets/fonts/Rubik-SemiBoldItalic.ttf
+        - asset: assets/fonts/Rubik-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Rubik-Bold.ttf
+          weight: 700

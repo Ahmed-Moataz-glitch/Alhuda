@@ -19,4 +19,10 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+
+    <style name="AdhanAlarmTheme" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/adhan_alarm_bg</item>
+        <item name="android:statusBarColor">@color/adhan_alarm_bg</item>
+        <item name="android:navigationBarColor">@color/adhan_alarm_bg</item>
+    </style>
 </resources>

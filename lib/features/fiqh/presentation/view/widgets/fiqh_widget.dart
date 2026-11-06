@@ -1,4 +1,5 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:alhuda/services/fiqh_service.dart';
 import 'package:alhuda/features/fiqh/presentation/view/pages/fiqh_book_page.dart';
 import 'package:alhuda/features/fiqh/presentation/view/pages/fiqh_chapter_page.dart';
@@ -82,13 +83,24 @@ class _FiqhWidgetState extends State<FiqhWidget> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // 1. Search Bar Header
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 8.h),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final isWide = width >= AdaptiveBreakpoints.tabletMin;
+          final int bookColumns = width >= AdaptiveBreakpoints.desktopMin
+              ? 3
+              : (isWide ? 2 : 1);
+          final horizontalPadding = isWide
+              ? (width >= AdaptiveBreakpoints.desktopMin ? 28.0 : 20.0)
+              : 16.w;
+
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // 1. Search Bar Header
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(horizontalPadding, 16.h, horizontalPadding, 8.h),
               child: Container(
                 margin: EdgeInsets.only(bottom: 8.h),
                 decoration: BoxDecoration(
@@ -360,22 +372,43 @@ class _FiqhWidgetState extends State<FiqhWidget> {
                 ),
               ),
             ),
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 24.h),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final book = _filteredBooks[index];
-                    return _buildBookCard(book, index);
-                  },
-                  childCount: _filteredBooks.length,
-                ),
-              ),
-            ),
+            bookColumns > 1
+                ? SliverPadding(
+                    padding: EdgeInsets.fromLTRB(horizontalPadding, 4.h, horizontalPadding, 24.h),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: bookColumns,
+                        childAspectRatio: bookColumns == 3 ? 2.5 : 2.8,
+                        crossAxisSpacing: 14.0,
+                        mainAxisSpacing: 12.0,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final book = _filteredBooks[index];
+                          return _buildBookCard(book, index, isGrid: true);
+                        },
+                        childCount: _filteredBooks.length,
+                      ),
+                    ),
+                  )
+                : SliverPadding(
+                    padding: EdgeInsets.fromLTRB(horizontalPadding, 4.h, horizontalPadding, 24.h),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final book = _filteredBooks[index];
+                          return _buildBookCard(book, index, isGrid: false);
+                        },
+                        childCount: _filteredBooks.length,
+                      ),
+                    ),
+                  ),
           ],
         ],
-      ),
-    );
+      );
+    },
+  ),
+);
   }
 
   Widget _buildChip({
@@ -429,9 +462,9 @@ class _FiqhWidgetState extends State<FiqhWidget> {
     );
   }
 
-  Widget _buildBookCard(FiqhBook book, int index) {
+  Widget _buildBookCard(FiqhBook book, int index, {bool isGrid = false}) {
     return Container(
-      margin: EdgeInsets.only(bottom: 11.h),
+      margin: EdgeInsets.only(bottom: isGrid ? 0 : 11.h),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16.r),

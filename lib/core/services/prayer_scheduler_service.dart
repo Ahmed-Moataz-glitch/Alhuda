@@ -1,210 +1,47 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
-import 'dart:ui';
-import 'package:alhuda/core/constants/app_constants.dart';
 import 'package:alhuda/core/services/adhan_audio_service.dart';
 import 'package:alhuda/core/services/notification_services.dart';
 import 'package:alhuda/core/utils/egypt_dst_helper.dart';
-import 'package:alhuda/features/prayer_times/domain/entities/adhan_sound_entity.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hijri_date/hijri_date.dart';
 import 'package:muslim_data_flutter/muslim_data_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
 @pragma('vm:entry-point')
 void prayerAlarmCallback(int id) async {
+  // Native AdhanForegroundService already handles exact Adhan playback, WakeLock,
+  // full-screen activity, and notification natively.
+  // Returning immediately prevents duplicate notifications and restarting/duplicate audio.
+  return;
+}
+
+@pragma('vm:entry-point')
+void prePrayerAlarmCallback(int id) async {
+  // Native AdhanAlarmReceiver already handles pre-prayer voice alert natively.
+  // Returning immediately prevents duplicate / echoing voice playback.
+  return;
+}
+
+@pragma('vm:entry-point')
+void persistentNotificationAlarmCallback(int id) async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationServices.initializeNotifications();
   await AdhanAudioService.instance.init();
 
-  final prayerName = PrayerSchedulerService.prayerNameFromId(id);
-
-  // 1. Strict guard: Sunrise has no Adhan in Islam
-  if (prayerName == 'الشروق') {
-    debugPrint('Sunrise has no Adhan alert.');
-    return;
+  if (AdhanAudioService().isPersistentNotificationEnabled) {
+    try {
+      await PrayerSchedulerService().updatePersistentPrayerNotification();
+    } catch (_) {}
   }
 
-  final isEnabled = AdhanAudioService().isPrayerAlertEnabled(prayerName);
-  if (!isEnabled) {
-    debugPrint('Prayer alert for $prayerName is disabled by user.');
-    return;
-  }
-
-  // 2. Refresh rolling 7-day schedule in background so future alarms never expire
+  // Refresh rolling 7-day schedule in background so future alarms never expire
   try {
-    await PrayerSchedulerService().rescheduleAfterAlarm(id);
-  } catch (e) {
-    debugPrint('Error refreshing upcoming alarms: $e');
-  }
-
-  final selectedSound = AdhanAudioService().selectedSound;
-  final adhanVolume = AdhanAudioService().adhanVolume;
-
-  // 3. Show interactive Adhan notification with controls (visible on lock screen)
-  // Uses unified NotificationServices.notificationId so it seamlessly replaces any existing reminder notification
-  await NotificationServices.showAdhanControlNotification(
-    id: NotificationServices.notificationId,
-    prayerName: prayerName,
-    sound: selectedSound,
-    isPlaying: true,
-    enableFullScreenIntent: false,
-  );
-
-  // 4. Setup control port & MethodChannel listeners to support pause, resume, stop
-  final controlPort = ReceivePort();
-  IsolateNameServer.removePortNameMapping(NotificationServices.adhanControlPort);
-  IsolateNameServer.registerPortWithName(
-    controlPort.sendPort,
-    NotificationServices.adhanControlPort,
-  );
-
-  IsolateNameServer.removePortNameMapping('adhan_stop_port');
-  IsolateNameServer.registerPortWithName(controlPort.sendPort, 'adhan_stop_port');
-
-  const channel = MethodChannel('com.example.alhuda/adhan');
-  try {
-    await channel.invokeMethod('setAdhanVolume', {'volume': adhanVolume});
-    await channel.invokeMethod('startAdhanMonitoring');
+    await PrayerSchedulerService().scheduleUpcomingPrayers(null);
   } catch (_) {}
-
-  // 5. Play Adhan audio and handle control events
-  final player = AudioPlayer();
-  StreamSubscription? sub;
-  final completer = Completer<void>();
-
-  try {
-    channel.setMethodCallHandler((call) async {
-      if (call.method == 'stopAdhan') {
-        try {
-          await player.stop();
-        } catch (_) {}
-        if (!completer.isCompleted) completer.complete();
-      } else if (call.method == 'pauseAdhan') {
-        try {
-          await player.pause();
-          await NotificationServices.showAdhanControlNotification(
-            id: NotificationServices.notificationId,
-            prayerName: prayerName,
-            sound: selectedSound,
-            isPlaying: false,
-            enableFullScreenIntent: false,
-          );
-        } catch (_) {}
-      } else if (call.method == 'resumeAdhan') {
-        try {
-          await player.resume();
-          await NotificationServices.showAdhanControlNotification(
-            id: NotificationServices.notificationId,
-            prayerName: prayerName,
-            sound: selectedSound,
-            isPlaying: true,
-            enableFullScreenIntent: false,
-          );
-        } catch (_) {}
-      }
-    });
-
-    controlPort.listen((message) async {
-      if (message == 'stop') {
-        try {
-          await player.stop();
-        } catch (_) {}
-        if (!completer.isCompleted) completer.complete();
-      } else if (message == 'pause') {
-        try {
-          await player.pause();
-          await NotificationServices.showAdhanControlNotification(
-            id: NotificationServices.notificationId,
-            prayerName: prayerName,
-            sound: selectedSound,
-            isPlaying: false,
-            enableFullScreenIntent: false,
-          );
-        } catch (_) {}
-      } else if (message == 'resume') {
-        try {
-          await player.resume();
-          await NotificationServices.showAdhanControlNotification(
-            id: NotificationServices.notificationId,
-            prayerName: prayerName,
-            sound: selectedSound,
-            isPlaying: true,
-            enableFullScreenIntent: false,
-          );
-        } catch (_) {}
-      }
-    });
-
-    await player.setAudioContext(
-      AudioContext(
-        android: const AudioContextAndroid(
-          isSpeakerphoneOn: false,
-          stayAwake: true,
-          contentType: AndroidContentType.music,
-          usageType: AndroidUsageType.alarm,
-          audioFocus: AndroidAudioFocus.gain,
-        ),
-      ),
-    );
-
-    final cleanPath = selectedSound.source.startsWith('assets/')
-        ? selectedSound.source.substring(7)
-        : selectedSound.source;
-
-    sub = player.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-
-    await player.setVolume(adhanVolume);
-
-    if (selectedSound.sourceType == AdhanAudioSourceType.asset) {
-      await player.play(AssetSource(cleanPath));
-    } else {
-      await player.play(UrlSource(selectedSound.source));
-    }
-
-    // Keep isolate alive until audio completes or stopped, up to 5 minutes max
-    await completer.future.timeout(
-      const Duration(minutes: 5),
-      onTimeout: () => player.stop(),
-    );
-  } catch (e) {
-    debugPrint('Error in prayerAlarmCallback audio player: $e');
-    // Fallback: trigger system notification with native pre-bundled raw sound
-    try {
-      await NotificationServices.showAdhanNotification(
-        id: NotificationServices.notificationId,
-        prayerName: prayerName,
-        sound: selectedSound,
-      );
-    } catch (_) {}
-  } finally {
-    try {
-      await sub?.cancel();
-    } catch (_) {}
-    try {
-      await player.dispose();
-    } catch (_) {}
-    controlPort.close();
-    IsolateNameServer.removePortNameMapping(NotificationServices.adhanControlPort);
-    IsolateNameServer.removePortNameMapping('adhan_stop_port');
-    try {
-      await channel.invokeMethod('restoreAlarmVolume');
-    } catch (_) {}
-    try {
-      await channel.invokeMethod('stopAdhanMonitoring');
-    } catch (_) {}
-    await NotificationServices.cancelAdhanNotification(id: NotificationServices.notificationId);
-    NotificationServices.periodicNotification(
-      title: AppConstants.notificationTitle,
-      body: AppConstants.notificationBody,
-    );
-  }
 }
 
 class PrayerSchedulerService {
@@ -221,6 +58,12 @@ class PrayerSchedulerService {
   static const int idMaghrib = 1004;
   static const int idIsha = 1005;
 
+  static const int idPreFajr = 2001;
+  static const int idPreDhuhr = 2002;
+  static const int idPreAsr = 2003;
+  static const int idPreMaghrib = 2004;
+  static const int idPreIsha = 2005;
+
   static const Map<String, int> prayerNameToId = {
     'الفجر': idFajr,
     'الظهر': idDhuhr,
@@ -229,10 +72,25 @@ class PrayerSchedulerService {
     'العشاء': idIsha,
   };
 
+  static const Map<String, int> prePrayerNameToId = {
+    'الفجر': idPreFajr,
+    'الظهر': idPreDhuhr,
+    'العصر': idPreAsr,
+    'المغرب': idPreMaghrib,
+    'العشاء': idPreIsha,
+  };
+
   /// Normalizes any day-offset prayer alarm id (e.g. 1001, 1101, 1201) to the base id (1001).
   static int basePrayerId(int id) {
     if (id >= 1000 && id < 2000) {
       return 1000 + (id % 100);
+    }
+    return id;
+  }
+
+  static int basePrePrayerId(int id) {
+    if (id >= 2000 && id < 3000) {
+      return 2000 + (id % 100);
     }
     return id;
   }
@@ -249,6 +107,24 @@ class PrayerSchedulerService {
       case idMaghrib:
         return 'المغرب';
       case idIsha:
+        return 'العشاء';
+      default:
+        return 'الصلاة';
+    }
+  }
+
+  static String prayerNameFromPreId(int id) {
+    final base = basePrePrayerId(id);
+    switch (base) {
+      case idPreFajr:
+        return 'الفجر';
+      case idPreDhuhr:
+        return 'الظهر';
+      case idPreAsr:
+        return 'العصر';
+      case idPreMaghrib:
+        return 'المغرب';
+      case idPreIsha:
         return 'العشاء';
       default:
         return 'الصلاة';
@@ -365,6 +241,14 @@ class PrayerSchedulerService {
     }
 
     const int daysToSchedule = 7;
+    final nativeAlarmsList = <Map<String, dynamic>>[];
+    final selectedSound = AdhanAudioService().selectedSound;
+    final adhanVolume = AdhanAudioService().adhanVolume;
+    final isAlarmMode = AdhanAudioService().isAlarmMode;
+    final preVolume = AdhanAudioService().prePrayerVolume;
+    final preMinutes = AdhanAudioService().prePrayerMinutes;
+    final rawRes = selectedSound.source.split('/').last.replaceAll('.mp3', '');
+
     for (int dayOffset = 0; dayOffset < daysToSchedule; dayOffset++) {
       final targetDate = now.add(Duration(days: dayOffset));
       PrayerTime? dayPrayers;
@@ -426,30 +310,124 @@ class PrayerSchedulerService {
         final prayerName = prayerNameFromId(baseId);
         final scheduledTime = entry.value;
 
-        // Skip if already in the past
-        if (scheduledTime.isBefore(now)) {
-          continue;
+        // 1. Adhan Alarm (At Prayer Time)
+        final isAdhanEnabled = AdhanAudioService().isPrayerAlertEnabled(prayerName);
+        if (scheduledTime.isAfter(now) && isAdhanEnabled) {
+          nativeAlarmsList.add({
+            'id': alarmId,
+            'type': 'ADHAN',
+            'triggerAtMillis': scheduledTime.millisecondsSinceEpoch,
+            'prayerName': prayerName,
+            'soundId': selectedSound.id,
+            'rawRes': rawRes,
+            'title': selectedSound.title,
+            'muadhin': selectedSound.muadhin,
+            'volume': adhanVolume,
+            'isAlarmMode': isAlarmMode,
+          });
         }
+        // Always cancel AndroidAlarmManager alarm so only native AdhanForegroundService triggers
+        try {
+          await AndroidAlarmManager.cancel(alarmId);
+        } catch (_) {}
 
-        final isEnabled = AdhanAudioService().isPrayerAlertEnabled(prayerName);
-        if (isEnabled) {
-          await _scheduleSingleAlarm(alarmId, scheduledTime);
-        } else {
-          try {
-            await AndroidAlarmManager.cancel(alarmId);
-          } catch (_) {}
+        // 2. Pre-Prayer Alarm (e.g. 15 minutes before prayer)
+        final preTime = scheduledTime.subtract(Duration(minutes: preMinutes));
+        final preAlarmId = (dayOffset * 100) + (baseId + 1000);
+        final isPreEnabled = AdhanAudioService().isPrePrayerAlertEnabledFor(prayerName);
+
+        if (preTime.isAfter(now) && isPreEnabled) {
+          final preKey = NotificationServices.prayerNameToKey(prayerName);
+          nativeAlarmsList.add({
+            'id': preAlarmId,
+            'type': 'PRE_PRAYER',
+            'triggerAtMillis': preTime.millisecondsSinceEpoch,
+            'prayerName': prayerName,
+            'rawRes': 'pre_prayer_$preKey',
+            'volume': preVolume,
+            'prePrayerMinutes': preMinutes,
+          });
+        }
+        // Always cancel AndroidAlarmManager alarm so only native AdhanAlarmReceiver triggers
+        try {
+          await AndroidAlarmManager.cancel(preAlarmId);
+        } catch (_) {}
+
+        // 3. Persistent Notification Refresh Alarms (at prayer time & 5-min fallback)
+        if (AdhanAudioService().isPersistentNotificationEnabled) {
+          final notifAlarmId = (dayOffset * 100) + (baseId + 2000);
+          if (scheduledTime.isAfter(now)) {
+            nativeAlarmsList.add({
+              'id': notifAlarmId,
+              'type': 'NOTIFICATION_UPDATE',
+              'triggerAtMillis': scheduledTime.millisecondsSinceEpoch,
+              'prayerName': prayerName,
+            });
+            await _scheduleSingleAlarm(
+              notifAlarmId,
+              scheduledTime,
+              persistentNotificationAlarmCallback,
+            );
+          }
+
+          final switchAlarmId = (dayOffset * 100) + (baseId + 2100);
+          final switchTime = scheduledTime.add(const Duration(minutes: 3));
+          if (switchTime.isAfter(now)) {
+            await _scheduleSingleAlarm(
+              switchAlarmId,
+              switchTime,
+              persistentNotificationAlarmCallback,
+            );
+          }
+        }
+      }
+
+      // 4. Sunrise persistent notification alarm (Sunrise has no Adhan, but triggers transition to Dhuhr countdown)
+      if (AdhanAudioService().isPersistentNotificationEnabled) {
+        final sunriseAlarmId = (dayOffset * 100) + 2006;
+        if (dayPrayers.sunrise.isAfter(now)) {
+          nativeAlarmsList.add({
+            'id': sunriseAlarmId,
+            'type': 'NOTIFICATION_UPDATE',
+            'triggerAtMillis': dayPrayers.sunrise.millisecondsSinceEpoch,
+            'prayerName': 'الشروق',
+          });
+          await _scheduleSingleAlarm(
+            sunriseAlarmId,
+            dayPrayers.sunrise,
+            persistentNotificationAlarmCallback,
+          );
         }
       }
     }
+
+    // Schedule exact native alarms for 100% reliability in Doze/Lock screen
+    try {
+      const channel = MethodChannel('com.example.alhuda/adhan');
+      await channel.invokeMethod('scheduleNativeAlarms', {
+        'alarms': nativeAlarmsList,
+      });
+    } catch (e) {
+      debugPrint('Error invoking scheduleNativeAlarms: $e');
+    }
+
+    // Immediately refresh persistent notification if enabled
+    if (AdhanAudioService().isPersistentNotificationEnabled) {
+      await updatePersistentPrayerNotification(prayerTime: prayerTime);
+    }
   }
 
-  Future<void> _scheduleSingleAlarm(int id, DateTime scheduledTime) async {
+  Future<void> _scheduleSingleAlarm(
+    int id,
+    DateTime scheduledTime,
+    Function(int) callback,
+  ) async {
     // 1. Try setAlarmClock (bypasses Doze mode & OEM battery killers like Xiaomi, Samsung, Huawei)
     try {
       await AndroidAlarmManager.oneShotAt(
         scheduledTime,
         id,
-        prayerAlarmCallback,
+        callback,
         exact: true,
         wakeup: true,
         alarmClock: true,
@@ -466,7 +444,7 @@ class PrayerSchedulerService {
       await AndroidAlarmManager.oneShotAt(
         scheduledTime,
         id,
-        prayerAlarmCallback,
+        callback,
         exact: true,
         wakeup: true,
         alarmClock: false,
@@ -483,7 +461,7 @@ class PrayerSchedulerService {
       await AndroidAlarmManager.oneShotAt(
         scheduledTime,
         id,
-        prayerAlarmCallback,
+        callback,
         exact: false,
         wakeup: true,
         alarmClock: false,
@@ -496,6 +474,207 @@ class PrayerSchedulerService {
     }
   }
 
+  Future<void> updatePersistentPrayerNotification({
+    PrayerTime? prayerTime,
+    String? activePrayerName,
+  }) async {
+    if (!Platform.isAndroid) return;
+    if (!AdhanAudioService().isPersistentNotificationEnabled) {
+      await NotificationServices.cancelPersistentPrayerNotification();
+      return;
+    }
+
+    // If an Adhan is currently actively playing natively or in Dart, and no specific active prayer is passed,
+    // do not overwrite notification 8888 with the next prayer. AdhanForegroundService manages notification 8888
+    // with high priority, Adhan title, muadhin, and the stop action button.
+    if (activePrayerName == null || activePrayerName.isEmpty) {
+      final isPlayingAdhan = await AdhanAudioService.instance.isAdhanActive();
+      if (isPlayingAdhan) {
+        return;
+      }
+    }
+
+    final now = DateTime.now();
+    PrayerTime? prayers = prayerTime;
+
+    if (prayers == null) {
+      final saved = await loadScheduleConfig();
+      Location activeLocation;
+      CalculationMethod activeMethod = CalculationMethod.egypt;
+      EgyptDstMode activeDstMode = EgyptDstMode.auto;
+      int activeOffset = 0;
+
+      if (saved != null && saved['location'] != null) {
+        final locMap = saved['location'] as Map<String, dynamic>;
+        activeLocation = Location(
+          id: locMap['id'] ?? 1,
+          name: locMap['name'] ?? 'القاهرة',
+          countryName: locMap['countryName'] ?? 'مصر',
+          countryCode: locMap['countryCode'] ?? 'EG',
+          latitude: (locMap['latitude'] as num?)?.toDouble() ?? 30.0444,
+          longitude: (locMap['longitude'] as num?)?.toDouble() ?? 31.2357,
+          hasFixedPrayerTime: locMap['hasFixedPrayerTime'] ?? false,
+        );
+        if (saved['method'] != null) {
+          activeMethod = CalculationMethod.values.firstWhere(
+            (m) => m.name == saved['method'],
+            orElse: () => CalculationMethod.egypt,
+          );
+        }
+        if (saved['dstMode'] != null) {
+          activeDstMode = EgyptDstMode.values.firstWhere(
+            (d) => d.name == saved['dstMode'],
+            orElse: () => EgyptDstMode.auto,
+          );
+        }
+        activeOffset = (saved['manualMinutesOffset'] as num?)?.toInt() ?? 0;
+      } else {
+        activeLocation = const Location(
+          id: 1,
+          name: 'القاهرة',
+          countryName: 'مصر',
+          countryCode: 'EG',
+          latitude: 30.0444,
+          longitude: 31.2357,
+          hasFixedPrayerTime: false,
+        );
+      }
+
+      final muslimRepo = MuslimRepository();
+      try {
+        final raw = await muslimRepo.getPrayerTimes(
+          location: activeLocation,
+          date: now,
+          attribute: PrayerAttribute(
+            calculationMethod: activeMethod,
+            asrMethod: AsrMethod.shafii,
+            higherLatitudeMethod: HigherLatitudeMethod.angleBased,
+          ),
+        );
+        if (raw != null) {
+          prayers = EgyptDstHelper.adjustPrayerTimesForEgypt(
+            prayer: raw,
+            location: activeLocation,
+            date: now,
+            mode: activeDstMode,
+            additionalMinutesOffset: activeOffset,
+          );
+        }
+      } catch (e) {
+        debugPrint('Error getting prayer times for persistent notification: $e');
+      }
+    }
+
+    if (prayers == null) return;
+
+    final prescribedPrayers = [
+      MapEntry('الفجر', prayers.fajr),
+      MapEntry('الظهر', prayers.dhuhr),
+      MapEntry('العصر', prayers.asr),
+      MapEntry('المغرب', prayers.maghrib),
+      MapEntry('العشاء', prayers.isha),
+    ];
+
+    // 1. If an Adhan is actively playing right now, show current prayer
+    String displayPrayerName = '';
+    DateTime displayPrayerTime = prayers.fajr;
+    bool isNegativeCounter = false;
+    int progressPercent = 0;
+
+    if (activePrayerName != null && activePrayerName.isNotEmpty) {
+      final matched = prescribedPrayers.firstWhere(
+        (e) => e.key == activePrayerName,
+        orElse: () => MapEntry(activePrayerName, now),
+      );
+      displayPrayerName = matched.key;
+      displayPrayerTime = matched.value;
+      isNegativeCounter = true;
+      progressPercent = 100;
+    }
+
+    // 2. Adhan is finished (or not playing): IMMEDIATELY show the upcoming next prayer!
+    if (displayPrayerName.isEmpty) {
+      final allPrayersWithSunrise = [
+        MapEntry('الفجر', prayers.fajr),
+        MapEntry('الشروق', prayers.sunrise),
+        MapEntry('الظهر', prayers.dhuhr),
+        MapEntry('العصر', prayers.asr),
+        MapEntry('المغرب', prayers.maghrib),
+        MapEntry('العشاء', prayers.isha),
+      ];
+
+      DateTime? prevTime;
+      for (int i = 0; i < allPrayersWithSunrise.length; i++) {
+        final current = allPrayersWithSunrise[i];
+        if (now.isBefore(current.value)) {
+          displayPrayerName = current.key;
+          displayPrayerTime = current.value;
+          isNegativeCounter = false;
+
+          prevTime = (i > 0)
+              ? allPrayersWithSunrise[i - 1].value
+              : prayers.isha.subtract(const Duration(days: 1));
+          break;
+        }
+      }
+
+      // If after Isha window, next prayer is tomorrow's Fajr
+      if (displayPrayerName.isEmpty) {
+        displayPrayerName = 'الفجر';
+        displayPrayerTime = prayers.fajr.add(const Duration(days: 1));
+        isNegativeCounter = false;
+        prevTime = prayers.isha;
+      }
+
+      if (prevTime != null) {
+        final totalSecs = displayPrayerTime.difference(prevTime).inSeconds;
+        final elapsedSecs = now.difference(prevTime).inSeconds;
+        if (totalSecs > 0) {
+          progressPercent =
+              ((elapsedSecs / totalSecs) * 100).round().clamp(0, 100);
+        }
+      }
+    }
+
+    // Hijri date string in authentic Arabic with day name
+    String hijriString = '';
+    try {
+      final h = HijriDate.now();
+      final dayName = NotificationServices.getArabicDayName(now.weekday);
+      final monthName = NotificationServices.getArabicHijriMonthName(h.hMonth);
+      hijriString = '$dayName، ${h.hDay} $monthName ${h.hYear} هـ';
+    } catch (_) {}
+
+    // Build expanded timetable of all today's prayer times
+    String expandedSchedule = '';
+    try {
+      final fTime = NotificationServices.formatPrayerTime(prayers.fajr);
+      final sTime = NotificationServices.formatPrayerTime(prayers.sunrise);
+      final dTime = NotificationServices.formatPrayerTime(prayers.dhuhr);
+      final aTime = NotificationServices.formatPrayerTime(prayers.asr);
+      final mTime = NotificationServices.formatPrayerTime(prayers.maghrib);
+      final iTime = NotificationServices.formatPrayerTime(prayers.isha);
+
+      String pMark(String name) => (name == displayPrayerName) ? '◀ ' : '   ';
+
+      expandedSchedule = [
+        '${pMark('الفجر')}الفجر: $fTime  •  ${pMark('الشروق')}الشروق: $sTime',
+        '${pMark('الظهر')}الظهر: $dTime  •  ${pMark('العصر')}العصر: $aTime',
+        '${pMark('المغرب')}المغرب: $mTime  •  ${pMark('العشاء')}العشاء: $iTime',
+      ].join('\n');
+    } catch (_) {}
+
+    await NotificationServices.showPersistentPrayerNotification(
+      prayerName: displayPrayerName,
+      prayerTime: displayPrayerTime,
+      isNegativeCounter: isNegativeCounter,
+      hijriDate: hijriString,
+      expandedSchedule: expandedSchedule,
+      progressPercent: progressPercent,
+      showProgressBar: false,
+    );
+  }
+
   Future<void> rescheduleAfterAlarm(int id) async {
     await scheduleUpcomingPrayers(null);
   }
@@ -505,7 +684,12 @@ class PrayerSchedulerService {
       final normalizedBase = basePrayerId(baseId);
       for (int day = 0; day < 10; day++) {
         await AndroidAlarmManager.cancel((day * 100) + normalizedBase);
+        await AndroidAlarmManager.cancel((day * 100) + normalizedBase + 1000);
+        await AndroidAlarmManager.cancel((day * 100) + normalizedBase + 2000);
+        await AndroidAlarmManager.cancel((day * 100) + normalizedBase + 2100);
       }
+      const channel = MethodChannel('com.example.alhuda/adhan');
+      await channel.invokeMethod('cancelNativeAlarms');
     } catch (e) {
       debugPrint('Error canceling prayer alarm: $e');
     }
@@ -515,5 +699,14 @@ class PrayerSchedulerService {
     for (final baseId in prayerNameToId.values) {
       await cancelPrayerAlarm(baseId);
     }
+    for (int day = 0; day < 10; day++) {
+      try {
+        await AndroidAlarmManager.cancel((day * 100) + 2006);
+      } catch (_) {}
+    }
+    try {
+      const channel = MethodChannel('com.example.alhuda/adhan');
+      await channel.invokeMethod('cancelNativeAlarms');
+    } catch (_) {}
   }
 }

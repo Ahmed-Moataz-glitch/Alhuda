@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:alhuda/features/qibla/core/qibla_sensor_helper.dart';
 import 'package:alhuda/features/qibla/presentation/view/widgets/qibla_widget.dart';
 import 'package:alhuda/features/qibla/presentation/view/widgets/qiblah_offline_view.dart';
@@ -264,16 +265,28 @@ class _QiblahPageState extends State<QiblahPage> {
       );
     }
 
-    return Column(
-      children: [
-        _buildModeSwitcher(),
-        if (!_hasSensor) _buildNoSensorBanner(),
-        Expanded(
-          child: _currentMode == QiblaMode.compass && _hasSensor
-              ? const QiblaWidget()
-              : const QiblahOfflineView(),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= AdaptiveBreakpoints.tabletMin;
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isWide ? 680.0 : double.infinity,
+            ),
+            child: Column(
+              children: [
+                _buildModeSwitcher(),
+                if (!_hasSensor) _buildNoSensorBanner(),
+                Expanded(
+                  child: _currentMode == QiblaMode.compass && _hasSensor
+                      ? const QiblaWidget()
+                      : const QiblahOfflineView(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

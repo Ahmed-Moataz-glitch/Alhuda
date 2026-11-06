@@ -1,6 +1,7 @@
 import 'package:alhuda/core/constants/app_constants.dart';
 import 'package:alhuda/core/services/adhan_audio_service.dart';
 import 'package:alhuda/core/services/notification_services.dart';
+import 'package:alhuda/core/services/prayer_scheduler_service.dart';
 import 'package:alhuda/core/theme/app_theme.dart';
 import 'package:alhuda/services/font_size_service.dart';
 import 'package:alhuda/services/quran_service.dart';
@@ -16,6 +17,10 @@ import 'package:hijri_date/hijri_date.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Configure memory and image cache limits for low-RAM devices
+  PaintingBinding.instance.imageCache.maximumSize = 50;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 30 * 1024 * 1024; // 30 MB
 
   // Initialize Hijri date in Arabic
   HijriDate.setLocal('ar');
@@ -46,10 +51,7 @@ void main() async {
 
   try {
     await NotificationServices.initializeNotifications();
-    NotificationServices.periodicNotification(
-      title: AppConstants.notificationTitle,
-      body: AppConstants.notificationBody,
-    );
+    await NotificationServices.cancelPeriodicNotification();
 
     final launchDetails = await NotificationServices
         .flutterLocalNotificationsPlugin
@@ -62,35 +64,67 @@ void main() async {
         NotificationServices.handlePauseAdhanAction();
       } else if (response?.actionId == NotificationServices.actionResumeAdhan) {
         NotificationServices.handleResumeAdhanAction();
+      } else if (response?.actionId == NotificationServices.actionStopPersistent) {
+        NotificationServices.handleStopPersistentAction();
       }
+    }
+
+    if (AdhanAudioService.instance.isPersistentNotificationEnabled) {
+      PrayerSchedulerService().updatePersistentPrayerNotification();
     }
   } catch (e) {
     debugPrint('NotificationServices initialization error: $e');
   }
 
-  try {
-    await QuranService.instance.init();
-  } catch (e) {
-    debugPrint('QuranService initialization error: $e');
-  }
-
-  try {
-    await TajweedPageCacheService.instance.init();
-  } catch (e) {
-    debugPrint('TajweedPageCacheService initialization error: $e');
-  }
-
-  try {
-    await TafsirService.instance.init();
-  } catch (e) {
-    debugPrint('TafsirService initialization error: $e');
-  }
-
   FlutterNativeSplash.remove();
   runApp(const MyApp());
 
-  // Request permissions asynchronously after UI has drawn
-  NotificationServices.requestNotificationPermission();
+  // Asynchronously initialize secondary services and permissions after UI has painted
+  _initPostLaunchServices();
+}
+
+Future<void> _initPostLaunchServices() async {
+  try {
+    // 1. Initialize secondary background services without blocking UI
+    try {
+      await QuranService.instance.init();
+    } catch (e) {
+      debugPrint('QuranService init error: $e');
+    }
+
+    try {
+      await TajweedPageCacheService.instance.init();
+    } catch (e) {
+      debugPrint('TajweedPageCacheService init error: $e');
+    }
+
+    try {
+      await TafsirService.instance.init();
+    } catch (e) {
+      debugPrint('TafsirService init error: $e');
+    }
+
+    // 2. Request notification and exact alarm permissions and show persistent notification immediately if granted
+    final isNotificationGranted =
+        await NotificationServices.requestNotificationPermission();
+    if (isNotificationGranted &&
+        AdhanAudioService.instance.isPersistentNotificationEnabled) {
+      await PrayerSchedulerService().updatePersistentPrayerNotification();
+    }
+
+    // 3. Automatically schedule rolling 7-day prayers
+    await PrayerSchedulerService().scheduleUpcomingPrayers(null);
+
+    // 4. Request battery optimization exemption
+    final isIgnoring =
+        await AdhanAudioService.instance.isIgnoringBatteryOptimizations();
+    if (!isIgnoring) {
+      await Future.delayed(const Duration(milliseconds: 1500));
+      await AdhanAudioService.instance.requestIgnoreBatteryOptimizations();
+    }
+  } catch (e) {
+    debugPrint('Error in post-launch services initialization: $e');
+  }
 }
 
 class AppScrollBehavior extends MaterialScrollBehavior {
@@ -107,7 +141,6 @@ class AppScrollBehavior extends MaterialScrollBehavior {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(

@@ -1,4 +1,5 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:alhuda/services/azkar_service.dart';
 import 'package:alhuda/features/azkar/presentation/view/pages/azkar_chapter_page.dart';
 import 'package:flutter/material.dart';
@@ -103,13 +104,24 @@ class _AzkarWidgetState extends State<AzkarWidget> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // 1. Search Bar & Header
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 8.h),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final isWide = width >= AdaptiveBreakpoints.tabletMin;
+          final int chapterColumns = width >= AdaptiveBreakpoints.desktopMin
+              ? 3
+              : (isWide ? 2 : 1);
+          final horizontalPadding = isWide
+              ? (width >= AdaptiveBreakpoints.desktopMin ? 28.0 : 20.0)
+              : 16.w;
+
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // 1. Search Bar & Header
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(horizontalPadding, 16.h, horizontalPadding, 8.h),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -370,111 +382,140 @@ class _AzkarWidgetState extends State<AzkarWidget> {
                     ),
                   ),
                 )
-              : SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 24.h),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final chapter = filteredList[index];
-                        final categoryName =
-                            _getCategoryName(chapter.categoryId);
+              : (chapterColumns > 1
+                  ? SliverPadding(
+                      padding: EdgeInsets.fromLTRB(horizontalPadding, 4.h, horizontalPadding, 24.h),
+                      sliver: SliverGrid(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: chapterColumns,
+                          childAspectRatio: chapterColumns == 3 ? 2.6 : 3.0,
+                          crossAxisSpacing: 14.0,
+                          mainAxisSpacing: 10.0,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final chapter = filteredList[index];
+                            final categoryName = _getCategoryName(chapter.categoryId);
+                            return _buildChapterCard(chapter, index, categoryName, isGrid: true);
+                          },
+                          childCount: filteredList.length,
+                        ),
+                      ),
+                    )
+                  : SliverPadding(
+                      padding: EdgeInsets.fromLTRB(horizontalPadding, 4.h, horizontalPadding, 24.h),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final chapter = filteredList[index];
+                            final categoryName = _getCategoryName(chapter.categoryId);
+                            return _buildChapterCard(chapter, index, categoryName, isGrid: false);
+                          },
+                          childCount: filteredList.length,
+                        ),
+                      ),
+                    )),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
-                        return Container(
-                          margin: EdgeInsets.only(bottom: 10.h),
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(14.r),
-                            border: Border.all(
-                              color: AppColors.primary.withAlpha(25),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.black.withAlpha(6),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () => _openChapter(
-                                chapter.id,
-                                chapter.name,
-                              ),
-                              borderRadius: BorderRadius.circular(14.r),
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 14.w,
-                                  vertical: 12.h,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 36.w,
-                                      height: 36.w,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary.withAlpha(20),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          '${index + 1}',
-                                          style: TextStyle(
-                                            color: AppColors.primary,
-                                            fontSize: 12.sp,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(width: 12.w),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            chapter.name,
-                                            style: TextStyle(
-                                              fontSize: 14.5.sp,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.textPrimary,
-                                              fontFamily: 'Rubik',
-                                            ),
-                                          ),
-                                          if (categoryName.isNotEmpty) ...[
-                                            SizedBox(height: 3.h),
-                                            Text(
-                                              categoryName,
-                                              style: TextStyle(
-                                                fontSize: 11.sp,
-                                                color: AppColors.primary
-                                                    .withAlpha(180),
-                                                fontFamily: 'Almarai',
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.arrow_forward_ios_rounded,
-                                      color: AppColors.primary.withAlpha(150),
-                                      size: 16.sp,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      childCount: filteredList.length,
+  Widget _buildChapterCard(
+    AzkarChapter chapter,
+    int index,
+    String categoryName, {
+    bool isGrid = false,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: isGrid ? 0 : 10.h),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(
+          color: AppColors.primary.withAlpha(25),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.black.withAlpha(6),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _openChapter(chapter.id, chapter.name),
+          borderRadius: BorderRadius.circular(14.r),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 14.w,
+              vertical: 12.h,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36.w,
+                  height: 36.w,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withAlpha(20),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-        ],
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        chapter.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.5.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          fontFamily: 'Rubik',
+                        ),
+                      ),
+                      if (categoryName.isNotEmpty) ...[
+                        SizedBox(height: 3.h),
+                        Text(
+                          categoryName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.sp,
+                            color: AppColors.primary.withAlpha(180),
+                            fontFamily: 'Almarai',
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: AppColors.primary.withAlpha(150),
+                  size: 16.sp,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

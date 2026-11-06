@@ -36,6 +36,16 @@ class QuranService {
     return _qpcStore!;
   }
 
+  /// Lazily load embedded Uthmani and Simple texts on-demand
+  Future<void> ensureEmbeddedTextLoaded() async {
+    if (QuranEmbeddedText.instance.isUthmaniLoaded) return;
+    try {
+      await QuranEmbeddedText.instance.loadAll();
+    } catch (e) {
+      debugPrint('ensureEmbeddedTextLoaded warning: $e');
+    }
+  }
+
   static const List<JuzData> kDefaultJuzs = [
     JuzData(number: 1, startSurahNumber: 1, startSurahName: 'الفاتحة', startAyahNumber: 1, startPage: 1),
     JuzData(number: 2, startSurahNumber: 2, startSurahName: 'البقرة', startAyahNumber: 142, startPage: 22),
@@ -106,17 +116,7 @@ class QuranService {
         debugPrint('AlhudaQuranAudioService.init warning: $e');
       }
 
-      // 2. Load QPC v4 page layout & word assets store
-      try {
-        _qpcStore = await QuranDataLoader.load();
-      } catch (e) {
-        debugPrint('QuranDataLoader.load warning: $e');
-      }
-
-      // 3. Load embedded text offline in memory
-      await QuranEmbeddedText.instance.loadAll();
-
-      // 4. Load Surahs metadata
+      // Surahs metadata (lightweight, ~5KB)
       final surahInfos = await QuranDataLoader.loadSurahs();
       _surahs = surahInfos.map((info) {
         final page = (info.number >= 1 && info.number <= kSurahStartPages.length)
@@ -194,18 +194,34 @@ class QuranService {
 
   /// Get all ayahs for a given surah with Uthmani & Simple texts
   List<AyahData> getAyahsForSurah(int surahNumber) {
-    final uthmaniMap = QuranEmbeddedText.instance.getUthmaniSurah(surahNumber);
-    final simpleMap = QuranEmbeddedText.instance.getSimpleSurah(surahNumber);
-    if (uthmaniMap == null) return [];
+    if (QuranEmbeddedText.instance.isUthmaniLoaded) {
+      final uthmaniMap = QuranEmbeddedText.instance.getUthmaniSurah(surahNumber);
+      final simpleMap = QuranEmbeddedText.instance.getSimpleSurah(surahNumber);
+      if (uthmaniMap != null) {
+        final list = <AyahData>[];
+        final total = uthmaniMap.length;
+        for (int i = 1; i <= total; i++) {
+          list.add(AyahData(
+            surahNumber: surahNumber,
+            ayahNumber: i,
+            uthmaniText: uthmaniMap[i] ?? '',
+            simpleText: simpleMap?[i] ?? '',
+          ));
+        }
+        return list;
+      }
+    }
 
+    // Lightweight fallback using quran package without allocating huge memory maps
+    final count = quran.getVerseCount(surahNumber);
     final list = <AyahData>[];
-    final total = uthmaniMap.length;
-    for (int i = 1; i <= total; i++) {
+    for (int i = 1; i <= count; i++) {
+      final text = quran.getVerse(surahNumber, i, verseEndSymbol: false);
       list.add(AyahData(
         surahNumber: surahNumber,
         ayahNumber: i,
-        uthmaniText: uthmaniMap[i] ?? '',
-        simpleText: simpleMap?[i] ?? '',
+        uthmaniText: text,
+        simpleText: text,
       ));
     }
     return list;
@@ -213,7 +229,11 @@ class QuranService {
 
   /// Get single ayah text
   String getAyahUthmani(int surah, int ayah) {
-    return QuranEmbeddedText.instance.getUthmani(surah, ayah) ?? '';
+    if (QuranEmbeddedText.instance.isUthmaniLoaded) {
+      final t = QuranEmbeddedText.instance.getUthmani(surah, ayah);
+      if (t != null && t.isNotEmpty) return t;
+    }
+    return quran.getVerse(surah, ayah, verseEndSymbol: false);
   }
 
   /// Search ayahs and surahs by query text
@@ -223,26 +243,49 @@ class QuranService {
 
     final results = <QuranSearchResult>[];
 
-    for (final surah in _surahs) {
-      final simpleMap = QuranEmbeddedText.instance.getSimpleSurah(surah.number);
-      final uthmaniMap = QuranEmbeddedText.instance.getUthmaniSurah(surah.number);
-      if (simpleMap == null) continue;
+    if (QuranEmbeddedText.instance.isUthmaniLoaded) {
+      for (final surah in _surahs) {
+        final simpleMap = QuranEmbeddedText.instance.getSimpleSurah(surah.number);
+        final uthmaniMap = QuranEmbeddedText.instance.getUthmaniSurah(surah.number);
+        if (simpleMap == null) continue;
 
-      for (final entry in simpleMap.entries) {
-        final ayahNum = entry.key;
-        final simpleText = entry.value;
-        final normalizedText = _normalizeArabic(simpleText);
+        for (final entry in simpleMap.entries) {
+          final ayahNum = entry.key;
+          final simpleText = entry.value;
+          final normalizedText = _normalizeArabic(simpleText);
 
-        if (normalizedText.contains(query)) {
-          results.add(QuranSearchResult(
-            surahNumber: surah.number,
-            surahName: surah.arabicName,
-            ayahNumber: ayahNum,
-            uthmaniText: uthmaniMap?[ayahNum] ?? simpleText,
-            simpleText: simpleText,
-          ));
+          if (normalizedText.contains(query)) {
+            results.add(QuranSearchResult(
+              surahNumber: surah.number,
+              surahName: surah.arabicName,
+              ayahNumber: ayahNum,
+              uthmaniText: uthmaniMap?[ayahNum] ?? simpleText,
+              simpleText: simpleText,
+            ));
 
-          if (results.length >= 100) return results; // Cap search results for performance
+            if (results.length >= 100) return results; // Cap search results for performance
+          }
+        }
+      }
+    } else {
+      // Memory-efficient on-demand fallback
+      for (int s = 1; s <= 114; s++) {
+        final count = quran.getVerseCount(s);
+        final surahName = quran.getSurahNameArabic(s);
+        for (int a = 1; a <= count; a++) {
+          final text = quran.getVerse(s, a, verseEndSymbol: false);
+          final normalizedText = _normalizeArabic(text);
+          if (normalizedText.contains(query)) {
+            results.add(QuranSearchResult(
+              surahNumber: s,
+              surahName: surahName,
+              ayahNumber: a,
+              uthmaniText: text,
+              simpleText: text,
+            ));
+
+            if (results.length >= 100) return results;
+          }
         }
       }
     }

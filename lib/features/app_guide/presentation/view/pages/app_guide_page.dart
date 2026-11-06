@@ -1,13 +1,16 @@
+import 'dart:io';
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:alhuda/features/app_guide/data/repositories/app_guide_data.dart';
 import 'package:alhuda/features/app_guide/presentation/view/widgets/app_features_tab.dart';
 import 'package:alhuda/features/app_guide/presentation/view/widgets/app_guide_steps_tab.dart';
+import 'package:better_player_plus/better_player_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 
-/// صفحة دليل استخدام ومميزات التطبيق مع مشغل فيديو اليوتيوب
+/// صفحة دليل استخدام ومميزات التطبيق مع مشغل فيديو Better Player محلي يعمل بدون إنترنت
 class AppGuidePage extends StatefulWidget {
   final bool hasScaffold;
 
@@ -19,124 +22,167 @@ class AppGuidePage extends StatefulWidget {
 
 class _AppGuidePageState extends State<AppGuidePage>
     with SingleTickerProviderStateMixin {
-  late YoutubePlayerController _controller;
+  final GlobalKey _betterPlayerKey = GlobalKey();
+  BetterPlayerController? _betterPlayerController;
   late TabController _tabController;
   bool _isPlayerReady = false;
+  bool _hasError = false;
   bool _isVideoInfoExpanded = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
-    _controller = YoutubePlayerController(
-      initialVideoId: AppGuideData.videoId,
-      flags: const YoutubePlayerFlags(
-        autoPlay: false,
-        mute: false,
-        enableCaption: true,
-        isLive: false,
-        forceHD: false,
-        loop: false,
-      ),
-    )..addListener(_onPlayerStateChange);
+    _initializeBetterPlayer();
   }
 
-  void _onPlayerStateChange() {
-    if (_isPlayerReady && mounted) {
-      setState(() {});
+  Future<void> _initializeBetterPlayer() async {
+    try {
+      // تجهيز ملف الفيديو المحلي من الأصول إلى مجلد مؤقت للتشغيل عبر Better Player
+      final tempDir = await getTemporaryDirectory();
+      final localVideoFile = File('${tempDir.path}/app_guide.mp4');
+
+      if (!await localVideoFile.exists() || await localVideoFile.length() == 0) {
+        final byteData = await rootBundle.load(AppGuideData.videoAssetPath);
+        final buffer = byteData.buffer;
+        await localVideoFile.writeAsBytes(
+          buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes),
+          flush: true,
+        );
+      }
+
+      final betterPlayerDataSource = BetterPlayerDataSource(
+        BetterPlayerDataSourceType.file,
+        localVideoFile.path,
+        notificationConfiguration: const BetterPlayerNotificationConfiguration(
+          showNotification: false,
+        ),
+      );
+
+      final controlsConfiguration = BetterPlayerControlsConfiguration(
+        enableFullscreen: true,
+        enableMute: true,
+        enablePlayPause: true,
+        enableProgressBar: true,
+        enableProgressBarDrag: true,
+        enableProgressText: true,
+        enableSkips: true,
+        enableQualities: false,
+        enableSubtitles: false,
+        enableAudioTracks: false,
+        enablePlaybackSpeed: true,
+        enablePip: false,
+        showControlsOnInitialize: false,
+        progressBarPlayedColor: AppColors.primary,
+        progressBarHandleColor: AppColors.primary,
+        progressBarBufferedColor: AppColors.primary.withAlpha(80),
+        progressBarBackgroundColor: Colors.white24,
+        controlBarColor: Colors.black.withAlpha(150),
+        iconsColor: Colors.white,
+        loadingColor: AppColors.primary,
+      );
+
+      final betterPlayerConfiguration = BetterPlayerConfiguration(
+        aspectRatio: 16 / 9,
+        fit: BoxFit.contain,
+        autoPlay: false,
+        looping: false,
+        handleLifecycle: true,
+        autoDispose: false,
+        deviceOrientationsOnFullScreen: const [
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ],
+        deviceOrientationsAfterFullScreen: const [
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+        ],
+        controlsConfiguration: controlsConfiguration,
+      );
+
+      final controller = BetterPlayerController(
+        betterPlayerConfiguration,
+        betterPlayerDataSource: betterPlayerDataSource,
+      );
+
+      if (mounted) {
+        setState(() {
+          _betterPlayerController = controller;
+          _isPlayerReady = true;
+          _hasError = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _isPlayerReady = false;
+        });
+      }
     }
   }
 
   @override
   void dispose() {
-    _controller.removeListener(_onPlayerStateChange);
-    _controller.dispose();
+    _betterPlayerController?.dispose(forceDispose: true);
     _tabController.dispose();
     super.dispose();
   }
 
-  void _rewind10Seconds() {
-    HapticFeedback.lightImpact();
-    final currentPos = _controller.value.position;
-    final newPos = currentPos - const Duration(seconds: 10);
-    _controller.seekTo(newPos > Duration.zero ? newPos : Duration.zero);
-  }
-
-  void _forward10Seconds() {
-    HapticFeedback.lightImpact();
-    final currentPos = _controller.value.position;
-    final totalDuration = _controller.metadata.duration;
-    final newPos = currentPos + const Duration(seconds: 10);
-    _controller.seekTo(newPos < totalDuration ? newPos : totalDuration);
-  }
-
-  void _toggleMute() {
-    HapticFeedback.lightImpact();
-    if (_controller.value.volume == 0) {
-      _controller.unMute();
-    } else {
-      _controller.mute();
-    }
-  }
-
   void _restartVideo() {
     HapticFeedback.lightImpact();
-    _controller.seekTo(Duration.zero);
-    _controller.play();
+    final controller = _betterPlayerController;
+    if (controller == null) return;
+    try {
+      controller.seekTo(Duration.zero);
+      controller.play();
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    return YoutubePlayerBuilder(
-      onExitFullScreen: () {
-        SystemChrome.setPreferredOrientations(DeviceOrientation.values);
-      },
-      player: YoutubePlayer(
-        controller: _controller,
-        showVideoProgressIndicator: true,
-        progressIndicatorColor: AppColors.primary,
-        progressColors: ProgressBarColors(
-          playedColor: AppColors.primary,
-          handleColor: AppColors.primary,
-          bufferedColor: AppColors.primary.withAlpha(60),
-          backgroundColor: Colors.grey.shade400,
-        ),
-        bottomActions: [
-          RemainingDuration(),
-          SizedBox(width: 8.w),
-          ProgressBar(isExpanded: true),
-          SizedBox(width: 8.w),
-          CurrentPosition(),
-          const FullScreenButton(),
-        ],
-        topActions: [
-          SizedBox(width: 8.w),
-          Expanded(
-            child: Text(
-              AppGuideData.videoTitle,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 13.sp,
-                fontFamily: 'Almarai',
-                fontWeight: FontWeight.bold,
+    final content = LayoutBuilder(
+      builder: (context, constraints) {
+        final shortestSide = MediaQuery.of(context).size.shortestSide;
+        final isLandscapeTablet = shortestSide >= AdaptiveBreakpoints.tabletMin &&
+            MediaQuery.of(context).orientation == Orientation.landscape;
+        if (isLandscapeTablet) {
+          return Row(
+            children: [
+              // الجانب الأيمن: مشغل BetterPlayer وأدوات التحكم
+              Expanded(
+                flex: 5,
+                child: Column(
+                  children: [
+                    _buildVideoPlayer(),
+                    _buildVideoControlsBar(),
+                  ],
+                ),
               ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ),
-        ],
-        onReady: () {
-          setState(() {
-            _isPlayerReady = true;
-          });
-        },
-      ),
-      builder: (context, player) {
-        final content = Column(
+              const VerticalDivider(width: 1, thickness: 1),
+              // الجانب الأيسر: شريط التبويبات والمحتوى
+              Expanded(
+                flex: 6,
+                child: Column(
+                  children: [
+                    _buildTabBar(),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: const [AppFeaturesTab(), AppGuideStepsTab()],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Column(
           children: [
             // مشغل الفيديو
-            Container(color: Colors.black, child: player),
+            _buildVideoPlayer(),
 
             // شريط التحكم ومعلومات الفيديو
             _buildVideoControlsBar(),
@@ -153,66 +199,135 @@ class _AppGuidePageState extends State<AppGuidePage>
             ),
           ],
         );
-
-        if (!widget.hasScaffold) {
-          return Directionality(
-            textDirection: TextDirection.rtl,
-            child: content,
-          );
-        }
-
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: AppBar(
-              backgroundColor: AppColors.background,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              centerTitle: true,
-              toolbarHeight: 60.h,
-              leading: IconButton(
-                icon: Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: AppColors.primary,
-                  size: 24.sp,
-                ),
-                tooltip: 'رجوع',
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: Text(
-                'دليل ومميزات التطبيق',
-                style: TextStyle(
-                  fontFamily: 'Amiri',
-                  fontSize: 20.sp,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              actions: [
-                IconButton(
-                  icon: Icon(
-                    Icons.replay_rounded,
-                    color: AppColors.primary,
-                    size: 24.sp,
-                  ),
-                  tooltip: 'إعادة تشغيل الفيديو',
-                  onPressed: _restartVideo,
-                ),
-              ],
-            ),
-            body: content,
-          ),
-        );
       },
+    );
+
+    if (!widget.hasScaffold) {
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: content,
+      );
+    }
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          toolbarHeight: 60.h,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppColors.primary,
+              size: 24.sp,
+            ),
+            tooltip: 'رجوع',
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Text(
+            'دليل ومميزات التطبيق',
+            style: TextStyle(
+              fontFamily: 'Amiri',
+              fontSize: 20.sp,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.replay_rounded,
+                color: AppColors.primary,
+                size: 24.sp,
+              ),
+              tooltip: 'إعادة تشغيل الفيديو',
+              onPressed: _restartVideo,
+            ),
+          ],
+        ),
+        body: content,
+      ),
+    );
+  }
+
+  /// ويدجت مشغل BetterPlayer
+  Widget _buildVideoPlayer() {
+    return Container(
+      color: Colors.black,
+      width: double.infinity,
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: _hasError
+            ? Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.r),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error_outline_rounded,
+                          color: Colors.red.shade400, size: 36.sp),
+                      SizedBox(height: 8.h),
+                      Text(
+                        'تعذر تحميل الفيديو المحلي',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Almarai',
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() => _hasError = false);
+                          _initializeBetterPlayer();
+                        },
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('إعادة المحاولة'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : !_isPlayerReady || _betterPlayerController == null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                          color: AppColors.primary,
+                          strokeWidth: 3,
+                        ),
+                        SizedBox(height: 12.h),
+                        Text(
+                          'جاري تجهيز مشغل Better Player...',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontFamily: 'Almarai',
+                            fontSize: 12.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : BetterPlayer(
+                    key: _betterPlayerKey,
+                    controller: _betterPlayerController!,
+                  ),
+      ),
     );
   }
 
   /// شريط معلومات وتحكم إضافي بالفيديو
   Widget _buildVideoControlsBar() {
-    final isMuted = _controller.value.volume == 0;
-    final isPlaying = _controller.value.isPlaying;
-
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
       decoration: BoxDecoration(
@@ -226,30 +341,30 @@ class _AppGuidePageState extends State<AppGuidePage>
         children: [
           Row(
             children: [
-              // أيقونة شارة الفيديو
+              // شارة الفيديو المحلي
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 3.h),
                 decoration: BoxDecoration(
-                  color: Colors.red.withAlpha(25),
+                  color: Colors.green.withAlpha(25),
                   borderRadius: BorderRadius.circular(6.r),
-                  border: Border.all(color: Colors.red.withAlpha(80), width: 1),
+                  border: Border.all(color: Colors.green.withAlpha(90), width: 1),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.play_circle_fill_rounded,
-                      color: Colors.red.shade700,
+                      color: Colors.green.shade700,
                       size: 13.sp,
                     ),
                     SizedBox(width: 4.w),
                     Text(
-                      'فيديو توضيحي',
+                      'فيديو محلي (بدون نت)',
                       style: TextStyle(
                         fontFamily: 'Almarai',
                         fontSize: 9.5.sp,
                         fontWeight: FontWeight.bold,
-                        color: Colors.red.shade700,
+                        color: Colors.green.shade700,
                       ),
                     ),
                   ],
@@ -308,76 +423,7 @@ class _AppGuidePageState extends State<AppGuidePage>
               ),
             ),
           ],
-
-          SizedBox(height: 6.h),
-
-          // شريط أزرار التحكم السريع بالفيديو
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildControlIconButton(
-                icon: Icons.replay_10_rounded,
-                tooltip: 'تأخير 10 ثوانٍ',
-                onPressed: _rewind10Seconds,
-              ),
-              _buildControlIconButton(
-                icon: isPlaying
-                    ? Icons.pause_circle_filled_rounded
-                    : Icons.play_circle_filled_rounded,
-                tooltip: isPlaying ? 'إيقاف مؤقت' : 'تشغيل',
-                iconColor: AppColors.primary,
-                size: 32.sp,
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  if (isPlaying) {
-                    _controller.pause();
-                  } else {
-                    _controller.play();
-                  }
-                },
-              ),
-              _buildControlIconButton(
-                icon: Icons.forward_10_rounded,
-                tooltip: 'تقديم 10 ثوانٍ',
-                onPressed: _forward10Seconds,
-              ),
-              _buildControlIconButton(
-                icon: isMuted
-                    ? Icons.volume_off_rounded
-                    : Icons.volume_up_rounded,
-                tooltip: isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت',
-                onPressed: _toggleMute,
-              ),
-            ],
-          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildControlIconButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-    Color? iconColor,
-    double? size,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(8.r),
-          child: Padding(
-            padding: EdgeInsets.all(6.r),
-            child: Icon(
-              icon,
-              color: iconColor ?? AppColors.textSecondary,
-              size: size ?? 28.sp,
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -1,1 +1,1 @@
-{"selectedSoundId":"qatami","prayerAlerts":{"الفجر":true,"الشروق":false,"الظهر":true,"العصر":true,"المغرب":true,"العشاء":true},"adhanVolume":1.0}
+{"selectedSoundId":"qatami","prayerAlerts":{"الفجر":true,"الشروق":false,"الظهر":true,"العصر":true,"المغرب":true,"العشاء":true},"adhanVolume":1.0,"prePrayerVolume":1.0,"isAlarmMode":true,"isPersistentNotificationEnabled":true,"isPrePrayerAlertEnabled":true,"prePrayerMinutes":15,"prePrayerAlerts":{"الفجر":true,"الشروق":false,"الظهر":true,"العصر":true,"المغرب":true,"العشاء":true}}

@@ -1,4 +1,5 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -129,14 +130,15 @@ ${name.quranVerse} [${name.surahRef}]
 
   @override
   Widget build(BuildContext context) {
-
-    return Container(
-      height: 0.88.sh,
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
-      ),
-      child: Column(
+    return AdaptiveSheetWrapper(
+      maxSheetWidth: 680.0,
+      child: Container(
+        height: 0.88.sh,
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28.r)),
+        ),
+        child: Column(
         children: [
           // Drag handle
           Container(
@@ -242,6 +244,7 @@ ${name.quranVerse} [${name.surahRef}]
           ),
         ],
       ),
+    ),
     );
   }
 

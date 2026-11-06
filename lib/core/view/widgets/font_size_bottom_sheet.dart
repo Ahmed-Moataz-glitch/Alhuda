@@ -1,4 +1,5 @@
 import 'package:alhuda/core/constants/app_colors.dart';
+import 'package:alhuda/core/utils/adaptive_layout_helper.dart';
 import 'package:alhuda/services/font_size_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -59,19 +60,21 @@ class _FontSizeBottomSheetState extends State<FontSizeBottomSheet> {
           final currentScale = service.getScale(_selectedFeature);
           final isFeatureDefault = service.isFeatureDefault(_selectedFeature);
 
-          return Container(
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(isDark ? 80 : 30),
-                  blurRadius: 16,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 24.h),
+          return AdaptiveSheetWrapper(
+            maxSheetWidth: 620.0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(isDark ? 80 : 30),
+                    blurRadius: 16,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 24.h),
             child: SafeArea(
               top: false,
               child: SingleChildScrollView(
@@ -222,6 +225,7 @@ class _FontSizeBottomSheetState extends State<FontSizeBottomSheet> {
                 ),
               ),
             ),
+          ),
           );
         },
       ),

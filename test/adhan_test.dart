@@ -121,6 +121,33 @@ void main() {
       service.removeListener(listener);
     });
 
+    test('AdhanAudioService manages pre-prayer volume correctly with clamping', () {
+      final service = AdhanAudioService();
+      expect(service.prePrayerVolume, greaterThanOrEqualTo(0.1));
+      expect(service.prePrayerVolume, lessThanOrEqualTo(1.0));
+
+      bool notified = false;
+      void listener() => notified = true;
+      service.addListener(listener);
+
+      service.setPrePrayerVolume(0.7);
+      expect(service.prePrayerVolume, closeTo(0.7, 0.001));
+      expect(notified, isTrue);
+
+      // Clamping test
+      service.setPrePrayerVolume(1.5);
+      expect(service.prePrayerVolume, equals(1.0));
+
+      service.setPrePrayerVolume(0.01);
+      expect(service.prePrayerVolume, equals(0.1));
+
+      // Reset to 1.0
+      service.setPrePrayerVolume(1.0);
+      expect(service.prePrayerVolume, equals(1.0));
+
+      service.removeListener(listener);
+    });
+
     test('Available Adhan sounds list contains all Egyptian sheikhs and verified local asset files on disk', () {
       final sounds = AdhanData.availableSounds;
       expect(sounds.length, equals(16));
@@ -287,6 +314,39 @@ void main() {
           body: AppConstants.notificationBody,
         ),
         returnsNormally,
+      );
+    });
+
+    test('showPersistentPrayerNotification displays upcoming prayer countdown and handles active adhan', () async {
+      final now = DateTime.now();
+
+      // Test 1: Upcoming prayer (after adhan finishes)
+      await expectLater(
+        NotificationServices.showPersistentPrayerNotification(
+          prayerName: 'الفجر',
+          prayerTime: now.add(const Duration(hours: 6)),
+          isNegativeCounter: false,
+          hijriDate: '21 Jumada Al-Awwal 1448 هـ',
+          progressPercent: 45,
+        ),
+        completes,
+      );
+
+      // Test 2: Active adhan playing
+      await expectLater(
+        NotificationServices.showPersistentPrayerNotification(
+          prayerName: 'العشاء',
+          prayerTime: now,
+          isNegativeCounter: true,
+          hijriDate: '21 Jumada Al-Awwal 1448 هـ',
+          progressPercent: 100,
+        ),
+        completes,
+      );
+
+      await expectLater(
+        NotificationServices.cancelPersistentPrayerNotification(),
+        completes,
       );
     });
   });

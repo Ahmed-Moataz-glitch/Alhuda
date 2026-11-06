@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.database.ContentObserver
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.media.AudioManager
@@ -42,21 +43,18 @@ object AdhanVolumeManager {
     private var previousAlarmVolume: Int? = null
 
     fun isAdhanActive(context: Context?): Boolean {
-        if (isAdhanPlaying) return true
+        if (isAdhanPlaying || AdhanForegroundService.isPlaying) return true
         val ctx = context?.applicationContext ?: appContext ?: return false
         try {
             val notificationManager = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return false
             val activeNotifications = notificationManager.activeNotifications ?: return false
             return activeNotifications.any { notif ->
-                val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) notif.notification.channelId else null
-                val isAdhanChannel = channelId != null && channelId.startsWith("adhan_")
                 val hasAdhanAction = notif.notification.actions?.any { action ->
                     action.title?.toString()?.contains("الأذان") == true
                 } == true
-                (notif.id == 0 && (isAdhanChannel || hasAdhanAction))
-                    || notif.id == 9999
-                    || notif.id == 9998
-                    || (notif.id in 1000..1999)
+                val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) notif.notification.channelId else null
+                val isAdhanChannel = channelId != null && channelId.startsWith("adhan_")
+                hasAdhanAction || notif.id == 9999 || notif.id == 9998 || (isAdhanChannel && notif.id != 8888)
             }
         } catch (_: Exception) {
             return false
@@ -77,30 +75,12 @@ object AdhanVolumeManager {
     }
 
     fun setAdhanVolume(context: Context, volumePercent: Double) {
-        lastInternalVolumeChangeTime = System.currentTimeMillis()
-        val appCtx = context.applicationContext ?: appContext ?: return
-        try {
-            val audioManager = appCtx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
-            if (previousAlarmVolume == null) {
-                previousAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
-            }
-            val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            val target = (maxVol * volumePercent.coerceIn(0.1, 1.0)).toInt().coerceIn(1, maxVol)
-            internalTargetAlarmVolume = target
-            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, target, 0)
-        } catch (_: Exception) {}
+        // Volume scaling is handled directly by MediaPlayer.setVolume and Flutter AudioPlayer.
+        // We intentionally do not alter the system-wide STREAM_ALARM to avoid triggering spurious volume broadcasts.
     }
 
     fun restoreAlarmVolume(context: Context?) {
-        lastInternalVolumeChangeTime = System.currentTimeMillis()
-        val prev = previousAlarmVolume ?: return
-        val appCtx = context?.applicationContext ?: appContext ?: return
-        try {
-            val audioManager = appCtx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            audioManager?.setStreamVolume(AudioManager.STREAM_ALARM, prev, 0)
-        } catch (_: Exception) {}
-        previousAlarmVolume = null
-        internalTargetAlarmVolume = -1
+        // No-op since global STREAM_ALARM is not altered.
     }
 
     fun startAdhanMonitoring(context: Context) {
@@ -108,7 +88,6 @@ object AdhanVolumeManager {
         appContext = appCtx
         isAdhanPlaying = true
         playbackStartTime = System.currentTimeMillis()
-        lastInternalVolumeChangeTime = System.currentTimeMillis()
         registerVolumeReceiver(appCtx)
     }
 
@@ -116,16 +95,17 @@ object AdhanVolumeManager {
         isAdhanPlaying = false
         val ctx = context?.applicationContext ?: appContext
         unregisterVolumeReceiver(ctx)
-        restoreAlarmVolume(ctx)
     }
 
-    fun stopAdhan(context: Context?) {
-        if (!isAdhanActive(context)) return
-        isAdhanPlaying = false
-
+    fun stopAdhan(context: Context?, fromFlutter: Boolean = false) {
         val ctx = context?.applicationContext ?: appContext
+        isAdhanPlaying = false
         unregisterVolumeReceiver(ctx)
-        restoreAlarmVolume(ctx)
+
+        if (ctx != null) {
+            AdhanForegroundService.stopAdhan(ctx)
+            AdhanAlarmReceiver.stopPrePrayerVoice()
+        }
 
         // 1. Cancel Adhan notifications specifically via system NotificationManager
         try {
@@ -138,8 +118,11 @@ object AdhanVolumeManager {
             }
         } catch (_: Exception) {}
 
-        // 2. Notify all active Flutter isolates/engines to stop AudioPlayer
-        notifyFlutterToStop()
+        // 2. Only notify Flutter if the stop was NOT requested by Flutter itself
+        if (!fromFlutter) {
+            notifyFlutterToStop()
+            AdhanPlugin.notifyFlutterToStop()
+        }
 
         // 3. Send action to ActionBroadcastReceiver so background isolate cleans up if active
         try {
@@ -162,24 +145,14 @@ object AdhanVolumeManager {
                     if (!isAdhanActive(ctx)) return
 
                     val now = System.currentTimeMillis()
-                    // 1. Grace period: Ignore initial 1.5 seconds of playback
-                    if (playbackStartTime > 0L && now - playbackStartTime < 1500L) return
+                    // 500ms initial guard to ignore initial broadcast at registration
+                    if (playbackStartTime > 0L && now - playbackStartTime < 500L) return
 
-                    // 2. Ignore broadcast triggered by the app's own internal setAdhanVolume
-                    if (lastInternalVolumeChangeTime > 0L && now - lastInternalVolumeChangeTime < 1500L) {
-                        val streamType = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_TYPE", -1)
-                        val currVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
-                        if (streamType == AudioManager.STREAM_ALARM && currVol == internalTargetAlarmVolume) {
-                            return
-                        }
-                    }
-
-                    // 3. Verify that volume value actually changed (ignore duplicate no-op broadcasts)
-                    val prevVol = intent.getIntExtra("android.media.EXTRA_PREV_VOLUME_STREAM_VALUE", -1)
                     val currVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
-                    if (prevVol != -1 && currVol != -1 && prevVol == currVol) {
-                        return
-                    }
+                    val prevVol = intent.getIntExtra("android.media.EXTRA_PREV_VOLUME_STREAM_VALUE", -1)
+
+                    // Ignore if volume didn't actually change
+                    if (currVol == prevVol && currVol != -1) return
 
                     // User pressed hardware volume button while phone is locked or in background
                     stopAdhan(ctx)
@@ -271,6 +244,12 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
+        volumeControlStream = AudioManager.STREAM_MUSIC
+    }
+
+    override fun onResume() {
+        super.onResume()
+        volumeControlStream = AudioManager.STREAM_MUSIC
     }
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
@@ -296,9 +275,30 @@ class MainActivity : FlutterActivity() {
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ADHAN_CHANNEL)
         adhanMethodChannel = channel
         AdhanVolumeManager.registerChannel(channel)
+        AdhanPlugin.registerChannel(channel)
 
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "startAdhanService" -> {
+                    val prayerName = call.argument<String>("prayerName") ?: "الصلاة"
+                    val soundId = call.argument<String>("soundId") ?: "qatami"
+                    val rawRes = call.argument<String>("rawRes")
+                    val title = call.argument<String>("title")
+                    val muadhin = call.argument<String>("muadhin")
+                    val volume = call.argument<Double>("volume") ?: 1.0
+                    val isAlarmMode = call.argument<Boolean>("isAlarmMode") ?: true
+                    AdhanForegroundService.startAdhan(
+                        context = applicationContext,
+                        prayerName = prayerName,
+                        soundId = soundId,
+                        rawRes = rawRes,
+                        title = title,
+                        muadhin = muadhin,
+                        volume = volume,
+                        isAlarmMode = isAlarmMode
+                    )
+                    result.success(true)
+                }
                 "startAdhanMonitoring" -> {
                     AdhanVolumeManager.startAdhanMonitoring(applicationContext)
                     result.success(true)
@@ -308,7 +308,8 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 "stopAdhan" -> {
-                    AdhanVolumeManager.stopAdhan(applicationContext)
+                    AdhanForegroundService.stopAdhan(applicationContext)
+                    AdhanVolumeManager.stopAdhan(applicationContext, fromFlutter = true)
                     result.success(true)
                 }
                 "pauseAdhan" -> {
@@ -320,7 +321,7 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 "isAdhanPlaying" -> {
-                    result.success(AdhanVolumeManager.isAdhanActive(applicationContext))
+                    result.success(AdhanForegroundService.isPlaying || AdhanVolumeManager.isAdhanActive(applicationContext))
                 }
                 "setAdhanVolume" -> {
                     val volume = (call.argument<Double>("volume") ?: 1.0)
@@ -347,10 +348,14 @@ class MainActivity : FlutterActivity() {
                 "requestIgnoreBatteryOptimizations" -> {
                     try {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                data = Uri.parse("package:$packageName")
+                            val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+                            val isIgnoring = powerManager?.isIgnoringBatteryOptimizations(packageName) ?: false
+                            if (!isIgnoring) {
+                                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                    data = Uri.parse("package:$packageName")
+                                }
+                                startActivity(intent)
                             }
-                            startActivity(intent)
                             result.success(true)
                         } else {
                             result.success(true)
@@ -376,6 +381,80 @@ class MainActivity : FlutterActivity() {
                         result.success(false)
                     }
                 }
+                "scheduleNativeAlarms" -> {
+                    try {
+                        val alarms = call.argument<List<Map<String, Any>>>("alarms") ?: emptyList()
+                        AdhanAlarmScheduler.scheduleAlarms(applicationContext, alarms)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("ALARM_ERROR", e.message, null)
+                    }
+                }
+                "cancelNativeAlarms" -> {
+                    try {
+                        AdhanAlarmScheduler.cancelAllAlarms(applicationContext)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("ALARM_ERROR", e.message, null)
+                    }
+                }
+                "scheduleNativeTestAlarm" -> {
+                    try {
+                        val delaySeconds = call.argument<Int>("delaySeconds") ?: 10
+                        val prayerName = call.argument<String>("prayerName") ?: "الظهر"
+                        val soundId = call.argument<String>("soundId") ?: "qatami"
+                        val rawRes = call.argument<String>("rawRes")
+                        val title = call.argument<String>("title")
+                        val muadhin = call.argument<String>("muadhin")
+                        val volume = call.argument<Double>("volume") ?: 1.0
+                        val isAlarmMode = call.argument<Boolean>("isAlarmMode") ?: true
+                        val res = AdhanAlarmScheduler.scheduleTestAlarm(
+                            context = applicationContext,
+                            delaySeconds = delaySeconds,
+                            prayerName = prayerName,
+                            soundId = soundId,
+                            rawRes = rawRes,
+                            title = title,
+                            muadhin = muadhin,
+                            volume = volume,
+                            isAlarmMode = isAlarmMode
+                        )
+                        result.success(res)
+                    } catch (e: Exception) {
+                        result.error("TEST_ALARM_ERROR", e.message, null)
+                    }
+                }
+                "scheduleNativeTestPrePrayerAlarm" -> {
+                    try {
+                        val delaySeconds = call.argument<Int>("delaySeconds") ?: 10
+                        val prayerName = call.argument<String>("prayerName") ?: "الظهر"
+                        val rawRes = call.argument<String>("rawRes")
+                        val volume = call.argument<Double>("volume") ?: 1.0
+                        val res = AdhanAlarmScheduler.scheduleTestPrePrayerAlarm(
+                            context = applicationContext,
+                            delaySeconds = delaySeconds,
+                            prayerName = prayerName,
+                            rawRes = rawRes,
+                            volume = volume
+                        )
+                        result.success(res)
+                    } catch (e: Exception) {
+                        result.error("TEST_PRE_ERROR", e.message, null)
+                    }
+                }
+                "saveNativeScheduleData" -> {
+                    try {
+                        val data = call.argument<String>("scheduleData") ?: ""
+                        AdhanAlarmScheduler.saveScheduleData(applicationContext, data)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SAVE_ERROR", e.message, null)
+                    }
+                }
+                "stopPrePrayerVoice" -> {
+                    AdhanAlarmReceiver.stopPrePrayerVoice()
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -384,18 +463,43 @@ class MainActivity : FlutterActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
             val keyCode = event.keyCode
-            if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-                if (AdhanVolumeManager.isAdhanActive(applicationContext)) {
-                    AdhanVolumeManager.stopAdhan(applicationContext)
-                    return true // Consume key event to silence/stop Adhan immediately
+            if (keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
+                keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
+                keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) {
+                // Only silence if the native foreground Adhan alarm service is actively playing
+                // Never intercept volume keys when the user is simply previewing audio in the app!
+                if (AdhanForegroundService.isPlaying) {
+                    stopAdhanLocally()
+                    return true
                 }
             }
         }
         return super.dispatchKeyEvent(event)
     }
 
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
+            keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
+            keyCode == KeyEvent.KEYCODE_VOLUME_MUTE) {
+            if (AdhanForegroundService.isPlaying) {
+                stopAdhanLocally()
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    private fun stopAdhanLocally() {
+        AdhanForegroundService.stopAdhan(applicationContext)
+        AdhanVolumeManager.stopAdhan(applicationContext)
+        AdhanAlarmReceiver.stopPrePrayerVoice()
+    }
+
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
-        adhanMethodChannel?.let { AdhanVolumeManager.unregisterChannel(it) }
+        adhanMethodChannel?.let {
+            AdhanVolumeManager.unregisterChannel(it)
+            AdhanPlugin.unregisterChannel(it)
+        }
         adhanMethodChannel = null
         super.cleanUpFlutterEngine(flutterEngine)
     }

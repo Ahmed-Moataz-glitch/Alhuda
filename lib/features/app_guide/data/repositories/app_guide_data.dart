@@ -12,6 +12,7 @@ import 'package:alhuda/features/takweem/presentation/view/widgets/hijri_calendar
 import 'package:alhuda/features/tasbeeh/presentation/view/widgets/tasbeeh_widget.dart';
 
 class AppGuideData {
+  static const String videoAssetPath = 'assets/video/app_guide.mp4';
   static const String videoUrl = 'https://www.youtube.com/watch?v=5lrnmmRFXSI';
   static const String videoId = '5lrnmmRFXSI';
   static const String videoTitle = 'شرح مميزات وطريقة استخدام تطبيق الهُدى';
